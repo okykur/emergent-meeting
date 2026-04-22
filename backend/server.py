@@ -177,6 +177,8 @@ class Booking(BaseModel):
     notes: str
     status: str
     created_at: str
+    checked_in_at: Optional[str] = None
+    checked_out_at: Optional[str] = None
 
 
 # ---------- Util ----------
@@ -429,6 +431,70 @@ async def cancel_booking(booking_id: str, user: dict = Depends(get_current_user)
         raise HTTPException(status_code=400, detail=f"Cannot cancel a {bk['status']} booking")
     await db.bookings.update_one({"id": booking_id}, {"$set": {"status": "cancelled"}})
     bk["status"] = "cancelled"
+    return Booking(**bk)
+
+
+# ---------- Check-in / Check-out (user) ----------
+def _booking_window(bk: dict) -> tuple[datetime, datetime]:
+    start = datetime.fromisoformat(f"{bk['date']}T{bk['start_time']}")
+    end = datetime.fromisoformat(f"{bk['date']}T{bk['end_time']}")
+    return start, end
+
+
+@api.post("/bookings/{booking_id}/check-in", response_model=Booking)
+async def check_in_booking(booking_id: str, user: dict = Depends(get_current_user)):
+    bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if bk["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="You can only check in to your own booking")
+    if bk["status"] != "confirmed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only confirmed bookings can be checked in (current status: {bk['status']})",
+        )
+    if bk.get("checked_in_at"):
+        raise HTTPException(status_code=400, detail="You have already checked in to this booking")
+    start, end = _booking_window(bk)
+    now = datetime.now()
+    if now < start:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too early to check in. Check-in opens at {bk['date']} {bk['start_time']}.",
+        )
+    if now > end:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too late to check in. This booking ended at {bk['date']} {bk['end_time']}.",
+        )
+    ts = datetime.now(timezone.utc).isoformat()
+    await db.bookings.update_one({"id": booking_id}, {"$set": {"checked_in_at": ts}})
+    bk["checked_in_at"] = ts
+    return Booking(**bk)
+
+
+@api.post("/bookings/{booking_id}/check-out", response_model=Booking)
+async def check_out_booking(booking_id: str, user: dict = Depends(get_current_user)):
+    bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if bk["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="You can only check out of your own booking")
+    if not bk.get("checked_in_at"):
+        raise HTTPException(status_code=400, detail="You must check in before you can check out")
+    if bk.get("checked_out_at"):
+        raise HTTPException(status_code=400, detail="You have already checked out of this booking")
+    start, _end = _booking_window(bk)
+    now = datetime.now()
+    if now < start:
+        raise HTTPException(status_code=400, detail="Cannot check out before the booking has started")
+    ts = datetime.now(timezone.utc).isoformat()
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": {"checked_out_at": ts, "status": "completed"}},
+    )
+    bk["checked_out_at"] = ts
+    bk["status"] = "completed"
     return Booking(**bk)
 
 
