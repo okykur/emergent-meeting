@@ -1,0 +1,102 @@
+{
+  "project_name": "Meeting Room Booking Application",
+  "theme": "light",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "vibe_and_tone": "Polished, trustworthy, and efficient. The design should feel like a high-end enterprise tool. Clear typography, robust data tables, and a seamless booking flow with intuitive availability indicators.",
+  "colors": {
+    "background": "#FFFFFF",
+    "surface_primary": "#F8F9FA",
+    "surface_secondary": "#F1F5F9",
+    "text_primary": "#0F172A",
+    "text_secondary": "#475569",
+    "brand_primary": "#0055FF",
+    "brand_primary_hover": "#0044CC",
+    "brand_secondary": "#1E293B",
+    "status": {
+      "success": "#10B981",
+      "success_bg": "#D1FAE5",
+      "warning": "#F59E0B",
+      "warning_bg": "#FEF3C7",
+      "error": "#EF4444",
+      "error_bg": "#FEE2E2",
+      "info": "#3B82F6",
+      "info_bg": "#DBEAFE"
+    },
+    "border": "#E2E8F0"
+  },
+  "typography": {
+    "heading_font": "Outfit",
+    "body_font": "IBM Plex Sans",
+    "scale": {
+      "h1": "text-4xl md:text-5xl font-bold tracking-tight",
+      "h2": "text-2xl md:text-3xl font-semibold tracking-tight",
+      "h3": "text-xl md:text-2xl font-medium tracking-tight",
+      "h4": "text-lg font-medium",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm text-slate-500",
+      "micro": "text-xs font-semibold tracking-[0.2em] uppercase text-slate-500"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Structured, functional density for dashboards. Generous padding around distinct content blocks to create optical separation.",
+    "container_padding": "p-6 md:p-8",
+    "bento_grid": "grid grid-cols-1 md:grid-cols-12 gap-6",
+    "border_radius": "rounded-none md:rounded-sm",
+    "shadows": {
+      "subtle": "shadow-sm",
+      "hover": "shadow-md transition-shadow duration-200"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#0055FF] text-white hover:bg-[#0044CC] font-medium px-4 py-2 rounded-sm transition-colors data-[testid='primary-btn']",
+      "secondary": "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium px-4 py-2 rounded-sm transition-colors",
+      "destructive": "bg-red-500 text-white hover:bg-red-600 font-medium px-4 py-2 rounded-sm transition-colors",
+      "ghost": "bg-transparent text-slate-600 hover:bg-slate-100 px-4 py-2 rounded-sm transition-colors"
+    },
+    "cards": {
+      "default": "bg-white border border-slate-200 rounded-sm p-6 shadow-sm",
+      "interactive": "bg-white border border-slate-200 rounded-sm p-6 shadow-sm hover:border-[#0055FF] hover:shadow-md transition-all cursor-pointer",
+      "metric": "bg-white border border-slate-200 border-l-4 border-l-[#0055FF] rounded-sm p-5 shadow-sm"
+    },
+    "inputs": {
+      "default": "border border-slate-300 rounded-sm px-3 py-2 text-base focus:ring-2 focus:ring-[#0055FF]/20 focus:border-[#0055FF] outline-none transition-all w-full",
+      "label": "block text-sm font-medium text-slate-700 mb-1"
+    },
+    "tables": {
+      "wrapper": "w-full overflow-hidden border border-slate-200 rounded-sm",
+      "header": "bg-slate-50 text-xs font-semibold uppercase text-slate-500 tracking-wider text-left",
+      "row": "border-b border-slate-200 hover:bg-slate-50 transition-colors",
+      "cell": "px-6 py-4 whitespace-nowrap text-sm text-slate-700"
+    },
+    "status_badges": {
+      "base": "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+      "confirmed": "bg-emerald-100 text-emerald-800",
+      "pending": "bg-amber-100 text-amber-800",
+      "cancelled": "bg-red-100 text-red-800",
+      "completed": "bg-blue-100 text-blue-800"
+    },
+    "navigation": {
+      "header": "sticky top-0 z-50 w-full backdrop-blur-xl bg-white/90 border-b border-slate-200 shadow-sm",
+      "sidebar": "w-64 bg-slate-900 text-slate-300 flex-shrink-0 h-screen fixed overflow-y-auto"
+    }
+  },
+  "media": {
+    "login_background": "https://images.pexels.com/photos/37347/office-sitting-room-executive-sitting.jpg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "room_placeholders": [
+      "https://images.pexels.com/photos/8761299/pexels-photo-8761299.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "https://images.pexels.com/photos/9300767/pexels-photo-9300767.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "https://images.unsplash.com/photo-1762176263996-a0713a49ee4d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTF8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBjb3Jwb3JhdGUlMjBtZWV0aW5nJTIwcm9vbXxlbnwwfHx8fDE3NzY4MjQ3MDF8MA&ixlib=rb-4.1.0&q=85",
+      "https://images.pexels.com/photos/260689/pexels-photo-260689.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+    ]
+  },
+  "instructions_to_main_agent": {
+    "general": "Build a responsive PWA with two main modules: User App and Admin App. Focus on high data clarity and professional interaction states.",
+    "testing": "All interactive elements, forms, cards, and specific dashboard metrics MUST include descriptive `data-testid` attributes (e.g., `data-testid='room-card-123'`, `data-testid='book-btn'`).",
+    "ui_library": "Use Shadcn/UI for tables, dialogs, forms, dropdowns, and date pickers. Customize the default Vercel look by applying the 1px 'Grid Border' technical style with very subtle rounded-sm corners instead of standard soft cards.",
+    "icons": "Use @phosphor-icons/react (Duotone weight) for a high-end corporate feel. Install via `yarn add @phosphor-icons/react`.",
+    "animations": "Keep animations functional. Use subtle transitions on hover and micro-interactions for buttons and form validation. No heavy parallax or distractive scroll effects on dashboard views.",
+    "admin_dashboard": "Implement a 'Control Room' grid layout for the Admin section to maximize space usage. Ensure all columns in data tables align properly and feature inline quick actions.",
+    "pwa": "Ensure manifest.json and a basic service worker are included for the PWA requirement."
+  }
+}
