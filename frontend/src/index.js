@@ -9,3 +9,12 @@ root.render(
     <App />
   </React.StrictMode>,
 );
+
+// Register service worker for PWA (production only to avoid dev-hot-reload issues)
+if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/service-worker.js")
+      .catch((err) => console.warn("SW registration failed", err));
+  });
+}
