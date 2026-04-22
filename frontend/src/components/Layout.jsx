@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   LayoutDashboard,
   CalendarCheck2,
+  CalendarDays,
   DoorOpen,
   Users,
   LogOut,
@@ -43,11 +44,13 @@ export default function Layout({ admin = false }) {
   const userNav = [
     { to: "/rooms", label: "Meeting Rooms", icon: DoorOpen, testid: "nav-rooms" },
     { to: "/my-bookings", label: "My Bookings", icon: BookMarked, testid: "nav-my-bookings" },
+    { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-calendar" },
   ];
 
   const adminNav = [
     { to: "/admin", label: "Dashboard", icon: LayoutDashboard, testid: "nav-admin-dashboard", end: true },
     { to: "/admin/bookings", label: "Bookings", icon: CalendarCheck2, testid: "nav-admin-bookings" },
+    { to: "/admin/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-admin-calendar" },
     { to: "/admin/rooms", label: "Rooms", icon: DoorOpen, testid: "nav-admin-rooms" },
   ];
 

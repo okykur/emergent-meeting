@@ -7,9 +7,11 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Rooms from "@/pages/Rooms";
 import MyBookings from "@/pages/MyBookings";
+import MyCalendar from "@/pages/MyCalendar";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminBookings from "@/pages/admin/Bookings";
 import AdminRooms from "@/pages/admin/Rooms";
+import AdminCalendar from "@/pages/admin/Calendar";
 import { Toaster } from "sonner";
 
 function RootRedirect() {
@@ -38,6 +40,7 @@ function App() {
             >
               <Route path="/rooms" element={<Rooms />} />
               <Route path="/my-bookings" element={<MyBookings />} />
+              <Route path="/calendar" element={<MyCalendar />} />
             </Route>
 
             <Route
@@ -49,6 +52,7 @@ function App() {
             >
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/bookings" element={<AdminBookings />} />
+              <Route path="/admin/calendar" element={<AdminCalendar />} />
               <Route path="/admin/rooms" element={<AdminRooms />} />
             </Route>
 

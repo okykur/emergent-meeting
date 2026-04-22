@@ -96,6 +96,7 @@ class UserPublic(BaseModel):
     id: str
     email: EmailStr
     name: str
+    company_name: str = ""
     role: Literal["user", "admin"]
     created_at: str
 
@@ -104,6 +105,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
     name: str = Field(min_length=1)
+    company_name: str = Field(min_length=1, max_length=120)
 
 
 class LoginRequest(BaseModel):
@@ -215,6 +217,7 @@ async def register(payload: RegisterRequest):
         "id": user_id,
         "email": email,
         "name": payload.name.strip(),
+        "company_name": payload.company_name.strip(),
         "password_hash": hash_password(payload.password),
         "role": "user",
         "created_at": _now_iso(),
@@ -232,6 +235,7 @@ async def login(payload: LoginRequest):
     if not user or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_access_token(user["id"], user["email"], user["role"])
+    user.setdefault("company_name", "")
     public = {k: v for k, v in user.items() if k not in ("password_hash", "_id")}
     return AuthResponse(user=UserPublic(**public), access_token=token)
 
@@ -521,6 +525,7 @@ async def seed_admin():
                 "id": str(uuid.uuid4()),
                 "email": ADMIN_EMAIL.lower(),
                 "name": "System Admin",
+                "company_name": "RoomBook",
                 "password_hash": hash_password(ADMIN_PASSWORD),
                 "role": "admin",
                 "created_at": _now_iso(),

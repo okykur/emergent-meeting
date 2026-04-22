@@ -8,6 +8,7 @@ export default function Register() {
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -21,7 +22,7 @@ export default function Register() {
       return;
     }
     setLoading(true);
-    const res = await register(name, email, password);
+    const res = await register(name, company, email, password);
     setLoading(false);
     if (res.ok) {
       navigate("/rooms", { replace: true });
@@ -66,6 +67,17 @@ export default function Register() {
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
               placeholder="Alex Rivera"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Company name</label>
+            <input
+              data-testid="register-company-input"
+              required
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              placeholder="Acme Corp."
             />
           </div>
           <div>
