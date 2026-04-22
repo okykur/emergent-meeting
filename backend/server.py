@@ -498,6 +498,111 @@ async def check_out_booking(booking_id: str, user: dict = Depends(get_current_us
     return Booking(**bk)
 
 
+# ---------- Admin: Users management ----------
+class AdminUserUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1)
+    company_name: Optional[str] = Field(default=None, max_length=120)
+    role: Optional[Literal["user", "admin"]] = None
+
+
+class AdminPasswordReset(BaseModel):
+    password: str = Field(min_length=6)
+
+
+class AdminUserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=6)
+    name: str = Field(min_length=1)
+    company_name: str = ""
+    role: Literal["user", "admin"] = "user"
+
+
+@api.get("/users", response_model=List[UserPublic])
+async def list_users(
+    admin: dict = Depends(require_admin),
+    q: Optional[str] = None,
+    role: Optional[Literal["user", "admin"]] = None,
+):
+    query: dict = {}
+    if role:
+        query["role"] = role
+    if q:
+        query["$or"] = [
+            {"email": {"$regex": q, "$options": "i"}},
+            {"name": {"$regex": q, "$options": "i"}},
+            {"company_name": {"$regex": q, "$options": "i"}},
+        ]
+    users = await db.users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(1000)
+    for u in users:
+        u.setdefault("company_name", "")
+    return [UserPublic(**u) for u in users]
+
+
+@api.post("/users", response_model=UserPublic)
+async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(require_admin)):
+    email = payload.email.lower()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Email already registered")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "email": email,
+        "name": payload.name.strip(),
+        "company_name": payload.company_name.strip(),
+        "password_hash": hash_password(payload.password),
+        "role": payload.role,
+        "created_at": _now_iso(),
+    }
+    await db.users.insert_one(doc)
+    doc.pop("password_hash", None)
+    return UserPublic(**doc)
+
+
+@api.patch("/users/{user_id}", response_model=UserPublic)
+async def admin_update_user(
+    user_id: str, payload: AdminUserUpdate, admin: dict = Depends(require_admin)
+):
+    updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    # Prevent self-demotion
+    if user_id == admin["id"] and updates.get("role") == "user":
+        raise HTTPException(status_code=400, detail="You cannot demote yourself")
+    result = await db.users.update_one({"id": user_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    user.setdefault("company_name", "")
+    return UserPublic(**user)
+
+
+@api.post("/users/{user_id}/password", response_model=UserPublic)
+async def admin_reset_password(
+    user_id: str, payload: AdminPasswordReset, admin: dict = Depends(require_admin)
+):
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"password_hash": hash_password(payload.password)}},
+    )
+    user.pop("password_hash", None)
+    user.setdefault("company_name", "")
+    return UserPublic(**user)
+
+
+@api.delete("/users/{user_id}")
+async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):
+    if user_id == admin["id"]:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    # Cascade: delete user's bookings? Safer to keep bookings (historical). Just delete user.
+    await db.users.delete_one({"id": user_id})
+    return {"ok": True}
+
+
 # ---------- Admin Stats ----------
 @api.get("/admin/stats")
 async def admin_stats(admin: dict = Depends(require_admin)):

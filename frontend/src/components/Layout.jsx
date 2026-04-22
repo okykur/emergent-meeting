@@ -52,6 +52,7 @@ export default function Layout({ admin = false }) {
     { to: "/admin/bookings", label: "Bookings", icon: CalendarCheck2, testid: "nav-admin-bookings" },
     { to: "/admin/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-admin-calendar" },
     { to: "/admin/rooms", label: "Rooms", icon: DoorOpen, testid: "nav-admin-rooms" },
+    { to: "/admin/users", label: "Users", icon: Users, testid: "nav-admin-users" },
   ];
 
   const nav = admin ? adminNav : userNav;

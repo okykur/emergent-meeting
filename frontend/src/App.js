@@ -12,6 +12,7 @@ import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminBookings from "@/pages/admin/Bookings";
 import AdminRooms from "@/pages/admin/Rooms";
 import AdminCalendar from "@/pages/admin/Calendar";
+import AdminUsers from "@/pages/admin/Users";
 import { Toaster } from "sonner";
 
 function RootRedirect() {
@@ -54,6 +55,7 @@ function App() {
               <Route path="/admin/bookings" element={<AdminBookings />} />
               <Route path="/admin/calendar" element={<AdminCalendar />} />
               <Route path="/admin/rooms" element={<AdminRooms />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
