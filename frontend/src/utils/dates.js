@@ -30,6 +30,25 @@ export function next7Days(from = new Date()) {
   return days;
 }
 
+// Build an array of day objects from startYMD to endYMD (inclusive). Caps at `max` days.
+export function rangeDays(startYMD, endYMD, max = 31) {
+  const out = [];
+  if (!startYMD || !endYMD) return out;
+  const start = new Date(startYMD + "T00:00:00");
+  const end = new Date(endYMD + "T00:00:00");
+  if (isNaN(start) || isNaN(end) || end < start) return out;
+  const d = new Date(start);
+  while (d <= end && out.length < max) {
+    out.push({
+      ymd: toYMD(d),
+      label: d.toLocaleDateString(undefined, { weekday: "short" }),
+      day: d.getDate(),
+    });
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+
 // Compute availability status for a given day given bookings
 // Returns: 'free' | 'partial' | 'full'
 // Heuristic: working hours 08:00-20:00 (12h). If total booked minutes >= 11.5h => full. 0 => free. else partial.
