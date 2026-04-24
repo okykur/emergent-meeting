@@ -22,7 +22,8 @@ export default function Login() {
     setLoading(false);
     if (res.ok) {
       if (from) return navigate(from, { replace: true });
-      navigate(res.user.role === "admin" ? "/admin" : "/hub", { replace: true });
+      const isAdmin = ["meeting_admin", "car_admin", "super_admin"].includes(res.user.role);
+      navigate(isAdmin ? "/admin" : "/hub", { replace: true });
     } else {
       setError(res.error);
     }

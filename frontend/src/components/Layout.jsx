@@ -10,6 +10,7 @@ import {
   Building2,
   BookMarked,
   Home,
+  Car,
   Menu,
   X,
 } from "lucide-react";
@@ -47,13 +48,20 @@ export default function Layout({ admin = false }) {
     { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-calendar" },
   ];
 
-  const adminNav = [
-    { to: "/admin", label: "Dashboard", icon: LayoutDashboard, testid: "nav-admin-dashboard", end: true },
-    { to: "/admin/bookings", label: "Bookings", icon: CalendarCheck2, testid: "nav-admin-bookings" },
-    { to: "/admin/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-admin-calendar" },
-    { to: "/admin/rooms", label: "Rooms", icon: DoorOpen, testid: "nav-admin-rooms" },
-    { to: "/admin/users", label: "Users", icon: Users, testid: "nav-admin-users" },
+  const role = user?.role;
+  const isSuper = role === "super_admin";
+  const isMeetingAdmin = role === "meeting_admin" || isSuper;
+  const isCarAdmin = role === "car_admin" || isSuper;
+
+  const adminNavFull = [
+    { to: "/admin", label: "Dashboard", icon: LayoutDashboard, testid: "nav-admin-dashboard", end: true, show: true },
+    { to: "/admin/bookings", label: "Bookings", icon: CalendarCheck2, testid: "nav-admin-bookings", show: isMeetingAdmin },
+    { to: "/admin/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-admin-calendar", show: isMeetingAdmin },
+    { to: "/admin/rooms", label: "Rooms", icon: DoorOpen, testid: "nav-admin-rooms", show: isMeetingAdmin },
+    { to: "/admin/cars", label: "Car / Vehicle", icon: Car, testid: "nav-admin-cars", show: isCarAdmin },
+    { to: "/admin/users", label: "Users", icon: Users, testid: "nav-admin-users", show: isSuper },
   ];
+  const adminNav = adminNavFull.filter((n) => n.show);
 
   const nav = admin ? adminNav : userNav;
 
@@ -88,7 +96,7 @@ export default function Layout({ admin = false }) {
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            {user && user.role === "admin" && !admin && (
+            {user && ["meeting_admin", "car_admin", "super_admin"].includes(user.role) && !admin && (
               <Link
                 to="/admin"
                 data-testid="go-admin-link"
@@ -119,7 +127,14 @@ export default function Layout({ admin = false }) {
               <div className="text-right">
                 <div className="text-sm font-medium text-slate-900">{user?.name}</div>
                 <div className="text-xs uppercase tracking-widest text-slate-500">
-                  {user?.role}
+                  {
+                    {
+                      user: "User",
+                      meeting_admin: "Meeting Admin",
+                      car_admin: "Car Admin",
+                      super_admin: "Super Admin",
+                    }[user?.role] || user?.role
+                  }
                 </div>
               </div>
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold uppercase text-white">

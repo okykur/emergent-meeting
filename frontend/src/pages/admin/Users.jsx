@@ -14,22 +14,36 @@ import {
 } from "lucide-react";
 
 function RoleTag({ role }) {
-  if (role === "admin") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-sm border border-[#0055FF]/30 bg-[#0055FF]/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[#0055FF]"
-        data-testid={`role-tag-admin`}
-      >
-        <Shield className="h-3 w-3" /> Admin
-      </span>
-    );
-  }
+  const config = {
+    super_admin: {
+      label: "Super Admin",
+      icon: Shield,
+      cls: "border-[#0055FF]/30 bg-[#0055FF]/10 text-[#0055FF]",
+    },
+    meeting_admin: {
+      label: "Meeting Admin",
+      icon: Shield,
+      cls: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    },
+    car_admin: {
+      label: "Car Admin",
+      icon: Shield,
+      cls: "border-amber-200 bg-amber-50 text-amber-700",
+    },
+    user: {
+      label: "User",
+      icon: UserIcon,
+      cls: "border-slate-200 bg-slate-100 text-slate-600",
+    },
+  };
+  const c = config[role] || config.user;
+  const Icon = c.icon;
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-sm border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600"
-      data-testid={`role-tag-user`}
+      className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${c.cls}`}
+      data-testid={`role-tag-${role}`}
     >
-      <UserIcon className="h-3 w-3" /> User
+      <Icon className="h-3 w-3" /> {c.label}
     </span>
   );
 }
@@ -156,8 +170,13 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
             >
               <option value="user">User</option>
-              <option value="admin">Admin</option>
+              <option value="meeting_admin">Meeting Admin — approve meeting-room bookings</option>
+              <option value="car_admin">Car Admin — approve car/vehicle bookings</option>
+              <option value="super_admin">Super Admin — full access</option>
             </select>
+            <p className="mt-1 text-xs text-slate-500">
+              Each admin role only manages its own division. Super Admin has access to everything, including user management.
+            </p>
           </div>
           {error && (
             <div className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -387,7 +406,9 @@ export default function AdminUsers() {
         >
           <option value="">All roles</option>
           <option value="user">Users</option>
-          <option value="admin">Admins</option>
+          <option value="meeting_admin">Meeting Admins</option>
+          <option value="car_admin">Car Admins</option>
+          <option value="super_admin">Super Admins</option>
         </select>
         <button
           type="submit"

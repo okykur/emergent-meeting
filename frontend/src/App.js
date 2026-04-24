@@ -15,13 +15,24 @@ import AdminBookings from "@/pages/admin/Bookings";
 import AdminRooms from "@/pages/admin/Rooms";
 import AdminCalendar from "@/pages/admin/Calendar";
 import AdminUsers from "@/pages/admin/Users";
+import AdminCars from "@/pages/admin/Cars";
 import { Toaster } from "sonner";
 
 function RootRedirect() {
   const { user } = useAuth();
   if (user === null) return null;
   if (user === false) return <Navigate to="/login" replace />;
-  return <Navigate to={user.role === "admin" ? "/admin" : "/hub"} replace />;
+  const isAdmin = ["meeting_admin", "car_admin", "super_admin"].includes(user.role);
+  return <Navigate to={isAdmin ? "/admin" : "/hub"} replace />;
+}
+
+function AdminHome() {
+  const { user } = useAuth();
+  // Car admin has no meeting-room dashboard data — send them to their console
+  if (user && user.role === "car_admin") {
+    return <Navigate to="/admin/cars" replace />;
+  }
+  return <AdminDashboard />;
 }
 
 function App() {
@@ -55,11 +66,19 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin" element={<AdminHome />} />
               <Route path="/admin/bookings" element={<AdminBookings />} />
               <Route path="/admin/calendar" element={<AdminCalendar />} />
               <Route path="/admin/rooms" element={<AdminRooms />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/cars" element={<AdminCars />} />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute superAdminOnly>
+                    <AdminUsers />
+                  </ProtectedRoute>
+                }
+              />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

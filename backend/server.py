@@ -85,10 +85,31 @@ async def get_current_user(request: Request) -> dict:
     return user
 
 
-async def require_admin(user: dict = Depends(get_current_user)) -> dict:
-    if user.get("role") != "admin":
+ADMIN_ROLES = {"meeting_admin", "car_admin", "super_admin"}
+MEETING_ADMIN_ROLES = {"meeting_admin", "super_admin"}
+CAR_ADMIN_ROLES = {"car_admin", "super_admin"}
+
+
+async def require_any_admin(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") not in ADMIN_ROLES:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
+
+
+async def require_meeting_admin(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") not in MEETING_ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Meeting-room admin access required")
+    return user
+
+
+async def require_super_admin(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Super admin access required")
+    return user
+
+
+# Backward-compat alias — treat the old 'admin' name as meeting admin checker for existing routes.
+require_admin = require_meeting_admin
 
 
 # ---------- Models ----------
@@ -97,7 +118,7 @@ class UserPublic(BaseModel):
     email: EmailStr
     name: str
     company_name: str = ""
-    role: Literal["user", "admin"]
+    role: Literal["user", "meeting_admin", "car_admin", "super_admin"]
     created_at: str
 
 
@@ -252,18 +273,20 @@ async def me(current_user: dict = Depends(get_current_user)):
     return UserPublic(**current_user)
 
 
-# Admin: promote self to admin (only during initial setup or via admin)
+# Admin: promote a user (super admin only)
 class PromoteRequest(BaseModel):
     email: EmailStr
+    role: Literal["user", "meeting_admin", "car_admin", "super_admin"] = "meeting_admin"
 
 
 @api.post("/auth/promote", response_model=UserPublic)
-async def promote_user(payload: PromoteRequest, admin: dict = Depends(require_admin)):
+async def promote_user(payload: PromoteRequest, admin: dict = Depends(require_super_admin)):
     target = await db.users.find_one({"email": payload.email.lower()})
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
-    await db.users.update_one({"id": target["id"]}, {"$set": {"role": "admin"}})
-    target["role"] = "admin"
+    await db.users.update_one({"id": target["id"]}, {"$set": {"role": payload.role}})
+    target["role"] = payload.role
+    target.setdefault("company_name", "")
     return UserPublic(**{k: v for k, v in target.items() if k not in ("password_hash", "_id")})
 
 
@@ -425,7 +448,7 @@ async def cancel_booking(booking_id: str, user: dict = Depends(get_current_user)
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     if not bk:
         raise HTTPException(status_code=404, detail="Booking not found")
-    if user["role"] != "admin" and bk["user_id"] != user["id"]:
+    if user["role"] not in ADMIN_ROLES and bk["user_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized to cancel this booking")
     if bk["status"] in ("cancelled", "completed"):
         raise HTTPException(status_code=400, detail=f"Cannot cancel a {bk['status']} booking")
@@ -498,11 +521,11 @@ async def check_out_booking(booking_id: str, user: dict = Depends(get_current_us
     return Booking(**bk)
 
 
-# ---------- Admin: Users management ----------
+# ---------- Admin: Users management (super admin only) ----------
 class AdminUserUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1)
     company_name: Optional[str] = Field(default=None, max_length=120)
-    role: Optional[Literal["user", "admin"]] = None
+    role: Optional[Literal["user", "meeting_admin", "car_admin", "super_admin"]] = None
 
 
 class AdminPasswordReset(BaseModel):
@@ -514,14 +537,14 @@ class AdminUserCreate(BaseModel):
     password: str = Field(min_length=6)
     name: str = Field(min_length=1)
     company_name: str = ""
-    role: Literal["user", "admin"] = "user"
+    role: Literal["user", "meeting_admin", "car_admin", "super_admin"] = "user"
 
 
 @api.get("/users", response_model=List[UserPublic])
 async def list_users(
-    admin: dict = Depends(require_admin),
+    admin: dict = Depends(require_super_admin),
     q: Optional[str] = None,
-    role: Optional[Literal["user", "admin"]] = None,
+    role: Optional[Literal["user", "meeting_admin", "car_admin", "super_admin"]] = None,
 ):
     query: dict = {}
     if role:
@@ -539,7 +562,7 @@ async def list_users(
 
 
 @api.post("/users", response_model=UserPublic)
-async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(require_admin)):
+async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(require_super_admin)):
     email = payload.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -559,14 +582,14 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
 
 @api.patch("/users/{user_id}", response_model=UserPublic)
 async def admin_update_user(
-    user_id: str, payload: AdminUserUpdate, admin: dict = Depends(require_admin)
+    user_id: str, payload: AdminUserUpdate, admin: dict = Depends(require_super_admin)
 ):
     updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
-    # Prevent self-demotion
-    if user_id == admin["id"] and updates.get("role") == "user":
-        raise HTTPException(status_code=400, detail="You cannot demote yourself")
+    # Prevent self-demotion away from super_admin
+    if user_id == admin["id"] and "role" in updates and updates["role"] != "super_admin":
+        raise HTTPException(status_code=400, detail="You cannot change your own role")
     result = await db.users.update_one({"id": user_id}, {"$set": updates})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
@@ -592,7 +615,7 @@ async def admin_reset_password(
 
 
 @api.delete("/users/{user_id}")
-async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):
+async def admin_delete_user(user_id: str, admin: dict = Depends(require_super_admin)):
     if user_id == admin["id"]:
         raise HTTPException(status_code=400, detail="You cannot delete your own account")
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
@@ -605,7 +628,7 @@ async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):
 
 # ---------- Admin Stats ----------
 @api.get("/admin/stats")
-async def admin_stats(admin: dict = Depends(require_admin)):
+async def admin_stats(admin: dict = Depends(require_any_admin)):
     today = datetime.now().strftime("%Y-%m-%d")
     total_rooms = await db.rooms.count_documents({})
     active_rooms = await db.rooms.count_documents({"is_active": True})
@@ -698,17 +721,31 @@ async def seed_admin():
                 "name": "System Admin",
                 "company_name": "RoomBook",
                 "password_hash": hash_password(ADMIN_PASSWORD),
-                "role": "admin",
+                "role": "super_admin",
                 "created_at": _now_iso(),
             }
         )
-        logger.info(f"Seeded admin user: {ADMIN_EMAIL}")
-    elif not verify_password(ADMIN_PASSWORD, existing["password_hash"]):
-        await db.users.update_one(
-            {"email": ADMIN_EMAIL.lower()},
-            {"$set": {"password_hash": hash_password(ADMIN_PASSWORD), "role": "admin"}},
-        )
-        logger.info(f"Updated admin password: {ADMIN_EMAIL}")
+        logger.info(f"Seeded super admin user: {ADMIN_EMAIL}")
+    else:
+        # Ensure the seeded admin always has super_admin role (backward-compat migration)
+        if existing.get("role") != "super_admin":
+            await db.users.update_one(
+                {"email": ADMIN_EMAIL.lower()}, {"$set": {"role": "super_admin"}}
+            )
+            logger.info(f"Upgraded {ADMIN_EMAIL} to super_admin role")
+        if not verify_password(ADMIN_PASSWORD, existing["password_hash"]):
+            await db.users.update_one(
+                {"email": ADMIN_EMAIL.lower()},
+                {"$set": {"password_hash": hash_password(ADMIN_PASSWORD)}},
+            )
+            logger.info(f"Updated super admin password: {ADMIN_EMAIL}")
+
+
+async def migrate_legacy_roles():
+    """Convert any pre-existing generic 'admin' role docs to 'super_admin'."""
+    res = await db.users.update_many({"role": "admin"}, {"$set": {"role": "super_admin"}})
+    if res.modified_count:
+        logger.info(f"Migrated {res.modified_count} legacy admin users to super_admin")
 
 
 async def seed_rooms():
@@ -728,6 +765,7 @@ async def on_startup():
     await db.bookings.create_index([("room_id", 1), ("date", 1)])
     await db.bookings.create_index("user_id")
     await seed_admin()
+    await migrate_legacy_roles()
     await seed_rooms()
 
 

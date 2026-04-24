@@ -1,7 +1,9 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-export default function ProtectedRoute({ children, adminOnly = false }) {
+const ADMIN_ROLES = ["meeting_admin", "car_admin", "super_admin"];
+
+export default function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false }) {
   const { user } = useAuth();
   const location = useLocation();
 
@@ -23,7 +25,11 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (adminOnly && user.role !== "admin") {
+  if (superAdminOnly && user.role !== "super_admin") {
+    return <Navigate to="/admin" replace />;
+  }
+
+  if (adminOnly && !ADMIN_ROLES.includes(user.role)) {
     return <Navigate to="/hub" replace />;
   }
 
