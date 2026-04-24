@@ -44,8 +44,6 @@ export default function Layout({ admin = false }) {
 
   const userNav = [
     { to: "/hub", label: "Home", icon: Home, testid: "nav-hub", end: true },
-    { to: "/rooms", label: "Meeting Rooms", icon: DoorOpen, testid: "nav-rooms" },
-    { to: "/my-bookings", label: "My Bookings", icon: BookMarked, testid: "nav-my-bookings" },
     { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-calendar" },
   ];
 
