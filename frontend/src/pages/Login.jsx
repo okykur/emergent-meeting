@@ -39,11 +39,14 @@ export default function Login() {
           backgroundPosition: "center",
         }}
       >
-        <div className="flex items-center gap-2 font-display text-xl font-bold">
-          <span className="flex h-9 w-9 items-center justify-center rounded-sm bg-[#0055FF]">
-            <Building2 className="h-5 w-5" />
-          </span>
-          RoomBook
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center rounded-sm bg-white p-2 shadow-sm">
+            <img
+              src="/brand-logo.png"
+              alt="KCSI Consulting-Shared Services"
+              className="h-10 w-auto object-contain"
+            />
+          </div>
         </div>
         <div>
           <div className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#0055FF]">
@@ -68,11 +71,12 @@ export default function Login() {
 
       <div className="flex flex-1 items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center gap-2 font-display text-lg font-bold lg:hidden">
-            <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-[#0055FF] text-white">
-              <Building2 className="h-4 w-4" />
-            </span>
-            RoomBook
+          <div className="mb-8 flex items-center gap-2 lg:hidden">
+            <img
+              src="/brand-logo.png"
+              alt="KCSI Consulting-Shared Services"
+              className="h-10 w-auto object-contain"
+            />
           </div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
             Welcome Back

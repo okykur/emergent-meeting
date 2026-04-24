@@ -18,15 +18,15 @@ function BrandMark() {
   return (
     <Link
       to="/"
-      className="flex items-center gap-2 font-display text-lg font-bold tracking-tight text-slate-900"
+      className="flex items-center gap-2"
       data-testid="brand-link"
+      aria-label="KCSI — Meeting Room Booking"
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-[#0055FF] text-white">
-        <Building2 className="h-4 w-4" />
-      </span>
-      <span>
-        Room<span className="text-[#0055FF]">Book</span>
-      </span>
+      <img
+        src="/brand-logo.png"
+        alt="KCSI Consulting-Shared Services"
+        className="h-10 w-auto object-contain"
+      />
     </Link>
   );
 }

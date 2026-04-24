@@ -34,11 +34,12 @@ export default function Register() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f8f9fa] px-6 py-12" data-testid="register-page">
       <div className="w-full max-w-md">
-        <div className="mb-8 flex items-center gap-2 font-display text-lg font-bold text-slate-900">
-          <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-[#0055FF] text-white">
-            <Building2 className="h-4 w-4" />
-          </span>
-          RoomBook
+        <div className="mb-8 flex items-center gap-2">
+          <img
+            src="/brand-logo.png"
+            alt="KCSI Consulting-Shared Services"
+            className="h-10 w-auto object-contain"
+          />
         </div>
         <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
           Create your account
