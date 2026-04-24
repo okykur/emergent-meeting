@@ -22,7 +22,7 @@ export default function Login() {
     setLoading(false);
     if (res.ok) {
       if (from) return navigate(from, { replace: true });
-      navigate(res.user.role === "admin" ? "/admin" : "/rooms", { replace: true });
+      navigate(res.user.role === "admin" ? "/admin" : "/hub", { replace: true });
     } else {
       setError(res.error);
     }
@@ -42,18 +42,18 @@ export default function Login() {
         </div>
         <div>
           <div className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#0055FF]">
-            Enterprise Booking Platform
+            Your Booking Hub
           </div>
           <h1 className="font-display text-5xl font-bold leading-tight text-slate-900">
-            Meeting rooms,
+            My Booking,
             <br />
-            booked the way
+            one place for
             <br />
-            they should be.
+            everything you reserve.
           </h1>
           <p className="mt-6 max-w-md text-base text-slate-600">
-            A structured, real-time availability platform for teams — from
-            huddle spaces to executive boardrooms.
+            Meeting rooms today, company cars next — a single hub for all your
+            workplace bookings.
           </p>
         </div>
         <div className="text-xs uppercase tracking-[0.25em] text-slate-400">

@@ -8,6 +8,8 @@ import Register from "@/pages/Register";
 import Rooms from "@/pages/Rooms";
 import MyBookings from "@/pages/MyBookings";
 import MyCalendar from "@/pages/MyCalendar";
+import Hub from "@/pages/Hub";
+import CarVehicle from "@/pages/CarVehicle";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminBookings from "@/pages/admin/Bookings";
 import AdminRooms from "@/pages/admin/Rooms";
@@ -19,7 +21,7 @@ function RootRedirect() {
   const { user } = useAuth();
   if (user === null) return null;
   if (user === false) return <Navigate to="/login" replace />;
-  return <Navigate to={user.role === "admin" ? "/admin" : "/rooms"} replace />;
+  return <Navigate to={user.role === "admin" ? "/admin" : "/hub"} replace />;
 }
 
 function App() {
@@ -39,6 +41,8 @@ function App() {
                 </ProtectedRoute>
               }
             >
+              <Route path="/hub" element={<Hub />} />
+              <Route path="/car" element={<CarVehicle />} />
               <Route path="/rooms" element={<Rooms />} />
               <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/calendar" element={<MyCalendar />} />

@@ -24,7 +24,7 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
   }
 
   if (adminOnly && user.role !== "admin") {
-    return <Navigate to="/rooms" replace />;
+    return <Navigate to="/hub" replace />;
   }
 
   return children;

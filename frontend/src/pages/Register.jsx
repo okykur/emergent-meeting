@@ -25,7 +25,7 @@ export default function Register() {
     const res = await register(name, company, email, password);
     setLoading(false);
     if (res.ok) {
-      navigate("/rooms", { replace: true });
+      navigate("/hub", { replace: true });
     } else {
       setError(res.error);
     }

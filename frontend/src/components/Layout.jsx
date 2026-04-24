@@ -9,6 +9,7 @@ import {
   LogOut,
   Building2,
   BookMarked,
+  Home,
   Menu,
   X,
 } from "lucide-react";
@@ -42,6 +43,7 @@ export default function Layout({ admin = false }) {
   };
 
   const userNav = [
+    { to: "/hub", label: "Home", icon: Home, testid: "nav-hub", end: true },
     { to: "/rooms", label: "Meeting Rooms", icon: DoorOpen, testid: "nav-rooms" },
     { to: "/my-bookings", label: "My Bookings", icon: BookMarked, testid: "nav-my-bookings" },
     { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-calendar" },
@@ -99,7 +101,7 @@ export default function Layout({ admin = false }) {
             )}
             {user && user.role === "user" && admin && (
               <Link
-                to="/rooms"
+                to="/hub"
                 data-testid="go-user-link"
                 className="hidden rounded-sm border border-slate-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-700 transition-colors hover:bg-slate-50 md:inline-flex"
               >
@@ -108,7 +110,7 @@ export default function Layout({ admin = false }) {
             )}
             {admin && (
               <Link
-                to="/rooms"
+                to="/hub"
                 data-testid="go-user-from-admin"
                 className="hidden rounded-sm border border-slate-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-700 transition-colors hover:bg-slate-50 md:inline-flex"
               >
