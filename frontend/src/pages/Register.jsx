@@ -38,7 +38,7 @@ export default function Register() {
           <img
             src="/brand-logo.png"
             alt="KCSI Consulting-Shared Services"
-            className="h-10 w-auto object-contain"
+            className="h-16 w-auto object-contain"
           />
         </div>
         <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">

@@ -25,7 +25,7 @@ function BrandMark() {
       <img
         src="/brand-logo.png"
         alt="KCSI Consulting-Shared Services"
-        className="h-10 w-auto object-contain"
+        className="h-14 w-auto object-contain"
       />
     </Link>
   );

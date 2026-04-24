@@ -31,40 +31,32 @@ export default function Login() {
   return (
     <div className="flex min-h-screen flex-col bg-[#f8f9fa] lg:flex-row" data-testid="login-page">
       <div
-        className="relative hidden lg:flex lg:w-1/2 lg:flex-col lg:justify-between lg:overflow-hidden lg:bg-slate-900 lg:p-12 lg:text-white"
-        style={{
-          backgroundImage:
-            "linear-gradient(135deg, rgba(15,23,42,0.88), rgba(15,23,42,0.95)), url('https://images.pexels.com/photos/37347/office-sitting-room-executive-sitting.jpg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        className="relative hidden border-r border-slate-200 bg-white lg:flex lg:w-1/2 lg:flex-col lg:justify-between lg:overflow-hidden lg:p-12"
       >
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center rounded-sm bg-white p-2 shadow-sm">
-            <img
-              src="/brand-logo.png"
-              alt="KCSI Consulting-Shared Services"
-              className="h-10 w-auto object-contain"
-            />
-          </div>
+          <img
+            src="/brand-logo.png"
+            alt="KCSI Consulting-Shared Services"
+            className="h-24 w-auto object-contain"
+          />
         </div>
         <div>
           <div className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#0055FF]">
             Enterprise Booking Platform
           </div>
-          <h1 className="font-display text-5xl font-bold leading-tight">
+          <h1 className="font-display text-5xl font-bold leading-tight text-slate-900">
             Meeting rooms,
             <br />
             booked the way
             <br />
             they should be.
           </h1>
-          <p className="mt-6 max-w-md text-base text-slate-300">
+          <p className="mt-6 max-w-md text-base text-slate-600">
             A structured, real-time availability platform for teams — from
             huddle spaces to executive boardrooms.
           </p>
         </div>
-        <div className="text-xs uppercase tracking-[0.25em] text-slate-500">
+        <div className="text-xs uppercase tracking-[0.25em] text-slate-400">
           Secure • Real-time • PWA-ready
         </div>
       </div>
@@ -75,7 +67,7 @@ export default function Login() {
             <img
               src="/brand-logo.png"
               alt="KCSI Consulting-Shared Services"
-              className="h-10 w-auto object-contain"
+              className="h-16 w-auto object-contain"
             />
           </div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
