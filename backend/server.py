@@ -832,9 +832,12 @@ class HandoverInfo(BaseModel):
     odometer_start: Optional[int] = None
     fuel_level_start: Optional[str] = None  # "Full" | "3/4" | "1/2" | "1/4" | "Empty"
     condition_before: Optional[str] = None
-    photo_url: Optional[str] = None
+    photo_url: Optional[str] = None  # legacy single URL
+    photos: List[str] = Field(default_factory=list)  # array of base64 data URLs (or http URLs)
     user_signature_name: Optional[str] = None
     admin_signature_name: Optional[str] = None
+    user_signature_data: Optional[str] = None  # base64 PNG of canvas signature
+    admin_signature_data: Optional[str] = None
 
 
 class ReturnInfo(BaseModel):
@@ -843,10 +846,13 @@ class ReturnInfo(BaseModel):
     odometer_end: Optional[int] = None
     fuel_level_end: Optional[str] = None
     condition_after: Optional[str] = None
-    photo_url: Optional[str] = None
+    photo_url: Optional[str] = None  # legacy single URL
+    photos: List[str] = Field(default_factory=list)
     damage_notes: Optional[str] = None
     user_signature_name: Optional[str] = None
     admin_signature_name: Optional[str] = None
+    user_signature_data: Optional[str] = None
+    admin_signature_data: Optional[str] = None
 
 
 class VehicleBookingCreate(BaseModel):
@@ -882,7 +888,9 @@ class HandoverUserConfirm(BaseModel):
     fuel_level_start: str
     condition_before: str = ""
     photo_url: Optional[str] = None
+    photos: Optional[List[str]] = None
     signature_name: str = Field(min_length=1)
+    signature_data: Optional[str] = None
 
 
 class HandoverAdminConfirm(BaseModel):
@@ -890,7 +898,9 @@ class HandoverAdminConfirm(BaseModel):
     fuel_level_start: Optional[str] = None
     condition_before: Optional[str] = None
     photo_url: Optional[str] = None
+    photos: Optional[List[str]] = None
     signature_name: str = Field(min_length=1)
+    signature_data: Optional[str] = None
 
 
 class ReturnUserConfirm(BaseModel):
@@ -898,8 +908,10 @@ class ReturnUserConfirm(BaseModel):
     fuel_level_end: str
     condition_after: str = ""
     photo_url: Optional[str] = None
+    photos: Optional[List[str]] = None
     damage_notes: Optional[str] = None
     signature_name: str = Field(min_length=1)
+    signature_data: Optional[str] = None
 
 
 class ReturnAdminConfirm(BaseModel):
@@ -907,8 +919,10 @@ class ReturnAdminConfirm(BaseModel):
     fuel_level_end: Optional[str] = None
     condition_after: Optional[str] = None
     photo_url: Optional[str] = None
+    photos: Optional[List[str]] = None
     damage_notes: Optional[str] = None
     signature_name: str = Field(min_length=1)
+    signature_data: Optional[str] = None
 
 
 class VehicleBooking(BaseModel):
@@ -1259,6 +1273,11 @@ async def handover_user_confirm(
             "user_signature_name": payload.signature_name,
         }
     )
+    if payload.signature_data is not None:
+        handover["user_signature_data"] = payload.signature_data
+    if payload.photos:
+        existing = handover.get("photos") or []
+        handover["photos"] = existing + payload.photos
     await db.vehicle_bookings.update_one({"id": booking_id}, {"$set": {"handover": handover}})
     bk["handover"] = handover
     return VehicleBooking(**_public_booking(bk))
@@ -1289,6 +1308,11 @@ async def handover_admin_confirm(
         handover["condition_before"] = payload.condition_before
     if payload.photo_url is not None:
         handover["photo_url"] = payload.photo_url
+    if payload.signature_data is not None:
+        handover["admin_signature_data"] = payload.signature_data
+    if payload.photos:
+        existing = handover.get("photos") or []
+        handover["photos"] = existing + payload.photos
     await db.vehicle_bookings.update_one(
         {"id": booking_id}, {"$set": {"handover": handover, "status": "in_use"}}
     )
@@ -1323,6 +1347,11 @@ async def return_user_confirm(
             "user_signature_name": payload.signature_name,
         }
     )
+    if payload.signature_data is not None:
+        rinfo["user_signature_data"] = payload.signature_data
+    if payload.photos:
+        existing = rinfo.get("photos") or []
+        rinfo["photos"] = existing + payload.photos
     await db.vehicle_bookings.update_one({"id": booking_id}, {"$set": {"return_info": rinfo}})
     bk["return_info"] = rinfo
     return VehicleBooking(**_public_booking(bk))
@@ -1355,6 +1384,11 @@ async def return_admin_confirm(
         rinfo["photo_url"] = payload.photo_url
     if payload.damage_notes is not None:
         rinfo["damage_notes"] = payload.damage_notes
+    if payload.signature_data is not None:
+        rinfo["admin_signature_data"] = payload.signature_data
+    if payload.photos:
+        existing = rinfo.get("photos") or []
+        rinfo["photos"] = existing + payload.photos
     await db.vehicle_bookings.update_one(
         {"id": booking_id}, {"$set": {"return_info": rinfo, "status": "completed"}}
     )

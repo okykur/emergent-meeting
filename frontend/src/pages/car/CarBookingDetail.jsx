@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api, formatApiError } from "../../api";
 import { useAuth } from "../../context/AuthContext";
 import { VBStatusPill, FUEL_LEVELS } from "../../components/VehicleStatus";
 import { ArrowLeft, Loader2, LogIn, LogOut, X, AlertTriangle, Car, User as UserIcon } from "lucide-react";
 import { formatDate } from "../../utils/dates";
+import SignaturePad from "../../components/SignaturePad";
+import PhotoUploader from "../../components/PhotoUploader";
 
 function fmt(iso) {
   if (!iso) return "—";
@@ -25,6 +27,60 @@ function Field({ label, children, testid }) {
   );
 }
 
+function PhaseMedia({ info, scope }) {
+  if (!info) return null;
+  const photos = (info.photos && info.photos.length > 0)
+    ? info.photos
+    : (info.photo_url ? [info.photo_url] : []);
+  const userSig = info.user_signature_data;
+  const adminSig = info.admin_signature_data;
+  if (photos.length === 0 && !userSig && !adminSig) return null;
+  return (
+    <div className="mt-4 space-y-3 border-t border-slate-100 pt-3">
+      {photos.length > 0 && (
+        <div data-testid={`${scope}-photos`}>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Photos ({photos.length})
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {photos.map((url, idx) => (
+              <a
+                key={idx}
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="block h-16 w-16 overflow-hidden rounded-sm border border-slate-200 hover:border-[#0055FF]"
+                data-testid={`${scope}-photo-${idx}`}
+              >
+                {/* eslint-disable-next-line */}
+                <img src={url} alt={`Vehicle inspection ${idx + 1}`} className="h-full w-full object-cover" />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {userSig && (
+          <div data-testid={`${scope}-user-sig-img`}>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              User signature
+            </div>
+            <img src={userSig} alt="User signature" className="h-16 rounded-sm border border-slate-200 bg-white" />
+          </div>
+        )}
+        {adminSig && (
+          <div data-testid={`${scope}-admin-sig-img`}>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Admin signature
+            </div>
+            <img src={adminSig} alt="Admin signature" className="h-16 rounded-sm border border-slate-200 bg-white" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function HandoverDialog({ booking, scope, onClose, onSaved }) {
   const isReturn = scope === "return";
   const [form, setForm] = useState(
@@ -33,7 +89,6 @@ function HandoverDialog({ booking, scope, onClose, onSaved }) {
           odometer_end: "",
           fuel_level_end: "Full",
           condition_after: "",
-          photo_url: "",
           damage_notes: "",
           signature_name: "",
         }
@@ -41,25 +96,41 @@ function HandoverDialog({ booking, scope, onClose, onSaved }) {
           odometer_start: "",
           fuel_level_start: "Full",
           condition_before: "",
-          photo_url: "",
           signature_name: "",
         }
   );
+  const [photos, setPhotos] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const sigRef = useRef(null);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    const signature_data = sigRef.current?.getDataURL() || null;
+    if (!signature_data) {
+      setError("Please sign in the signature box before submitting.");
+      return;
+    }
     setLoading(true);
     try {
       const url = isReturn
         ? `/vehicle-bookings/${booking.id}/return/user`
         : `/vehicle-bookings/${booking.id}/handover/user`;
       const payload = isReturn
-        ? { ...form, odometer_end: Number(form.odometer_end) }
-        : { ...form, odometer_start: Number(form.odometer_start) };
+        ? {
+            ...form,
+            odometer_end: Number(form.odometer_end),
+            photos,
+            signature_data,
+          }
+        : {
+            ...form,
+            odometer_start: Number(form.odometer_start),
+            photos,
+            signature_data,
+          };
       await api.post(url, payload);
       onSaved?.();
     } catch (err) {
@@ -140,18 +211,29 @@ function HandoverDialog({ booking, scope, onClose, onSaved }) {
             </div>
           )}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Photo URL (optional)</label>
-            <input
-              data-testid="hd-photo"
-              value={form.photo_url}
-              onChange={(e) => set("photo_url", e.target.value)}
-              placeholder="https://…"
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              {isReturn ? "Return photos" : "Handover photos"} (optional)
+            </label>
+            <PhotoUploader
+              value={photos}
+              onChange={setPhotos}
+              maxPhotos={4}
+              dataTestId="hd-photos"
             />
-            <p className="mt-1 text-xs text-slate-400">Paste a link to an uploaded handover/return photo.</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Take a photo of the odometer, fuel gauge, and any visible damage.
+            </p>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Digital signature (your full name) *</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Digital signature *
+            </label>
+            <SignaturePad ref={sigRef} dataTestId="hd-signature-pad" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Full name (printed) *
+            </label>
             <input
               required
               data-testid="hd-signature"
@@ -357,11 +439,9 @@ export default function CarBookingDetail() {
             <Field label="Condition before">{b.handover?.condition_before}</Field>
             <Field label="User signature">{b.handover?.user_signature_name}</Field>
           </div>
-          {b.handover?.photo_url && (
-            <a href={b.handover.photo_url} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs font-semibold text-[#0055FF] hover:underline">
-              View handover photo →
-            </a>
-          )}
+          {b.handover?.photo_url || (b.handover?.photos && b.handover.photos.length > 0) || b.handover?.user_signature_data || b.handover?.admin_signature_data ? (
+            <PhaseMedia info={b.handover} scope="handover" />
+          ) : null}
         </div>
 
         {/* Return */}
@@ -379,11 +459,9 @@ export default function CarBookingDetail() {
             <Field label="Condition after">{b.return_info?.condition_after}</Field>
             <Field label="Damage notes">{b.return_info?.damage_notes}</Field>
           </div>
-          {b.return_info?.photo_url && (
-            <a href={b.return_info.photo_url} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs font-semibold text-[#0055FF] hover:underline">
-              View return photo →
-            </a>
-          )}
+          {b.return_info?.photo_url || (b.return_info?.photos && b.return_info.photos.length > 0) || b.return_info?.user_signature_data || b.return_info?.admin_signature_data ? (
+            <PhaseMedia info={b.return_info} scope="return" />
+          ) : null}
         </div>
       </div>
 

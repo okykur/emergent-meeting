@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, formatApiError } from "../../api";
 import { VBStatusPill, FUEL_LEVELS } from "../../components/VehicleStatus";
 import { ArrowLeft, Loader2, Check, X, Car as CarIcon, AlertTriangle, LogIn, LogOut } from "lucide-react";
 import { formatDate } from "../../utils/dates";
+import SignaturePad from "../../components/SignaturePad";
+import PhotoUploader from "../../components/PhotoUploader";
 
 function fmt(iso) {
   if (!iso) return "—";
@@ -14,6 +16,56 @@ function Field({ label, children }) {
     <div>
       <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</div>
       <div className="mt-0.5 text-sm text-slate-900">{children || <span className="text-slate-400">—</span>}</div>
+    </div>
+  );
+}
+
+function PhaseMedia({ info, scope }) {
+  if (!info) return null;
+  const photos = (info.photos && info.photos.length > 0)
+    ? info.photos
+    : (info.photo_url ? [info.photo_url] : []);
+  const userSig = info.user_signature_data;
+  const adminSig = info.admin_signature_data;
+  if (photos.length === 0 && !userSig && !adminSig) return null;
+  return (
+    <div className="mt-4 space-y-3 border-t border-slate-100 pt-3">
+      {photos.length > 0 && (
+        <div data-testid={`admin-${scope}-photos`}>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Photos ({photos.length})
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {photos.map((url, idx) => (
+              <a
+                key={idx}
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="block h-16 w-16 overflow-hidden rounded-sm border border-slate-200 hover:border-[#0055FF]"
+                data-testid={`admin-${scope}-photo-${idx}`}
+              >
+                {/* eslint-disable-next-line */}
+                <img src={url} alt={`Vehicle inspection ${idx + 1}`} className="h-full w-full object-cover" />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {userSig && (
+          <div data-testid={`admin-${scope}-user-sig-img`}>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">User signature</div>
+            <img src={userSig} alt="User signature" className="h-16 rounded-sm border border-slate-200 bg-white" />
+          </div>
+        )}
+        {adminSig && (
+          <div data-testid={`admin-${scope}-admin-sig-img`}>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Admin signature</div>
+            <img src={adminSig} alt="Admin signature" className="h-16 rounded-sm border border-slate-200 bg-white" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -162,7 +214,6 @@ function AdminConfirmDialog({ booking, scope, onClose, onSaved }) {
           odometer_end: ri.odometer_end ?? "",
           fuel_level_end: ri.fuel_level_end || "Full",
           condition_after: ri.condition_after || "",
-          photo_url: ri.photo_url || "",
           damage_notes: ri.damage_notes || "",
           signature_name: "",
         }
@@ -170,22 +221,28 @@ function AdminConfirmDialog({ booking, scope, onClose, onSaved }) {
           odometer_start: ho.odometer_start ?? "",
           fuel_level_start: ho.fuel_level_start || "Full",
           condition_before: ho.condition_before || "",
-          photo_url: ho.photo_url || "",
           signature_name: "",
         }
   );
+  const [photos, setPhotos] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const sigRef = useRef(null);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    const signature_data = sigRef.current?.getDataURL() || null;
+    if (!signature_data) {
+      setError("Please sign in the signature box before submitting.");
+      return;
+    }
     setLoading(true);
     try {
       const url = isReturn ? `/vehicle-bookings/${booking.id}/return/admin` : `/vehicle-bookings/${booking.id}/handover/admin`;
       const payload = isReturn
-        ? { ...form, odometer_end: form.odometer_end !== "" ? Number(form.odometer_end) : null }
-        : { ...form, odometer_start: form.odometer_start !== "" ? Number(form.odometer_start) : null };
+        ? { ...form, odometer_end: form.odometer_end !== "" ? Number(form.odometer_end) : null, photos, signature_data }
+        : { ...form, odometer_start: form.odometer_start !== "" ? Number(form.odometer_start) : null, photos, signature_data };
       await api.post(url, payload);
       onSaved?.();
     } catch (err) {
@@ -238,12 +295,16 @@ function AdminConfirmDialog({ booking, scope, onClose, onSaved }) {
             </div>
           )}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Photo URL</label>
-            <input value={form.photo_url} onChange={(e) => set("photo_url", e.target.value)} placeholder="https://…" className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+            <label className="mb-1 block text-sm font-medium text-slate-700">Additional photos (optional)</label>
+            <PhotoUploader value={photos} onChange={setPhotos} maxPhotos={4} dataTestId="admin-hd-photos" />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Admin signature *</label>
-            <input required value={form.signature_name} onChange={(e) => set("signature_name", e.target.value)} placeholder="Type your full name" className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+            <SignaturePad ref={sigRef} dataTestId="admin-hd-signature-pad" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Full name (printed) *</label>
+            <input required value={form.signature_name} onChange={(e) => set("signature_name", e.target.value)} placeholder="Type your full name" data-testid="admin-hd-signature" className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
           </div>
           {error && <div className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
@@ -392,6 +453,7 @@ export default function AdminCarBookingDetail() {
             <Field label="User signature">{b.handover?.user_signature_name}</Field>
             <Field label="Admin signature">{b.handover?.admin_signature_name}</Field>
           </div>
+          <PhaseMedia info={b.handover} scope="handover" />
         </div>
 
         <div className="rounded-sm border border-slate-200 bg-white p-5">
@@ -406,6 +468,7 @@ export default function AdminCarBookingDetail() {
             <Field label="User signature">{b.return_info?.user_signature_name}</Field>
             <Field label="Admin signature">{b.return_info?.admin_signature_name}</Field>
           </div>
+          <PhaseMedia info={b.return_info} scope="return" />
         </div>
       </div>
 
