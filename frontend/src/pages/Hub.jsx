@@ -32,11 +32,11 @@ const TILES = [
     title: "Car / Vehicle",
     subtitle: "Reserve a vehicle",
     description:
-      "Company car pool bookings — managed by a different administrator and division.",
+      "Request a company car or van for official trips — single-trip with driver, or multi-day reservations.",
     to: "/car",
     icon: Car,
     accent: "#F59E0B",
-    status: "coming-soon",
+    status: "active",
     testid: "hub-tile-car",
   },
 ];

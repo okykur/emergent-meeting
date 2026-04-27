@@ -58,7 +58,10 @@ export default function Layout({ admin = false }) {
     { to: "/admin/bookings", label: "Bookings", icon: CalendarCheck2, testid: "nav-admin-bookings", show: isMeetingAdmin },
     { to: "/admin/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-admin-calendar", show: isMeetingAdmin },
     { to: "/admin/rooms", label: "Rooms", icon: DoorOpen, testid: "nav-admin-rooms", show: isMeetingAdmin },
-    { to: "/admin/cars", label: "Car / Vehicle", icon: Car, testid: "nav-admin-cars", show: isCarAdmin },
+    { to: "/admin/cars", label: "Car Dashboard", icon: Car, testid: "nav-admin-cars", show: isCarAdmin, end: true },
+    { to: "/admin/cars/bookings", label: "Car Bookings", icon: CalendarCheck2, testid: "nav-admin-cars-bookings", show: isCarAdmin },
+    { to: "/admin/cars/vehicles", label: "Vehicles", icon: Car, testid: "nav-admin-vehicles", show: isCarAdmin },
+    { to: "/admin/cars/drivers", label: "Drivers", icon: Users, testid: "nav-admin-drivers", show: isCarAdmin },
     { to: "/admin/users", label: "Users", icon: Users, testid: "nav-admin-users", show: isSuper },
   ];
   const adminNav = adminNavFull.filter((n) => n.show);

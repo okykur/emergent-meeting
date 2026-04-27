@@ -9,13 +9,20 @@ import Rooms from "@/pages/Rooms";
 import MyBookings from "@/pages/MyBookings";
 import MyCalendar from "@/pages/MyCalendar";
 import Hub from "@/pages/Hub";
-import CarVehicle from "@/pages/CarVehicle";
+import CarHome from "@/pages/car/CarHome";
+import CarBookingNew from "@/pages/car/CarBookingNew";
+import MyCarBookings from "@/pages/car/MyCarBookings";
+import CarBookingDetail from "@/pages/car/CarBookingDetail";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminBookings from "@/pages/admin/Bookings";
 import AdminRooms from "@/pages/admin/Rooms";
 import AdminCalendar from "@/pages/admin/Calendar";
 import AdminUsers from "@/pages/admin/Users";
-import AdminCars from "@/pages/admin/Cars";
+import AdminCarsDashboard from "@/pages/admin/CarsDashboard";
+import AdminCarsBookings from "@/pages/admin/CarsBookings";
+import AdminCarBookingDetail from "@/pages/admin/CarBookingDetail";
+import AdminVehicles from "@/pages/admin/Vehicles";
+import AdminDrivers from "@/pages/admin/Drivers";
 import { Toaster } from "sonner";
 
 function RootRedirect() {
@@ -28,7 +35,6 @@ function RootRedirect() {
 
 function AdminHome() {
   const { user } = useAuth();
-  // Car admin has no meeting-room dashboard data — send them to their console
   if (user && user.role === "car_admin") {
     return <Navigate to="/admin/cars" replace />;
   }
@@ -53,10 +59,13 @@ function App() {
               }
             >
               <Route path="/hub" element={<Hub />} />
-              <Route path="/car" element={<CarVehicle />} />
               <Route path="/rooms" element={<Rooms />} />
               <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/calendar" element={<MyCalendar />} />
+              <Route path="/car" element={<CarHome />} />
+              <Route path="/car/new" element={<CarBookingNew />} />
+              <Route path="/car/my-bookings" element={<MyCarBookings />} />
+              <Route path="/car/bookings/:id" element={<CarBookingDetail />} />
             </Route>
 
             <Route
@@ -70,7 +79,11 @@ function App() {
               <Route path="/admin/bookings" element={<AdminBookings />} />
               <Route path="/admin/calendar" element={<AdminCalendar />} />
               <Route path="/admin/rooms" element={<AdminRooms />} />
-              <Route path="/admin/cars" element={<AdminCars />} />
+              <Route path="/admin/cars" element={<AdminCarsDashboard />} />
+              <Route path="/admin/cars/bookings" element={<AdminCarsBookings />} />
+              <Route path="/admin/cars/bookings/:id" element={<AdminCarBookingDetail />} />
+              <Route path="/admin/cars/vehicles" element={<AdminVehicles />} />
+              <Route path="/admin/cars/drivers" element={<AdminDrivers />} />
               <Route
                 path="/admin/users"
                 element={

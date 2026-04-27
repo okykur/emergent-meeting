@@ -758,15 +758,684 @@ async def seed_rooms():
     logger.info(f"Seeded {len(docs)} sample rooms")
 
 
+# ============================================================================
+# Vehicle / Car Booking Module
+# ============================================================================
+
+VEHICLE_STATUSES = {"available", "booked", "in_use", "maintenance", "retired"}
+DRIVER_STATUSES = {"available", "assigned", "off_duty"}
+VB_STATUSES = ("pending", "approved", "rejected", "assigned", "in_use", "completed", "cancelled")
+
+
+# ---------- Vehicle ----------
+class VehicleBase(BaseModel):
+    plate_number: str = Field(min_length=1, max_length=20)
+    name: str = Field(min_length=1)
+    type: str = Field(min_length=1)  # sedan / suv / van / truck / bus / motorcycle
+    capacity: int = Field(ge=1)
+    year: Optional[int] = None
+    notes: str = ""
+    image_url: Optional[str] = None
+    status: Literal["available", "booked", "in_use", "maintenance", "retired"] = "available"
+
+
+class VehicleCreate(VehicleBase):
+    pass
+
+
+class VehicleUpdate(BaseModel):
+    plate_number: Optional[str] = None
+    name: Optional[str] = None
+    type: Optional[str] = None
+    capacity: Optional[int] = None
+    year: Optional[int] = None
+    notes: Optional[str] = None
+    image_url: Optional[str] = None
+    status: Optional[Literal["available", "booked", "in_use", "maintenance", "retired"]] = None
+
+
+class Vehicle(VehicleBase):
+    id: str
+    created_at: str
+
+
+# ---------- Driver ----------
+class DriverBase(BaseModel):
+    name: str = Field(min_length=1)
+    phone: str = ""
+    license_number: str = ""
+    notes: str = ""
+    status: Literal["available", "assigned", "off_duty"] = "available"
+
+
+class DriverCreate(DriverBase):
+    pass
+
+
+class DriverUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    license_number: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[Literal["available", "assigned", "off_duty"]] = None
+
+
+class Driver(DriverBase):
+    id: str
+    created_at: str
+
+
+# ---------- Vehicle Booking ----------
+class HandoverInfo(BaseModel):
+    user_confirmed_at: Optional[str] = None
+    admin_confirmed_at: Optional[str] = None
+    odometer_start: Optional[int] = None
+    fuel_level_start: Optional[str] = None  # "Full" | "3/4" | "1/2" | "1/4" | "Empty"
+    condition_before: Optional[str] = None
+    photo_url: Optional[str] = None
+    user_signature_name: Optional[str] = None
+    admin_signature_name: Optional[str] = None
+
+
+class ReturnInfo(BaseModel):
+    user_confirmed_at: Optional[str] = None
+    admin_confirmed_at: Optional[str] = None
+    odometer_end: Optional[int] = None
+    fuel_level_end: Optional[str] = None
+    condition_after: Optional[str] = None
+    photo_url: Optional[str] = None
+    damage_notes: Optional[str] = None
+    user_signature_name: Optional[str] = None
+    admin_signature_name: Optional[str] = None
+
+
+class VehicleBookingCreate(BaseModel):
+    booking_type: Literal["single_trip", "multi_day"]
+    employee_name: str = Field(min_length=1)
+    job_title: str = Field(min_length=1)
+    department: str = ""
+    with_driver: bool = True
+    pickup_location: str = ""
+    destination: str = ""
+    usage_area: str = ""
+    purpose: str = Field(min_length=1)
+    passengers: int = Field(ge=1, default=1)
+    start_date: str  # YYYY-MM-DD
+    start_time: str = "08:00"
+    end_date: str  # YYYY-MM-DD
+    end_time: str = "17:00"
+
+
+class VehicleBookingAssign(BaseModel):
+    vehicle_id: str
+    driver_id: Optional[str] = None
+    pickup_schedule: Optional[str] = None  # ISO datetime or free-form
+    admin_notes: Optional[str] = None
+
+
+class VehicleBookingReject(BaseModel):
+    rejection_notes: str = Field(min_length=1)
+
+
+class HandoverUserConfirm(BaseModel):
+    odometer_start: int = Field(ge=0)
+    fuel_level_start: str
+    condition_before: str = ""
+    photo_url: Optional[str] = None
+    signature_name: str = Field(min_length=1)
+
+
+class HandoverAdminConfirm(BaseModel):
+    odometer_start: Optional[int] = None
+    fuel_level_start: Optional[str] = None
+    condition_before: Optional[str] = None
+    photo_url: Optional[str] = None
+    signature_name: str = Field(min_length=1)
+
+
+class ReturnUserConfirm(BaseModel):
+    odometer_end: int = Field(ge=0)
+    fuel_level_end: str
+    condition_after: str = ""
+    photo_url: Optional[str] = None
+    damage_notes: Optional[str] = None
+    signature_name: str = Field(min_length=1)
+
+
+class ReturnAdminConfirm(BaseModel):
+    odometer_end: Optional[int] = None
+    fuel_level_end: Optional[str] = None
+    condition_after: Optional[str] = None
+    photo_url: Optional[str] = None
+    damage_notes: Optional[str] = None
+    signature_name: str = Field(min_length=1)
+
+
+class VehicleBooking(BaseModel):
+    id: str
+    user_id: str
+    user_email: str
+    employee_name: str
+    job_title: str
+    department: str = ""
+    booking_type: str
+    with_driver: bool
+    pickup_location: str = ""
+    destination: str = ""
+    usage_area: str = ""
+    purpose: str
+    passengers: int
+    start_date: str
+    start_time: str
+    end_date: str
+    end_time: str
+    status: str
+    rejection_notes: Optional[str] = None
+    vehicle_id: Optional[str] = None
+    vehicle_name: Optional[str] = None
+    vehicle_plate: Optional[str] = None
+    driver_id: Optional[str] = None
+    driver_name: Optional[str] = None
+    pickup_schedule: Optional[str] = None
+    admin_notes: Optional[str] = None
+    handover: HandoverInfo = Field(default_factory=HandoverInfo)
+    return_info: ReturnInfo = Field(default_factory=ReturnInfo)
+    created_at: str
+
+
+# ---------- Helpers ----------
+def _strip(d: dict) -> dict:
+    return {k: v for k, v in d.items() if k != "_id"}
+
+
+async def _vehicle_overlap(
+    vehicle_id: str, start_date: str, end_date: str, exclude_id: Optional[str] = None
+) -> bool:
+    cursor = db.vehicle_bookings.find(
+        {
+            "vehicle_id": vehicle_id,
+            "status": {"$in": ["assigned", "in_use"]},
+        },
+        {"_id": 0},
+    )
+    async for bk in cursor:
+        if exclude_id and bk["id"] == exclude_id:
+            continue
+        if bk["start_date"] <= end_date and start_date <= bk["end_date"]:
+            return True
+    return False
+
+
+# ---------- Vehicles endpoints ----------
+@api.get("/vehicles", response_model=List[Vehicle])
+async def list_vehicles(status: Optional[str] = None):
+    q = {}
+    if status:
+        q["status"] = status
+    items = await db.vehicles.find(q, {"_id": 0}).sort("name", 1).to_list(500)
+    return [Vehicle(**v) for v in items]
+
+
+@api.post("/vehicles", response_model=Vehicle)
+async def create_vehicle(payload: VehicleCreate, admin: dict = Depends(require_any_admin)):
+    if admin["role"] not in CAR_ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Car admin access required")
+    doc = {"id": str(uuid.uuid4()), **payload.model_dump(), "created_at": _now_iso()}
+    await db.vehicles.insert_one(doc)
+    return Vehicle(**_strip(doc))
+
+
+@api.put("/vehicles/{vehicle_id}", response_model=Vehicle)
+async def update_vehicle(vehicle_id: str, payload: VehicleUpdate, admin: dict = Depends(require_any_admin)):
+    if admin["role"] not in CAR_ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Car admin access required")
+    updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    res = await db.vehicles.update_one({"id": vehicle_id}, {"$set": updates})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    v = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0})
+    return Vehicle(**v)
+
+
+@api.delete("/vehicles/{vehicle_id}")
+async def delete_vehicle(vehicle_id: str, admin: dict = Depends(require_any_admin)):
+    if admin["role"] not in CAR_ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Car admin access required")
+    res = await db.vehicles.delete_one({"id": vehicle_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return {"ok": True}
+
+
+# ---------- Drivers endpoints ----------
+@api.get("/drivers", response_model=List[Driver])
+async def list_drivers(status: Optional[str] = None):
+    q = {}
+    if status:
+        q["status"] = status
+    items = await db.drivers.find(q, {"_id": 0}).sort("name", 1).to_list(500)
+    return [Driver(**d) for d in items]
+
+
+@api.post("/drivers", response_model=Driver)
+async def create_driver(payload: DriverCreate, admin: dict = Depends(require_any_admin)):
+    if admin["role"] not in CAR_ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Car admin access required")
+    doc = {"id": str(uuid.uuid4()), **payload.model_dump(), "created_at": _now_iso()}
+    await db.drivers.insert_one(doc)
+    return Driver(**_strip(doc))
+
+
+@api.put("/drivers/{driver_id}", response_model=Driver)
+async def update_driver(driver_id: str, payload: DriverUpdate, admin: dict = Depends(require_any_admin)):
+    if admin["role"] not in CAR_ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Car admin access required")
+    updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    res = await db.drivers.update_one({"id": driver_id}, {"$set": updates})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    d = await db.drivers.find_one({"id": driver_id}, {"_id": 0})
+    return Driver(**d)
+
+
+@api.delete("/drivers/{driver_id}")
+async def delete_driver(driver_id: str, admin: dict = Depends(require_any_admin)):
+    if admin["role"] not in CAR_ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Car admin access required")
+    res = await db.drivers.delete_one({"id": driver_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    return {"ok": True}
+
+
+# ---------- Vehicle Booking endpoints ----------
+async def require_car_admin(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") not in CAR_ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Car admin access required")
+    return user
+
+
+def _public_booking(doc: dict) -> dict:
+    out = _strip(doc)
+    out.setdefault("handover", {})
+    out.setdefault("return_info", {})
+    return out
+
+
+@api.post("/vehicle-bookings", response_model=VehicleBooking)
+async def create_vehicle_booking(payload: VehicleBookingCreate, user: dict = Depends(get_current_user)):
+    if payload.start_date > payload.end_date:
+        raise HTTPException(status_code=400, detail="End date must be on or after start date")
+    if payload.booking_type == "single_trip" and payload.start_date != payload.end_date:
+        raise HTTPException(status_code=400, detail="Single-trip bookings must be on a single day")
+    booking_id = str(uuid.uuid4())
+    doc = {
+        "id": booking_id,
+        "user_id": user["id"],
+        "user_email": user["email"],
+        "employee_name": payload.employee_name.strip(),
+        "job_title": payload.job_title.strip(),
+        "department": payload.department.strip(),
+        "booking_type": payload.booking_type,
+        "with_driver": payload.with_driver,
+        "pickup_location": payload.pickup_location.strip(),
+        "destination": payload.destination.strip(),
+        "usage_area": payload.usage_area.strip(),
+        "purpose": payload.purpose.strip(),
+        "passengers": payload.passengers,
+        "start_date": payload.start_date,
+        "start_time": payload.start_time,
+        "end_date": payload.end_date,
+        "end_time": payload.end_time,
+        "status": "pending",
+        "rejection_notes": None,
+        "vehicle_id": None,
+        "vehicle_name": None,
+        "vehicle_plate": None,
+        "driver_id": None,
+        "driver_name": None,
+        "pickup_schedule": None,
+        "admin_notes": None,
+        "handover": {},
+        "return_info": {},
+        "created_at": _now_iso(),
+    }
+    await db.vehicle_bookings.insert_one(doc)
+    return VehicleBooking(**_public_booking(doc))
+
+
+@api.get("/vehicle-bookings/mine", response_model=List[VehicleBooking])
+async def my_vehicle_bookings(user: dict = Depends(get_current_user)):
+    items = await db.vehicle_bookings.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return [VehicleBooking(**_public_booking(b)) for b in items]
+
+
+@api.get("/vehicle-bookings/{booking_id}", response_model=VehicleBooking)
+async def get_vehicle_booking(booking_id: str, user: dict = Depends(get_current_user)):
+    bk = await db.vehicle_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if user["role"] not in CAR_ADMIN_ROLES and bk["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return VehicleBooking(**_public_booking(bk))
+
+
+@api.get("/vehicle-bookings", response_model=List[VehicleBooking])
+async def list_vehicle_bookings(
+    admin: dict = Depends(require_car_admin),
+    status: Optional[str] = None,
+    vehicle_id: Optional[str] = None,
+    user_query: Optional[str] = None,
+    date: Optional[str] = None,
+):
+    q: dict = {}
+    if status:
+        q["status"] = status
+    if vehicle_id:
+        q["vehicle_id"] = vehicle_id
+    if date:
+        q["$and"] = [{"start_date": {"$lte": date}}, {"end_date": {"$gte": date}}]
+    if user_query:
+        q["$or"] = [
+            {"employee_name": {"$regex": user_query, "$options": "i"}},
+            {"user_email": {"$regex": user_query, "$options": "i"}},
+            {"job_title": {"$regex": user_query, "$options": "i"}},
+        ]
+    items = await db.vehicle_bookings.find(q, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return [VehicleBooking(**_public_booking(b)) for b in items]
+
+
+@api.post("/vehicle-bookings/{booking_id}/cancel", response_model=VehicleBooking)
+async def cancel_vehicle_booking(booking_id: str, user: dict = Depends(get_current_user)):
+    bk = await db.vehicle_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if user["role"] not in CAR_ADMIN_ROLES and bk["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if bk["status"] in ("in_use", "completed", "cancelled", "rejected"):
+        raise HTTPException(status_code=400, detail=f"Cannot cancel a {bk['status']} booking")
+    await db.vehicle_bookings.update_one({"id": booking_id}, {"$set": {"status": "cancelled"}})
+    bk["status"] = "cancelled"
+    return VehicleBooking(**_public_booking(bk))
+
+
+@api.patch("/vehicle-bookings/{booking_id}/approve", response_model=VehicleBooking)
+async def approve_vehicle_booking(booking_id: str, admin: dict = Depends(require_car_admin)):
+    bk = await db.vehicle_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if bk["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Cannot approve a {bk['status']} booking")
+    await db.vehicle_bookings.update_one({"id": booking_id}, {"$set": {"status": "approved"}})
+    bk["status"] = "approved"
+    return VehicleBooking(**_public_booking(bk))
+
+
+@api.patch("/vehicle-bookings/{booking_id}/reject", response_model=VehicleBooking)
+async def reject_vehicle_booking(
+    booking_id: str, payload: VehicleBookingReject, admin: dict = Depends(require_car_admin)
+):
+    bk = await db.vehicle_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if bk["status"] not in ("pending", "approved"):
+        raise HTTPException(status_code=400, detail=f"Cannot reject a {bk['status']} booking")
+    await db.vehicle_bookings.update_one(
+        {"id": booking_id},
+        {"$set": {"status": "rejected", "rejection_notes": payload.rejection_notes}},
+    )
+    bk["status"] = "rejected"
+    bk["rejection_notes"] = payload.rejection_notes
+    return VehicleBooking(**_public_booking(bk))
+
+
+@api.patch("/vehicle-bookings/{booking_id}/assign", response_model=VehicleBooking)
+async def assign_vehicle_booking(
+    booking_id: str, payload: VehicleBookingAssign, admin: dict = Depends(require_car_admin)
+):
+    bk = await db.vehicle_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if bk["status"] not in ("approved", "assigned"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Booking must be approved before assignment (current: {bk['status']})",
+        )
+    vehicle = await db.vehicles.find_one({"id": payload.vehicle_id}, {"_id": 0})
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    if vehicle["status"] in ("retired",):
+        raise HTTPException(status_code=400, detail="This vehicle is retired and cannot be assigned")
+    if await _vehicle_overlap(payload.vehicle_id, bk["start_date"], bk["end_date"], exclude_id=booking_id):
+        raise HTTPException(status_code=409, detail="Vehicle is already booked for this date range")
+    driver = None
+    if payload.driver_id:
+        driver = await db.drivers.find_one({"id": payload.driver_id}, {"_id": 0})
+        if not driver:
+            raise HTTPException(status_code=404, detail="Driver not found")
+    updates = {
+        "status": "assigned",
+        "vehicle_id": vehicle["id"],
+        "vehicle_name": vehicle["name"],
+        "vehicle_plate": vehicle["plate_number"],
+        "driver_id": driver["id"] if driver else None,
+        "driver_name": driver["name"] if driver else None,
+        "pickup_schedule": payload.pickup_schedule,
+        "admin_notes": payload.admin_notes,
+    }
+    await db.vehicle_bookings.update_one({"id": booking_id}, {"$set": updates})
+    bk.update(updates)
+    # Mark vehicle as booked
+    await db.vehicles.update_one({"id": vehicle["id"]}, {"$set": {"status": "booked"}})
+    if driver:
+        await db.drivers.update_one({"id": driver["id"]}, {"$set": {"status": "assigned"}})
+    return VehicleBooking(**_public_booking(bk))
+
+
+# Handover (user)
+@api.post("/vehicle-bookings/{booking_id}/handover/user", response_model=VehicleBooking)
+async def handover_user_confirm(
+    booking_id: str, payload: HandoverUserConfirm, user: dict = Depends(get_current_user)
+):
+    bk = await db.vehicle_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if bk["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Only the requester can confirm handover")
+    if bk["status"] != "assigned":
+        raise HTTPException(status_code=400, detail=f"Booking must be 'assigned' to confirm handover (current: {bk['status']})")
+    handover = bk.get("handover") or {}
+    handover.update(
+        {
+            "user_confirmed_at": _now_iso(),
+            "odometer_start": payload.odometer_start,
+            "fuel_level_start": payload.fuel_level_start,
+            "condition_before": payload.condition_before,
+            "photo_url": payload.photo_url,
+            "user_signature_name": payload.signature_name,
+        }
+    )
+    await db.vehicle_bookings.update_one({"id": booking_id}, {"$set": {"handover": handover}})
+    bk["handover"] = handover
+    return VehicleBooking(**_public_booking(bk))
+
+
+# Handover (admin) — moves to in_use
+@api.post("/vehicle-bookings/{booking_id}/handover/admin", response_model=VehicleBooking)
+async def handover_admin_confirm(
+    booking_id: str, payload: HandoverAdminConfirm, admin: dict = Depends(require_car_admin)
+):
+    bk = await db.vehicle_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if bk["status"] not in ("assigned",):
+        raise HTTPException(status_code=400, detail=f"Booking must be 'assigned' (current: {bk['status']})")
+    handover = bk.get("handover") or {}
+    handover.update(
+        {
+            "admin_confirmed_at": _now_iso(),
+            "admin_signature_name": payload.signature_name,
+        }
+    )
+    if payload.odometer_start is not None:
+        handover["odometer_start"] = payload.odometer_start
+    if payload.fuel_level_start is not None:
+        handover["fuel_level_start"] = payload.fuel_level_start
+    if payload.condition_before is not None:
+        handover["condition_before"] = payload.condition_before
+    if payload.photo_url is not None:
+        handover["photo_url"] = payload.photo_url
+    await db.vehicle_bookings.update_one(
+        {"id": booking_id}, {"$set": {"handover": handover, "status": "in_use"}}
+    )
+    bk["handover"] = handover
+    bk["status"] = "in_use"
+    if bk.get("vehicle_id"):
+        await db.vehicles.update_one({"id": bk["vehicle_id"]}, {"$set": {"status": "in_use"}})
+    return VehicleBooking(**_public_booking(bk))
+
+
+# Return (user)
+@api.post("/vehicle-bookings/{booking_id}/return/user", response_model=VehicleBooking)
+async def return_user_confirm(
+    booking_id: str, payload: ReturnUserConfirm, user: dict = Depends(get_current_user)
+):
+    bk = await db.vehicle_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if bk["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Only the requester can confirm return")
+    if bk["status"] != "in_use":
+        raise HTTPException(status_code=400, detail=f"Booking must be 'in_use' to confirm return (current: {bk['status']})")
+    rinfo = bk.get("return_info") or {}
+    rinfo.update(
+        {
+            "user_confirmed_at": _now_iso(),
+            "odometer_end": payload.odometer_end,
+            "fuel_level_end": payload.fuel_level_end,
+            "condition_after": payload.condition_after,
+            "photo_url": payload.photo_url,
+            "damage_notes": payload.damage_notes,
+            "user_signature_name": payload.signature_name,
+        }
+    )
+    await db.vehicle_bookings.update_one({"id": booking_id}, {"$set": {"return_info": rinfo}})
+    bk["return_info"] = rinfo
+    return VehicleBooking(**_public_booking(bk))
+
+
+# Return (admin) — completes booking
+@api.post("/vehicle-bookings/{booking_id}/return/admin", response_model=VehicleBooking)
+async def return_admin_confirm(
+    booking_id: str, payload: ReturnAdminConfirm, admin: dict = Depends(require_car_admin)
+):
+    bk = await db.vehicle_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if bk["status"] != "in_use":
+        raise HTTPException(status_code=400, detail=f"Booking must be 'in_use' (current: {bk['status']})")
+    rinfo = bk.get("return_info") or {}
+    rinfo.update(
+        {
+            "admin_confirmed_at": _now_iso(),
+            "admin_signature_name": payload.signature_name,
+        }
+    )
+    if payload.odometer_end is not None:
+        rinfo["odometer_end"] = payload.odometer_end
+    if payload.fuel_level_end is not None:
+        rinfo["fuel_level_end"] = payload.fuel_level_end
+    if payload.condition_after is not None:
+        rinfo["condition_after"] = payload.condition_after
+    if payload.photo_url is not None:
+        rinfo["photo_url"] = payload.photo_url
+    if payload.damage_notes is not None:
+        rinfo["damage_notes"] = payload.damage_notes
+    await db.vehicle_bookings.update_one(
+        {"id": booking_id}, {"$set": {"return_info": rinfo, "status": "completed"}}
+    )
+    bk["return_info"] = rinfo
+    bk["status"] = "completed"
+    if bk.get("vehicle_id"):
+        await db.vehicles.update_one({"id": bk["vehicle_id"]}, {"$set": {"status": "available"}})
+    if bk.get("driver_id"):
+        await db.drivers.update_one({"id": bk["driver_id"]}, {"$set": {"status": "available"}})
+    return VehicleBooking(**_public_booking(bk))
+
+
+# ---------- Car admin stats ----------
+@api.get("/vehicle-admin/stats")
+async def vehicle_admin_stats(admin: dict = Depends(require_car_admin)):
+    total_vehicles = await db.vehicles.count_documents({})
+    available_vehicles = await db.vehicles.count_documents({"status": "available"})
+    in_use = await db.vehicles.count_documents({"status": "in_use"})
+    booked = await db.vehicles.count_documents({"status": "booked"})
+    maintenance = await db.vehicles.count_documents({"status": "maintenance"})
+    pending = await db.vehicle_bookings.count_documents({"status": "pending"})
+    approved = await db.vehicle_bookings.count_documents({"status": "approved"})
+    in_use_bk = await db.vehicle_bookings.count_documents({"status": "in_use"})
+    drivers_total = await db.drivers.count_documents({})
+    return {
+        "total_vehicles": total_vehicles,
+        "available_vehicles": available_vehicles,
+        "in_use_vehicles": in_use,
+        "booked_vehicles": booked,
+        "maintenance_vehicles": maintenance,
+        "pending_bookings": pending,
+        "approved_bookings": approved,
+        "in_use_bookings": in_use_bk,
+        "total_drivers": drivers_total,
+    }
+
+
+# ---------- Seed sample fleet ----------
+SAMPLE_VEHICLES = [
+    {"plate_number": "B 1234 ABC", "name": "Toyota Innova Zenix", "type": "MPV", "capacity": 7, "year": 2023, "notes": "Premium executive MPV", "status": "available", "image_url": "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800"},
+    {"plate_number": "B 5678 DEF", "name": "Toyota Camry Hybrid", "type": "Sedan", "capacity": 4, "year": 2024, "notes": "Executive sedan", "status": "available", "image_url": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800"},
+    {"plate_number": "B 9012 GHI", "name": "Toyota Hiace Premio", "type": "Van", "capacity": 14, "year": 2022, "notes": "Group transport, long trips", "status": "available", "image_url": "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=800"},
+    {"plate_number": "B 3456 JKL", "name": "Honda Brio", "type": "Hatchback", "capacity": 4, "year": 2023, "notes": "City runabout", "status": "available", "image_url": "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800"},
+    {"plate_number": "B 7890 MNO", "name": "Mitsubishi Pajero Sport", "type": "SUV", "capacity": 7, "year": 2023, "notes": "Long-distance & off-road", "status": "available", "image_url": "https://images.unsplash.com/photo-1502877338535-766e1452684a?w=800"},
+    {"plate_number": "B 2468 PQR", "name": "Toyota Avanza", "type": "MPV", "capacity": 7, "year": 2021, "notes": "Daily ops", "status": "maintenance", "image_url": "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800"},
+]
+
+SAMPLE_DRIVERS = [
+    {"name": "Budi Santoso", "phone": "+62 812-1111-2222", "license_number": "SIM-A-001", "notes": "Senior driver, 12 years experience", "status": "available"},
+    {"name": "Adi Pratama", "phone": "+62 812-2222-3333", "license_number": "SIM-A-002", "notes": "Long-distance specialist", "status": "available"},
+    {"name": "Rini Hartati", "phone": "+62 812-3333-4444", "license_number": "SIM-A-003", "notes": "Executive transport", "status": "available"},
+    {"name": "Joko Widodo", "phone": "+62 812-4444-5555", "license_number": "SIM-A-004", "notes": "City and airport runs", "status": "off_duty"},
+]
+
+
+async def seed_fleet():
+    if await db.vehicles.count_documents({}) == 0:
+        now = _now_iso()
+        docs = [{"id": str(uuid.uuid4()), **v, "created_at": now} for v in SAMPLE_VEHICLES]
+        await db.vehicles.insert_many(docs)
+        logger.info(f"Seeded {len(docs)} vehicles")
+    if await db.drivers.count_documents({}) == 0:
+        now = _now_iso()
+        docs = [{"id": str(uuid.uuid4()), **d, "created_at": now} for d in SAMPLE_DRIVERS]
+        await db.drivers.insert_many(docs)
+        logger.info(f"Seeded {len(docs)} drivers")
+
+
 @app.on_event("startup")
 async def on_startup():
     await db.users.create_index("email", unique=True)
     await db.rooms.create_index("name")
     await db.bookings.create_index([("room_id", 1), ("date", 1)])
     await db.bookings.create_index("user_id")
+    await db.vehicles.create_index("plate_number", unique=True)
+    await db.vehicle_bookings.create_index([("vehicle_id", 1), ("start_date", 1)])
+    await db.vehicle_bookings.create_index("user_id")
     await seed_admin()
     await migrate_legacy_roles()
     await seed_rooms()
+    await seed_fleet()
 
 
 @app.on_event("shutdown")
