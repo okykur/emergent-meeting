@@ -11,7 +11,7 @@ export default function MyCalendar() {
           Calendar
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          A month-at-a-glance view of all your bookings.
+          A month-at-a-glance view of all your meeting room and vehicle bookings.
         </p>
       </div>
       <BookingsCalendar scope="mine" title="My bookings calendar" />

@@ -38,6 +38,7 @@ Corporate Meeting Room and Vehicle Booking Application (User App & Admin App) ac
 - KCSI logo & corporate styling, PWA manifest + service worker.
 
 ## Recent Changes (2026-02 fork session)
+- 🗓️ **Unified Calendar** (`BookingsCalendar.jsx`): merged meeting room + vehicle bookings into a single month grid. Multi-day vehicle bookings expand across every covered date. Type filter pills (All / Meeting Rooms / Vehicles). Type+Status legends. Day-detail panel shows type chip, multi-day range badge, status pill, and an "Open" deep-link to the booking detail. Uses `Promise.allSettled` so a meeting_admin or car_admin viewing `/admin/calendar` only sees the slice they're authorized for (the other endpoint silently 403s).
 - 🛡️ **CRITICAL FIX**: `POST /api/users/{id}/password` was using `require_admin` (= meeting_admin), allowing privilege escalation where any meeting_admin could reset another user's password. Now uses `require_super_admin`. Verified by 26/26 pytest cases passing.
 - 🐛 Fixed broken `MyBookings.jsx` (orphaned duplicate JSX from a prior incomplete edit was breaking the build).
 - ✅ First full system test run via `testing_agent_v3_fork` — backend 26/26 pytest, frontend playwright on login, hub redirect, my-bookings desktop+mobile (no horizontal overflow at 390px), /admin RBAC enforcement.
@@ -46,7 +47,7 @@ Corporate Meeting Room and Vehicle Booking Application (User App & Admin App) ac
 ## Backlog / Roadmap
 
 ### P1
-- **Unify Calendar View** (`BookingsCalendar.jsx`) — show meeting + vehicle bookings on same grid.
+- **Super Admin console** (deferred by user): unified KPI dashboard, better Users page (search/filter/bulk), system-wide booking oversight, audit log.
 
 ### P2
 - Real photo uploads (object storage) + canvas signature pad for vehicle handover/return (currently text URL + typed name).

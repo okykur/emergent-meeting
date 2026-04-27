@@ -11,7 +11,7 @@ export default function AdminCalendar() {
           Bookings Calendar
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          Full month view of all bookings across every meeting room.
+          Full month view of every meeting room and vehicle booking across the organization.
         </p>
       </div>
       <BookingsCalendar scope="admin" title="All bookings calendar" />
