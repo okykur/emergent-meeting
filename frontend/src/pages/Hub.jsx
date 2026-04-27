@@ -8,7 +8,7 @@ const TILES = [
     title: "My Booking",
     subtitle: "All your bookings in one place",
     description:
-      "See every booking activity you've made — meeting rooms, cars, and anything else you've reserved.",
+      "See every booking you've made — meeting rooms and vehicles. Each row shows its own next step (check-in, handover, etc.).",
     to: "/my-bookings",
     icon: BookMarked,
     accent: "#0055FF",

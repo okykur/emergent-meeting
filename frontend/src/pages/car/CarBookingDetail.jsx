@@ -239,7 +239,7 @@ export default function CarBookingDetail() {
 
   return (
     <div data-testid="car-detail-page">
-      <Link to="/car/my-bookings" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900">
+      <Link to="/my-bookings" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900">
         <ArrowLeft className="h-4 w-4" /> My Bookings
       </Link>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">

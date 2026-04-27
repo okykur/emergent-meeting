@@ -1,13 +1,22 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, formatApiError } from "../api";
 import { StatusPill } from "../components/Status";
-import { CalendarX2, BookMarked, LogIn, LogOut } from "lucide-react";
+import { VBStatusPill } from "../components/VehicleStatus";
+import {
+  CalendarX2,
+  BookMarked,
+  LogIn,
+  LogOut,
+  DoorOpen,
+  Car,
+  ArrowRight,
+} from "lucide-react";
 import { formatDate } from "../utils/dates";
 
 function fmtTime(iso) {
   if (!iso) return null;
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
+  return new Date(iso).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -15,43 +24,70 @@ function fmtTime(iso) {
   });
 }
 
-// Returns current state for check-in/out buttons given a booking.
-function checkInState(b, now = new Date()) {
-  // Only meaningful for confirmed (and completed when already checked out)
+// Meeting-room check-in window logic
+function meetingCheckState(b, now = new Date()) {
   if (b.status !== "confirmed" && !b.checked_in_at) {
-    return { canCheckIn: false, canCheckOut: false, reason: null };
+    return { canIn: false, canOut: false, reason: null };
   }
   const start = new Date(`${b.date}T${b.start_time}`);
   const end = new Date(`${b.date}T${b.end_time}`);
-  if (b.checked_out_at) {
-    return { canCheckIn: false, canCheckOut: false, reason: "Checked out" };
+  if (b.checked_out_at) return { canIn: false, canOut: false, reason: "Checked out" };
+  if (b.checked_in_at) return { canIn: false, canOut: true, reason: null };
+  if (now < start) return { canIn: false, canOut: false, reason: `Check-in opens at ${b.start_time}` };
+  if (now > end) return { canIn: false, canOut: false, reason: "Window has ended" };
+  return { canIn: true, canOut: false, reason: null };
+}
+
+// Normalise both booking shapes into a single timeline row
+function normalise(b, kind) {
+  if (kind === "meeting") {
+    return {
+      _kind: "meeting",
+      id: b.id,
+      raw: b,
+      title: b.title,
+      sub: b.room_name,
+      status: b.status,
+      dateStart: b.date,
+      dateEnd: b.date,
+      timeStart: b.start_time,
+      timeEnd: b.end_time,
+      sortKey: `${b.date}T${b.start_time}`,
+    };
   }
-  if (b.checked_in_at) {
-    // Can check out anytime after check-in
-    return { canCheckIn: false, canCheckOut: true, reason: null };
-  }
-  if (now < start) {
-    return { canCheckIn: false, canCheckOut: false, reason: `Check-in opens at ${b.start_time}` };
-  }
-  if (now > end) {
-    return { canCheckIn: false, canCheckOut: false, reason: "Booking window has ended" };
-  }
-  return { canCheckIn: true, canCheckOut: false, reason: null };
+  return {
+    _kind: "vehicle",
+    id: b.id,
+    raw: b,
+    title: b.purpose,
+    sub: b.vehicle_name ? `${b.vehicle_name} · ${b.vehicle_plate}` : "Vehicle not assigned",
+    status: b.status,
+    dateStart: b.start_date,
+    dateEnd: b.end_date,
+    timeStart: b.start_time,
+    timeEnd: b.end_time,
+    sortKey: `${b.start_date}T${b.start_time}`,
+  };
 }
 
 export default function MyBookings() {
-  const [bookings, setBookings] = useState([]);
+  const [meetingItems, setMeetingItems] = useState([]);
+  const [vehicleItems, setVehicleItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("all");
   const [actingId, setActingId] = useState(null);
   const [now, setNow] = useState(new Date());
+  const [scope, setScope] = useState("all"); // all | meeting | vehicle
 
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get("/bookings/mine");
-      setBookings(data);
+      const [{ data: m }, { data: v }] = await Promise.all([
+        api.get("/bookings/mine"),
+        api.get("/vehicle-bookings/mine"),
+      ]);
+      setMeetingItems(m);
+      setVehicleItems(v);
     } catch (e) {
       setError(formatApiError(e));
     } finally {
@@ -61,12 +97,13 @@ export default function MyBookings() {
 
   useEffect(() => {
     load();
-    const t = setInterval(() => setNow(new Date()), 30_000); // refresh window state every 30s
+    const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
   }, []);
 
-  const cancel = async (id) => {
-    if (!window.confirm("Cancel this booking?")) return;
+  // Inline actions for meeting room
+  const cancelMeeting = async (id) => {
+    if (!window.confirm("Cancel this meeting-room booking?")) return;
     setActingId(id);
     try {
       await api.post(`/bookings/${id}/cancel`);
@@ -77,8 +114,7 @@ export default function MyBookings() {
       setActingId(null);
     }
   };
-
-  const checkIn = async (id) => {
+  const checkInMeeting = async (id) => {
     setActingId(id);
     try {
       await api.post(`/bookings/${id}/check-in`);
@@ -89,8 +125,7 @@ export default function MyBookings() {
       setActingId(null);
     }
   };
-
-  const checkOut = async (id) => {
+  const checkOutMeeting = async (id) => {
     setActingId(id);
     try {
       await api.post(`/bookings/${id}/check-out`);
@@ -101,8 +136,35 @@ export default function MyBookings() {
       setActingId(null);
     }
   };
+  const cancelVehicle = async (id) => {
+    if (!window.confirm("Cancel this vehicle booking?")) return;
+    setActingId(id);
+    try {
+      await api.post(`/vehicle-bookings/${id}/cancel`);
+      await load();
+    } catch (e) {
+      alert(formatApiError(e));
+    } finally {
+      setActingId(null);
+    }
+  };
 
-  const filtered = bookings.filter((b) => (filter === "all" ? true : b.status === filter));
+  const all = [
+    ...meetingItems.map((b) => normalise(b, "meeting")),
+    ...vehicleItems.map((b) => normalise(b, "vehicle")),
+  ].sort((a, b) => (a.sortKey < b.sortKey ? 1 : -1));
+
+  const filtered = all.filter((row) => {
+    if (scope === "meeting") return row._kind === "meeting";
+    if (scope === "vehicle") return row._kind === "vehicle";
+    return true;
+  });
+
+  const counts = {
+    all: all.length,
+    meeting: meetingItems.length,
+    vehicle: vehicleItems.length,
+  };
 
   return (
     <div data-testid="my-bookings-page">
@@ -115,24 +177,53 @@ export default function MyBookings() {
             My Bookings
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            Check in/out during your booking window. Pending requests await admin
-            approval.
+            One place for every reservation — meeting rooms and vehicles. Each
+            booking shows its own next step.
           </p>
         </div>
-        <div className="flex gap-1 rounded-sm border border-slate-300 bg-white p-1">
-          {["all", "pending", "confirmed", "cancelled", "completed"].map((s) => (
+        <div className="flex items-center gap-2">
+          <Link
+            to="/rooms"
+            data-testid="quick-book-room"
+            className="inline-flex items-center gap-2 rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <DoorOpen className="h-4 w-4" /> Book Room
+          </Link>
+          <Link
+            to="/car/new"
+            data-testid="quick-book-car"
+            className="inline-flex items-center gap-2 rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <Car className="h-4 w-4" /> Book Vehicle
+          </Link>
+        </div>
+      </div>
+
+      {/* Scope tabs */}
+      <div className="mb-4 inline-flex rounded-sm border border-slate-300 bg-white p-1">
+        {[
+          { k: "all", label: "All", icon: BookMarked },
+          { k: "meeting", label: "Meeting Rooms", icon: DoorOpen },
+          { k: "vehicle", label: "Vehicles", icon: Car },
+        ].map((t) => {
+          const Icon = t.icon;
+          const active = scope === t.k;
+          return (
             <button
-              key={s}
-              onClick={() => setFilter(s)}
-              data-testid={`my-bookings-filter-${s}`}
-              className={`rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
-                filter === s ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-900"
+              key={t.k}
+              onClick={() => setScope(t.k)}
+              data-testid={`scope-tab-${t.k}`}
+              className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                active ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-900"
               }`}
             >
-              {s}
+              <Icon className="h-3.5 w-3.5" /> {t.label}
+              <span className={`rounded-sm px-1.5 ${active ? "bg-white/20" : "bg-slate-100 text-slate-500"}`}>
+                {counts[t.k]}
+              </span>
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {error && (
@@ -154,7 +245,7 @@ export default function MyBookings() {
         >
           <BookMarked className="mx-auto h-10 w-10 text-slate-300" />
           <p className="mt-3 text-sm text-slate-500">
-            No bookings yet. Head to Meeting Rooms to make a request.
+            No bookings here yet. Use the buttons above to make a request.
           </p>
         </div>
       ) : (
@@ -162,96 +253,169 @@ export default function MyBookings() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
               <tr>
-                <th className="px-6 py-3 text-left">Room</th>
-                <th className="px-6 py-3 text-left">Title</th>
-                <th className="px-6 py-3 text-left">Date</th>
-                <th className="px-6 py-3 text-left">Time</th>
-                <th className="px-6 py-3 text-left">Attendance</th>
+                <th className="px-6 py-3 text-left">Type</th>
+                <th className="px-6 py-3 text-left">Title / Room or Vehicle</th>
+                <th className="px-6 py-3 text-left">When</th>
                 <th className="px-6 py-3 text-left">Status</th>
-                <th className="px-6 py-3 text-right">Actions</th>
+                <th className="px-6 py-3 text-left">Attendance / Process</th>
+                <th className="px-6 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((b) => {
-                const { canCheckIn, canCheckOut, reason } = checkInState(b, now);
-                return (
-                  <tr
-                    key={b.id}
-                    data-testid={`my-booking-row-${b.id}`}
-                    className="border-t border-slate-200 transition-colors hover:bg-slate-50"
-                  >
-                    <td className="px-6 py-4 font-medium text-slate-900">{b.room_name}</td>
-                    <td className="px-6 py-4 text-slate-700">{b.title}</td>
-                    <td className="px-6 py-4 text-slate-700">{formatDate(b.date)}</td>
-                    <td className="px-6 py-4 text-slate-700">
-                      {b.start_time} – {b.end_time}
-                    </td>
-                    <td className="px-6 py-4 text-xs text-slate-600">
-                      {b.checked_in_at ? (
-                        <div data-testid={`checkin-ts-${b.id}`}>
-                          <div className="font-medium text-emerald-700">
-                            In: {fmtTime(b.checked_in_at)}
-                          </div>
-                          {b.checked_out_at ? (
-                            <div className="font-medium text-blue-700" data-testid={`checkout-ts-${b.id}`}>
-                              Out: {fmtTime(b.checked_out_at)}
-                            </div>
-                          ) : (
-                            <div className="text-slate-400">In meeting…</div>
-                          )}
+              {filtered.map((row) => {
+                if (row._kind === "meeting") {
+                  const b = row.raw;
+                  const { canIn, canOut, reason } = meetingCheckState(b, now);
+                  return (
+                    <tr
+                      key={`m-${row.id}`}
+                      className="border-t border-slate-200 hover:bg-slate-50"
+                      data-testid={`mb-row-meeting-${row.id}`}
+                    >
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+                          <DoorOpen className="h-3 w-3" /> Meeting Room
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-slate-900">{b.title}</div>
+                        <div className="text-xs text-slate-500">{b.room_name}</div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-700">
+                        <div>{formatDate(b.date)}</div>
+                        <div className="text-xs text-slate-500">
+                          {b.start_time} – {b.end_time}
                         </div>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusPill status={b.status} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="flex gap-1">
-                          {canCheckIn && (
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusPill status={b.status} />
+                      </td>
+                      <td className="px-6 py-4 text-xs">
+                        {b.checked_in_at ? (
+                          <div data-testid={`mb-checkin-ts-${b.id}`}>
+                            <div className="font-medium text-emerald-700">In: {fmtTime(b.checked_in_at)}</div>
+                            {b.checked_out_at ? (
+                              <div className="font-medium text-blue-700">Out: {fmtTime(b.checked_out_at)}</div>
+                            ) : (
+                              <div className="text-slate-400">In meeting…</div>
+                            )}
+                          </div>
+                        ) : reason ? (
+                          <span className="text-slate-400">{reason}</span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
+                          {canIn && (
                             <button
-                              onClick={() => checkIn(b.id)}
+                              onClick={() => checkInMeeting(b.id)}
                               disabled={actingId === b.id}
-                              data-testid={`check-in-btn-${b.id}`}
+                              data-testid={`mb-check-in-${b.id}`}
                               className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                             >
-                              <LogIn className="h-3 w-3" />
-                              Check in
+                              <LogIn className="h-3 w-3" /> Check in
                             </button>
                           )}
-                          {canCheckOut && (
+                          {canOut && (
                             <button
-                              onClick={() => checkOut(b.id)}
+                              onClick={() => checkOutMeeting(b.id)}
                               disabled={actingId === b.id}
-                              data-testid={`check-out-btn-${b.id}`}
+                              data-testid={`mb-check-out-${b.id}`}
                               className="inline-flex items-center gap-1 rounded-sm border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
                             >
-                              <LogOut className="h-3 w-3" />
-                              Check out
+                              <LogOut className="h-3 w-3" /> Check out
                             </button>
                           )}
-                          {(b.status === "pending" || b.status === "confirmed") &&
-                            !b.checked_in_at && (
-                              <button
-                                onClick={() => cancel(b.id)}
-                                disabled={actingId === b.id}
-                                data-testid={`my-booking-cancel-${b.id}`}
-                                className="inline-flex items-center gap-1 rounded-sm border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:border-red-300 hover:text-red-600 disabled:opacity-50"
-                              >
-                                <CalendarX2 className="h-3 w-3" />
-                                Cancel
-                              </button>
-                            )}
+                          {(b.status === "pending" || b.status === "confirmed") && !b.checked_in_at && (
+                            <button
+                              onClick={() => cancelMeeting(b.id)}
+                              disabled={actingId === b.id}
+                              data-testid={`mb-cancel-meeting-${b.id}`}
+                              className="inline-flex items-center gap-1 rounded-sm border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:border-red-300 hover:text-red-600 disabled:opacity-50"
+                            >
+                              <CalendarX2 className="h-3 w-3" /> Cancel
+                            </button>
+                          )}
                         </div>
-                        {reason && !b.checked_out_at && b.status === "confirmed" && !b.checked_in_at && (
-                          <div
-                            className="text-[11px] text-slate-400"
-                            data-testid={`check-reason-${b.id}`}
+                      </td>
+                    </tr>
+                  );
+                }
+                // VEHICLE row
+                const b = row.raw;
+                const handoverDone = !!b.handover?.user_confirmed_at;
+                const returnDone = !!b.return_info?.user_confirmed_at;
+                let processBlurb = "—";
+                if (b.status === "pending") processBlurb = "Awaiting Car Admin approval";
+                else if (b.status === "approved") processBlurb = "Approved — vehicle assignment pending";
+                else if (b.status === "assigned" && !handoverDone) processBlurb = "Confirm handover when picking up";
+                else if (b.status === "assigned" && handoverDone) processBlurb = "Awaiting admin handover sign-off";
+                else if (b.status === "in_use" && !returnDone) processBlurb = "Trip in progress — confirm return when done";
+                else if (b.status === "in_use" && returnDone) processBlurb = "Awaiting admin return sign-off";
+                else if (b.status === "completed") processBlurb = "Trip completed";
+                else if (b.status === "rejected") processBlurb = "Rejected";
+                else if (b.status === "cancelled") processBlurb = "Cancelled";
+
+                const canCancel = ["pending", "approved", "assigned"].includes(b.status) && !handoverDone;
+                return (
+                  <tr
+                    key={`v-${row.id}`}
+                    className="border-t border-slate-200 hover:bg-slate-50"
+                    data-testid={`mb-row-vehicle-${row.id}`}
+                  >
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center gap-1 rounded-sm border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+                        <Car className="h-3 w-3" /> Vehicle
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-slate-900">{b.purpose}</div>
+                      <div className="text-xs text-slate-500">
+                        {b.vehicle_name
+                          ? `${b.vehicle_name} · ${b.vehicle_plate}${b.driver_name ? ` · ${b.driver_name}` : ""}`
+                          : `${b.booking_type === "single_trip" ? "Single trip" : "Multi-day"} · ${
+                              b.with_driver ? "with driver" : "self-drive"
+                            }`}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-700">
+                      <div>
+                        {formatDate(b.start_date)}
+                        {b.start_date !== b.end_date && ` → ${formatDate(b.end_date)}`}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {b.start_time} – {b.end_time}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <VBStatusPill status={b.status} />
+                    </td>
+                    <td className="px-6 py-4 text-xs text-slate-600">{processBlurb}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
+                        <Link
+                          to={`/car/bookings/${b.id}`}
+                          data-testid={`mb-vehicle-open-${b.id}`}
+                          className="inline-flex items-center gap-1 rounded-sm bg-[#0055FF] px-2 py-1 text-xs font-semibold text-white hover:bg-[#0044CC]"
+                        >
+                          {b.status === "assigned" && !handoverDone
+                            ? "Confirm handover"
+                            : b.status === "in_use" && !returnDone
+                              ? "Confirm return"
+                              : "Open"}
+                          <ArrowRight className="h-3 w-3" />
+                        </Link>
+                        {canCancel && (
+                          <button
+                            onClick={() => cancelVehicle(b.id)}
+                            disabled={actingId === b.id}
+                            data-testid={`mb-cancel-vehicle-${b.id}`}
+                            className="inline-flex items-center gap-1 rounded-sm border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:border-red-300 hover:text-red-600 disabled:opacity-50"
                           >
-                            {reason}
-                          </div>
+                            <CalendarX2 className="h-3 w-3" /> Cancel
+                          </button>
                         )}
                       </div>
                     </td>

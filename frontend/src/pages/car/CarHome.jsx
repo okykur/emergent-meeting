@@ -69,7 +69,7 @@ export default function CarHome() {
             New Booking
           </Link>
           <Link
-            to="/car/my-bookings"
+            to="/my-bookings"
             data-testid="goto-my-car-bookings"
             className="inline-flex items-center gap-2 rounded-sm border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
@@ -90,7 +90,7 @@ export default function CarHome() {
         <h2 className="font-display text-xl font-semibold tracking-tight text-slate-900">
           Upcoming
         </h2>
-        <Link to="/car/my-bookings" className="text-sm font-semibold text-[#0055FF] hover:underline">
+        <Link to="/my-bookings" className="text-sm font-semibold text-[#0055FF] hover:underline">
           View all <ArrowRight className="inline h-3 w-3" />
         </Link>
       </div>
