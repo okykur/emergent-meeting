@@ -600,7 +600,7 @@ async def admin_update_user(
 
 @api.post("/users/{user_id}/password", response_model=UserPublic)
 async def admin_reset_password(
-    user_id: str, payload: AdminPasswordReset, admin: dict = Depends(require_admin)
+    user_id: str, payload: AdminPasswordReset, admin: dict = Depends(require_super_admin)
 ):
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
