@@ -52,7 +52,7 @@ export default function AdminBookings() {
           Booking Monitoring
         </div>
         <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-          All Bookings
+          Meeting Room Bookings
         </h1>
       </div>
 

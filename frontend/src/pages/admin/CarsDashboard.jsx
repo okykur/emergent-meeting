@@ -50,7 +50,7 @@ export default function AdminCarsDashboard() {
           Fleet Control Room
         </div>
         <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-          Vehicle Dashboard
+          Car Booking Dashboard
         </h1>
         <p className="mt-2 text-sm text-slate-500">
           Monitor your fleet, approve bookings, and manage handover/return.

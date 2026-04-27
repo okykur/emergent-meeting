@@ -93,7 +93,7 @@ export default function AdminDrivers() {
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Master Data</div>
-          <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">Drivers</h1>
+          <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">Car Drivers</h1>
           <p className="mt-2 text-sm text-slate-500">Manage driver roster and assignment availability.</p>
         </div>
         <button onClick={() => setEditing("new")} data-testid="add-driver-btn" className="inline-flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]">

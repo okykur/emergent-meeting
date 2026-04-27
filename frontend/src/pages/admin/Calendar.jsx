@@ -8,7 +8,7 @@ export default function AdminCalendar() {
           Organization Schedule
         </div>
         <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-          Bookings Calendar
+          Meeting Room Calendar
         </h1>
         <p className="mt-2 text-sm text-slate-500">
           Full month view of every meeting room and vehicle booking across the organization.

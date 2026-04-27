@@ -123,7 +123,7 @@ export default function AdminVehicles() {
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Master Data</div>
-          <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">Fleet</h1>
+          <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">Car Vehicles</h1>
           <p className="mt-2 text-sm text-slate-500">Vehicles available for booking, with status & maintenance flags.</p>
         </div>
         <button onClick={() => setEditing("new")} data-testid="add-vehicle-btn" className="inline-flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]">

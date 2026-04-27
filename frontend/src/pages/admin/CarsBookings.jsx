@@ -37,7 +37,7 @@ export default function AdminCarsBookings() {
           Booking Approval & Monitoring
         </div>
         <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-          Vehicle Bookings
+          Car Bookings
         </h1>
       </div>
 
