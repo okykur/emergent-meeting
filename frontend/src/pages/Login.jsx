@@ -131,18 +131,6 @@ export default function Login() {
               Sign in
             </button>
           </form>
-
-          <div className="mt-8 rounded-sm border border-slate-200 bg-white p-4 text-xs text-slate-500">
-            <div className="mb-2 font-semibold uppercase tracking-wider text-slate-600">
-              Demo Admin
-            </div>
-            <div>
-              Email: <code>admin@roombook.com</code>
-            </div>
-            <div>
-              Password: <code>Admin@123</code>
-            </div>
-          </div>
         </div>
       </div>
     </div>
