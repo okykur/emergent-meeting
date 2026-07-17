@@ -61,6 +61,9 @@ let webpackConfig = {
 };
 
 webpackConfig.devServer = (devServerConfig) => {
+  devServerConfig.host = process.env.HOST || "0.0.0.0";
+  devServerConfig.allowedHosts = "all";
+
   // Add health check endpoints if enabled
   if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
     const originalSetupMiddlewares = devServerConfig.setupMiddlewares;

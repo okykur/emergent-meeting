@@ -1,7 +1,7 @@
 {
-  "short_name": "RoomBook",
-  "name": "RoomBook - Meeting Room Booking",
-  "description": "Enterprise meeting room booking platform",
+  "short_name": "KCSI Booking",
+  "name": "KCSI Booking System",
+  "description": "KCSI Booking System",
   "icons": [
     {
       "src": "/favicon.ico",

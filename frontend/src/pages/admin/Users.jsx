@@ -11,6 +11,8 @@ import {
   Loader2,
   Shield,
   User as UserIcon,
+  CheckCircle2,
+  Clock3,
 } from "lucide-react";
 
 function RoleTag({ role }) {
@@ -48,20 +50,44 @@ function RoleTag({ role }) {
   );
 }
 
+function ApprovalTag({ approved }) {
+  const Icon = approved ? CheckCircle2 : Clock3;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${
+        approved
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-amber-200 bg-amber-50 text-amber-700"
+      }`}
+      data-testid={approved ? "approval-approved" : "approval-pending"}
+    >
+      <Icon className="h-3 w-3" /> {approved ? "Approved" : "Pending"}
+    </span>
+  );
+}
+
 function UserFormDialog({ initial, onClose, onSaved }) {
   const [form, setForm] = useState(() =>
     initial
       ? {
           name: initial.name || "",
           company_name: initial.company_name || "",
+          job_title: initial.job_title || "",
+          department: initial.department || "",
+          office_address: initial.office_address || "",
           role: initial.role || "user",
+          is_approved: Boolean(initial.is_approved),
         }
       : {
           email: "",
           password: "",
           name: "",
           company_name: "",
+          job_title: "",
+          department: "",
+          office_address: "",
           role: "user",
+          is_approved: true,
         }
   );
   const [error, setError] = useState("");
@@ -76,7 +102,11 @@ function UserFormDialog({ initial, onClose, onSaved }) {
         await api.patch(`/users/${initial.id}`, {
           name: form.name,
           company_name: form.company_name,
+          job_title: form.job_title,
+          department: form.department,
+          office_address: form.office_address,
           role: form.role,
+          is_approved: form.is_approved,
         });
       } else {
         await api.post("/users", form);
@@ -161,6 +191,35 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
             />
           </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Jabatan</label>
+              <input
+                data-testid="user-job-title-input"
+                value={form.job_title}
+                onChange={(e) => setForm({ ...form, job_title: e.target.value })}
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Departemen</label>
+              <input
+                data-testid="user-department-input"
+                value={form.department}
+                onChange={(e) => setForm({ ...form, department: e.target.value })}
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Alamat kantor</label>
+            <textarea
+              data-testid="user-office-address-input"
+              value={form.office_address}
+              onChange={(e) => setForm({ ...form, office_address: e.target.value })}
+              className="min-h-20 w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+            />
+          </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Role</label>
             <select
@@ -178,6 +237,21 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               Each admin role only manages its own division. Super Admin has access to everything, including user management.
             </p>
           </div>
+          <label className="flex items-start gap-3 rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={form.is_approved}
+              onChange={(e) => setForm({ ...form, is_approved: e.target.checked })}
+              className="mt-1"
+              data-testid="user-approved-checkbox"
+            />
+            <span>
+              <span className="block font-medium text-slate-900">Approve account</span>
+              <span className="text-xs text-slate-500">
+                Pending users cannot sign in until this is checked and saved.
+              </span>
+            </span>
+          </label>
           {error && (
             <div className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
@@ -322,6 +396,7 @@ export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [q, setQ] = useState("");
   const [role, setRole] = useState("");
+  const [approval, setApproval] = useState("");
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(null); // user | 'new' | null
   const [pwTarget, setPwTarget] = useState(null);
@@ -333,6 +408,7 @@ export default function AdminUsers() {
       const params = {};
       if (q) params.q = q;
       if (role) params.role = role;
+      if (approval) params.approval = approval;
       const { data } = await api.get("/users", { params });
       setUsers(data);
     } catch (e) {
@@ -345,12 +421,21 @@ export default function AdminUsers() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role]);
+  }, [role, approval]);
 
   const remove = async (u) => {
     if (!window.confirm(`Delete user "${u.email}"? Their past bookings will be kept for audit.`)) return;
     try {
       await api.delete(`/users/${u.id}`);
+      await load();
+    } catch (e) {
+      alert(formatApiError(e));
+    }
+  };
+
+  const approve = async (u) => {
+    try {
+      await api.patch(`/users/${u.id}`, { is_approved: true, role: u.role || "user" });
       await load();
     } catch (e) {
       alert(formatApiError(e));
@@ -386,7 +471,7 @@ export default function AdminUsers() {
           e.preventDefault();
           load();
         }}
-        className="mb-6 grid grid-cols-1 gap-3 rounded-sm border border-slate-200 bg-white p-4 md:grid-cols-[1fr_auto_auto]"
+        className="mb-6 grid grid-cols-1 gap-3 rounded-sm border border-slate-200 bg-white p-4 md:grid-cols-[1fr_auto_auto_auto]"
       >
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -410,6 +495,16 @@ export default function AdminUsers() {
           <option value="car_admin">Car Admins</option>
           <option value="super_admin">Super Admins</option>
         </select>
+        <select
+          data-testid="users-approval-filter"
+          value={approval}
+          onChange={(e) => setApproval(e.target.value)}
+          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+        >
+          <option value="">All approvals</option>
+          <option value="pending">Pending approval</option>
+          <option value="approved">Approved</option>
+        </select>
         <button
           type="submit"
           data-testid="users-search-btn"
@@ -431,8 +526,9 @@ export default function AdminUsers() {
             <tr>
               <th className="px-6 py-3 text-left">Name</th>
               <th className="px-6 py-3 text-left">Email</th>
-              <th className="px-6 py-3 text-left">Company</th>
+              <th className="px-6 py-3 text-left">Profile</th>
               <th className="px-6 py-3 text-left">Role</th>
+              <th className="px-6 py-3 text-left">Approval</th>
               <th className="px-6 py-3 text-left">Joined</th>
               <th className="px-6 py-3 text-right">Actions</th>
             </tr>
@@ -440,13 +536,13 @@ export default function AdminUsers() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">
+                <td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">
                   Loading users…
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500" data-testid="users-empty">
+                <td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500" data-testid="users-empty">
                   No users match your filters.
                 </td>
               </tr>
@@ -473,15 +569,35 @@ export default function AdminUsers() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-slate-700">{u.email}</td>
-                  <td className="px-6 py-4 text-slate-700">{u.company_name || "—"}</td>
+                  <td className="px-6 py-4 text-slate-700">
+                    <div className="font-medium text-slate-900">{u.company_name || "—"}</div>
+                    <div className="text-xs text-slate-500">
+                      {[u.job_title, u.department].filter(Boolean).join(" · ") || "—"}
+                    </div>
+                    {u.office_address && (
+                      <div className="mt-1 max-w-xs text-xs text-slate-500">{u.office_address}</div>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <RoleTag role={u.role} />
+                  </td>
+                  <td className="px-6 py-4">
+                    <ApprovalTag approved={u.is_approved} />
                   </td>
                   <td className="px-6 py-4 text-xs text-slate-500">
                     {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-1">
+                      {!u.is_approved && (
+                        <button
+                          onClick={() => approve(u)}
+                          data-testid={`approve-user-${u.id}`}
+                          className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                        >
+                          <CheckCircle2 className="h-3 w-3" /> Approve
+                        </button>
+                      )}
                       <button
                         onClick={() => setEditing(u)}
                         data-testid={`edit-user-${u.id}`}

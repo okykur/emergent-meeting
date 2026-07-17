@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Building2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function Login() {
   const { login } = useAuth();
@@ -102,7 +102,16 @@ export default function Login() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
+              <div className="mb-1 flex items-center justify-between gap-3">
+                <label className="block text-sm font-medium text-slate-700">Password</label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-medium text-[#0055FF] hover:underline"
+                  data-testid="forgot-password-link"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 data-testid="login-password-input"
                 type="password"

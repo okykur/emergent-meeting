@@ -9,7 +9,11 @@ import uuid
 import logging
 import bcrypt
 import jwt
+import hashlib
+import secrets
+import smtplib
 from datetime import datetime, timezone, timedelta
+from email.message import EmailMessage
 from typing import List, Optional, Literal
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query
@@ -27,6 +31,18 @@ JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_MINUTES = 60 * 24  # 24h
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@roombook.com")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@123")
+APP_HOST = os.environ.get("APP_HOST", "0.0.0.0")
+APP_PORT = int(os.environ.get("APP_PORT", "8000"))
+UVICORN_RELOAD = os.environ.get("UVICORN_RELOAD", "true").lower() == "true"
+APP_PUBLIC_URL = os.environ.get("APP_PUBLIC_URL", "http://localhost:3001").rstrip("/")
+PASSWORD_RESET_MINUTES = int(os.environ.get("PASSWORD_RESET_MINUTES", "30"))
+PASSWORD_RESET_DEV_MODE = os.environ.get("PASSWORD_RESET_DEV_MODE", "false").lower() == "true"
+SMTP_HOST = os.environ.get("SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USERNAME or ADMIN_EMAIL)
+SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -82,6 +98,9 @@ async def get_current_user(request: Request) -> dict:
     user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    _normalize_user_public(user)
+    if not user.get("is_approved", True):
+        raise HTTPException(status_code=403, detail="Your account is waiting for admin approval")
     return user
 
 
@@ -118,7 +137,13 @@ class UserPublic(BaseModel):
     email: EmailStr
     name: str
     company_name: str = ""
+    job_title: str = ""
+    department: str = ""
+    office_address: str = ""
     role: Literal["user", "meeting_admin", "car_admin", "super_admin"]
+    is_approved: bool = True
+    approved_at: Optional[str] = None
+    approved_by: Optional[str] = None
     created_at: str
 
 
@@ -127,6 +152,9 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=6)
     name: str = Field(min_length=1)
     company_name: str = Field(min_length=1, max_length=120)
+    job_title: str = Field(min_length=1, max_length=120)
+    department: str = Field(min_length=1, max_length=120)
+    office_address: str = Field(min_length=1, max_length=240)
 
 
 class LoginRequest(BaseModel):
@@ -134,10 +162,30 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    ok: bool = True
+    message: str
+    reset_url: Optional[str] = None
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=20)
+    password: str = Field(min_length=6)
+
+
 class AuthResponse(BaseModel):
     user: UserPublic
     access_token: str
     token_type: str = "bearer"
+
+
+class RegisterResponse(BaseModel):
+    ok: bool = True
+    message: str
 
 
 class RoomBase(BaseModel):
@@ -229,7 +277,61 @@ async def _check_overlap(room_id: str, date: str, start: str, end: str, exclude_
 
 
 # ---------- Auth Endpoints ----------
-@api.post("/auth/register", response_model=AuthResponse)
+def _normalize_user_public(user: dict) -> dict:
+    user.setdefault("company_name", "")
+    user.setdefault("job_title", "")
+    user.setdefault("department", "")
+    user.setdefault("office_address", "")
+    user.setdefault("is_approved", True)
+    user.setdefault("approved_at", None)
+    user.setdefault("approved_by", None)
+    return user
+
+
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _reset_url(token: str) -> str:
+    return f"{APP_PUBLIC_URL}/reset-password?token={token}"
+
+
+def _send_password_reset_email(email: str, reset_url: str) -> bool:
+    if not SMTP_HOST:
+        return False
+
+    message = EmailMessage()
+    message["Subject"] = "KCSI Booking System Password Reset"
+    message["From"] = SMTP_FROM
+    message["To"] = email
+    message.set_content(
+        "\n".join(
+            [
+                "We received a request to reset your KCSI Booking System password.",
+                "",
+                "Open this link to set a new password:",
+                reset_url,
+                "",
+                f"This link expires in {PASSWORD_RESET_MINUTES} minutes.",
+                "If you did not request this, you can ignore this email.",
+            ]
+        )
+    )
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+            if SMTP_USE_TLS:
+                smtp.starttls()
+            if SMTP_USERNAME:
+                smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+            smtp.send_message(message)
+        return True
+    except Exception:
+        logger.exception("Failed to send password reset email")
+        return False
+
+
+@api.post("/auth/register", response_model=RegisterResponse)
 async def register(payload: RegisterRequest):
     email = payload.email.lower()
     existing = await db.users.find_one({"email": email})
@@ -241,14 +343,18 @@ async def register(payload: RegisterRequest):
         "email": email,
         "name": payload.name.strip(),
         "company_name": payload.company_name.strip(),
+        "job_title": payload.job_title.strip(),
+        "department": payload.department.strip(),
+        "office_address": payload.office_address.strip(),
         "password_hash": hash_password(payload.password),
         "role": "user",
+        "is_approved": False,
+        "approved_at": None,
+        "approved_by": None,
         "created_at": _now_iso(),
     }
     await db.users.insert_one(doc)
-    public = {k: v for k, v in doc.items() if k != "password_hash"}
-    token = create_access_token(user_id, email, "user")
-    return AuthResponse(user=UserPublic(**public), access_token=token)
+    return RegisterResponse(message="Account created. Please wait for admin approval before signing in.")
 
 
 @api.post("/auth/login", response_model=AuthResponse)
@@ -257,10 +363,72 @@ async def login(payload: LoginRequest):
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user.get("is_approved", True):
+        raise HTTPException(status_code=403, detail="Your account is waiting for admin approval")
     token = create_access_token(user["id"], user["email"], user["role"])
-    user.setdefault("company_name", "")
+    _normalize_user_public(user)
     public = {k: v for k, v in user.items() if k not in ("password_hash", "_id")}
     return AuthResponse(user=UserPublic(**public), access_token=token)
+
+
+@api.post("/auth/forgot-password", response_model=ForgotPasswordResponse)
+async def forgot_password(payload: ForgotPasswordRequest):
+    email = payload.email.lower()
+    user = await db.users.find_one({"email": email}, {"_id": 0})
+    message = "If the email is registered, password reset instructions will be sent."
+    reset_url = None
+
+    if user:
+        token = secrets.token_urlsafe(48)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=PASSWORD_RESET_MINUTES)
+        doc = {
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "email": email,
+            "token_hash": _hash_reset_token(token),
+            "created_at": _now_iso(),
+            "expires_at": expires_at,
+            "used_at": None,
+        }
+        await db.password_resets.insert_one(doc)
+        reset_url = _reset_url(token)
+        email_sent = _send_password_reset_email(email, reset_url)
+        if not email_sent and not PASSWORD_RESET_DEV_MODE:
+            logger.warning("Password reset requested but SMTP is not configured or failed")
+
+    return ForgotPasswordResponse(
+        message=message,
+        reset_url=reset_url if PASSWORD_RESET_DEV_MODE and user else None,
+    )
+
+
+@api.post("/auth/reset-password")
+async def reset_password(payload: ResetPasswordRequest):
+    token_hash = _hash_reset_token(payload.token)
+    reset_doc = await db.password_resets.find_one({"token_hash": token_hash, "used_at": None}, {"_id": 0})
+    if not reset_doc:
+        raise HTTPException(status_code=400, detail="Reset link is invalid or has expired")
+
+    expires_at = reset_doc["expires_at"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset link is invalid or has expired")
+
+    result = await db.users.update_one(
+        {"id": reset_doc["user_id"]},
+        {"$set": {"password_hash": hash_password(payload.password)}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=400, detail="Reset link is invalid or has expired")
+
+    await db.password_resets.update_one(
+        {"token_hash": token_hash},
+        {"$set": {"used_at": _now_iso()}},
+    )
+    return {"ok": True, "message": "Password updated successfully. You can sign in now."}
 
 
 @api.post("/auth/logout")
@@ -286,7 +454,7 @@ async def promote_user(payload: PromoteRequest, admin: dict = Depends(require_su
         raise HTTPException(status_code=404, detail="User not found")
     await db.users.update_one({"id": target["id"]}, {"$set": {"role": payload.role}})
     target["role"] = payload.role
-    target.setdefault("company_name", "")
+    _normalize_user_public(target)
     return UserPublic(**{k: v for k, v in target.items() if k not in ("password_hash", "_id")})
 
 
@@ -525,7 +693,11 @@ async def check_out_booking(booking_id: str, user: dict = Depends(get_current_us
 class AdminUserUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1)
     company_name: Optional[str] = Field(default=None, max_length=120)
+    job_title: Optional[str] = Field(default=None, max_length=120)
+    department: Optional[str] = Field(default=None, max_length=120)
+    office_address: Optional[str] = Field(default=None, max_length=240)
     role: Optional[Literal["user", "meeting_admin", "car_admin", "super_admin"]] = None
+    is_approved: Optional[bool] = None
 
 
 class AdminPasswordReset(BaseModel):
@@ -537,7 +709,11 @@ class AdminUserCreate(BaseModel):
     password: str = Field(min_length=6)
     name: str = Field(min_length=1)
     company_name: str = ""
+    job_title: str = ""
+    department: str = ""
+    office_address: str = ""
     role: Literal["user", "meeting_admin", "car_admin", "super_admin"] = "user"
+    is_approved: bool = True
 
 
 @api.get("/users", response_model=List[UserPublic])
@@ -545,19 +721,27 @@ async def list_users(
     admin: dict = Depends(require_super_admin),
     q: Optional[str] = None,
     role: Optional[Literal["user", "meeting_admin", "car_admin", "super_admin"]] = None,
+    approval: Optional[Literal["approved", "pending"]] = None,
 ):
     query: dict = {}
     if role:
         query["role"] = role
+    if approval == "approved":
+        query["is_approved"] = True
+    elif approval == "pending":
+        query["is_approved"] = False
     if q:
         query["$or"] = [
             {"email": {"$regex": q, "$options": "i"}},
             {"name": {"$regex": q, "$options": "i"}},
             {"company_name": {"$regex": q, "$options": "i"}},
+            {"job_title": {"$regex": q, "$options": "i"}},
+            {"department": {"$regex": q, "$options": "i"}},
+            {"office_address": {"$regex": q, "$options": "i"}},
         ]
     users = await db.users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(1000)
     for u in users:
-        u.setdefault("company_name", "")
+        _normalize_user_public(u)
     return [UserPublic(**u) for u in users]
 
 
@@ -571,8 +755,14 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
         "email": email,
         "name": payload.name.strip(),
         "company_name": payload.company_name.strip(),
+        "job_title": payload.job_title.strip(),
+        "department": payload.department.strip(),
+        "office_address": payload.office_address.strip(),
         "password_hash": hash_password(payload.password),
         "role": payload.role,
+        "is_approved": payload.is_approved,
+        "approved_at": _now_iso() if payload.is_approved else None,
+        "approved_by": admin["id"] if payload.is_approved else None,
         "created_at": _now_iso(),
     }
     await db.users.insert_one(doc)
@@ -590,11 +780,19 @@ async def admin_update_user(
     # Prevent self-demotion away from super_admin
     if user_id == admin["id"] and "role" in updates and updates["role"] != "super_admin":
         raise HTTPException(status_code=400, detail="You cannot change your own role")
+    if user_id == admin["id"] and updates.get("is_approved") is False:
+        raise HTTPException(status_code=400, detail="You cannot unapprove your own account")
+    if updates.get("is_approved") is True:
+        updates["approved_at"] = _now_iso()
+        updates["approved_by"] = admin["id"]
+    elif updates.get("is_approved") is False:
+        updates["approved_at"] = None
+        updates["approved_by"] = None
     result = await db.users.update_one({"id": user_id}, {"$set": updates})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
     user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
-    user.setdefault("company_name", "")
+    _normalize_user_public(user)
     return UserPublic(**user)
 
 
@@ -610,7 +808,7 @@ async def admin_reset_password(
         {"$set": {"password_hash": hash_password(payload.password)}},
     )
     user.pop("password_hash", None)
-    user.setdefault("company_name", "")
+    _normalize_user_public(user)
     return UserPublic(**user)
 
 
@@ -719,9 +917,15 @@ async def seed_admin():
                 "id": str(uuid.uuid4()),
                 "email": ADMIN_EMAIL.lower(),
                 "name": "System Admin",
-                "company_name": "RoomBook",
+                "company_name": "KCSI",
+                "job_title": "System Administrator",
+                "department": "IT",
+                "office_address": "KCSI Office",
                 "password_hash": hash_password(ADMIN_PASSWORD),
                 "role": "super_admin",
+                "is_approved": True,
+                "approved_at": _now_iso(),
+                "approved_by": "system",
                 "created_at": _now_iso(),
             }
         )
@@ -730,9 +934,23 @@ async def seed_admin():
         # Ensure the seeded admin always has super_admin role (backward-compat migration)
         if existing.get("role") != "super_admin":
             await db.users.update_one(
-                {"email": ADMIN_EMAIL.lower()}, {"$set": {"role": "super_admin"}}
+                {"email": ADMIN_EMAIL.lower()},
+                {
+                    "$set": {
+                        "role": "super_admin",
+                        "is_approved": True,
+                        "approved_at": existing.get("approved_at") or _now_iso(),
+                        "approved_by": existing.get("approved_by") or "system",
+                    }
+                },
             )
             logger.info(f"Upgraded {ADMIN_EMAIL} to super_admin role")
+        elif not existing.get("is_approved", True):
+            await db.users.update_one(
+                {"email": ADMIN_EMAIL.lower()},
+                {"$set": {"is_approved": True, "approved_at": _now_iso(), "approved_by": "system"}},
+            )
+            logger.info(f"Approved seeded super admin user: {ADMIN_EMAIL}")
         if not verify_password(ADMIN_PASSWORD, existing["password_hash"]):
             await db.users.update_one(
                 {"email": ADMIN_EMAIL.lower()},
@@ -746,6 +964,12 @@ async def migrate_legacy_roles():
     res = await db.users.update_many({"role": "admin"}, {"$set": {"role": "super_admin"}})
     if res.modified_count:
         logger.info(f"Migrated {res.modified_count} legacy admin users to super_admin")
+    res = await db.users.update_many(
+        {"is_approved": {"$exists": False}},
+        {"$set": {"is_approved": True, "approved_at": _now_iso(), "approved_by": "system"}},
+    )
+    if res.modified_count:
+        logger.info(f"Approved {res.modified_count} legacy user accounts")
 
 
 async def seed_rooms():
@@ -1466,6 +1690,8 @@ async def on_startup():
     await db.vehicles.create_index("plate_number", unique=True)
     await db.vehicle_bookings.create_index([("vehicle_id", 1), ("start_date", 1)])
     await db.vehicle_bookings.create_index("user_id")
+    await db.password_resets.create_index("token_hash", unique=True)
+    await db.password_resets.create_index("expires_at", expireAfterSeconds=0)
     await seed_admin()
     await migrate_legacy_roles()
     await seed_rooms()
@@ -1479,10 +1705,18 @@ async def on_shutdown():
 
 app.include_router(api)
 
+cors_origins = [origin.strip() for origin in os.environ.get("CORS_ORIGINS", "*").split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_origins=cors_origins or ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("server:app", host=APP_HOST, port=APP_PORT, reload=UVICORN_RELOAD)

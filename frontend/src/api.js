@@ -1,6 +1,17 @@
 import axios from "axios";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+function getDefaultBackendUrl() {
+  if (typeof window === "undefined") {
+    return "http://localhost:8000";
+  }
+
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  const backendPort = process.env.REACT_APP_BACKEND_PORT || "8000";
+
+  return `${protocol}//${window.location.hostname}:${backendPort}`;
+}
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || getDefaultBackendUrl();
 export const API = `${BACKEND_URL}/api`;
 
 export const TOKEN_KEY = "rb_token";

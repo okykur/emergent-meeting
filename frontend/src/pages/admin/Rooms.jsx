@@ -270,7 +270,11 @@ export default function AdminRooms() {
                 <button
                   onClick={() => toggleActive(r)}
                   data-testid={`toggle-active-${r.id}`}
-                  className="flex-1 rounded-sm border border-slate-300 px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className={`flex-1 rounded-sm border px-2 py-1.5 text-xs font-semibold transition-colors ${
+                    r.is_active
+                      ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  }`}
                 >
                   {r.is_active ? "Deactivate" : "Activate"}
                 </button>

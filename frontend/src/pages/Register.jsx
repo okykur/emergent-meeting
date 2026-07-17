@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Building2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function Register() {
   const { register } = useAuth();
@@ -9,27 +9,82 @@ export default function Register() {
 
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [department, setDepartment] = useState("");
+  const [officeAddress, setOfficeAddress] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     if (password.length < 6) {
       setError("Password must be at least 6 characters.");
       return;
     }
     setLoading(true);
-    const res = await register(name, company, email, password);
+    const res = await register({
+      name,
+      company_name: company,
+      job_title: jobTitle,
+      department,
+      office_address: officeAddress,
+      email,
+      password,
+    });
     setLoading(false);
     if (res.ok) {
-      navigate("/hub", { replace: true });
+      setName("");
+      setCompany("");
+      setJobTitle("");
+      setDepartment("");
+      setOfficeAddress("");
+      setEmail("");
+      setPassword("");
+      setSuccess(res.message || "Account created. Please wait for admin approval before signing in.");
     } else {
       setError(res.error);
     }
   };
+
+  if (success) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f9fa] px-6 py-12" data-testid="register-pending-page">
+        <div className="w-full max-w-md">
+          <div className="mb-8 flex items-center gap-2">
+            <img
+              src="/brand-logo.png"
+              alt="KCSI Consulting-Shared Services"
+              className="h-16 w-auto object-contain"
+            />
+          </div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
+            Account submitted
+          </div>
+          <h2 className="font-display text-3xl font-bold tracking-tight text-slate-900">
+            Waiting for admin approval
+          </h2>
+          <div
+            className="mt-6 rounded-sm border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-700"
+            data-testid="register-success"
+          >
+            {success}
+          </div>
+          <Link
+            to="/login"
+            className="mt-6 inline-flex w-full items-center justify-center rounded-sm bg-[#0055FF] px-4 py-2.5 font-medium text-white transition-colors hover:bg-[#0044CC]"
+            data-testid="register-pending-login-link"
+          >
+            Go to sign in
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f8f9fa] px-6 py-12" data-testid="register-page">
@@ -79,6 +134,39 @@ export default function Register() {
               onChange={(e) => setCompany(e.target.value)}
               className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
               placeholder="Acme Corp."
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Jabatan</label>
+            <input
+              data-testid="register-job-title-input"
+              required
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              placeholder="Manager"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Departemen</label>
+            <input
+              data-testid="register-department-input"
+              required
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              placeholder="Operations"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Alamat kantor</label>
+            <textarea
+              data-testid="register-office-address-input"
+              required
+              value={officeAddress}
+              onChange={(e) => setOfficeAddress(e.target.value)}
+              className="min-h-20 w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              placeholder="KCSI office address"
             />
           </div>
           <div>

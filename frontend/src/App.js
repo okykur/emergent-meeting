@@ -5,6 +5,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Layout from "@/components/Layout";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import Rooms from "@/pages/Rooms";
 import MyBookings from "@/pages/MyBookings";
 import MyCalendar from "@/pages/MyCalendar";
@@ -50,6 +52,8 @@ function App() {
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             <Route
               element={

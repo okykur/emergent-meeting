@@ -37,12 +37,10 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const register = async (name, company_name, email, password) => {
+  const register = async (payload) => {
     try {
-      const { data } = await api.post("/auth/register", { name, company_name, email, password });
-      localStorage.setItem(TOKEN_KEY, data.access_token);
-      setUser(data.user);
-      return { ok: true, user: data.user };
+      const { data } = await api.post("/auth/register", payload);
+      return { ok: true, message: data.message };
     } catch (e) {
       return { ok: false, error: formatApiError(e) };
     }
