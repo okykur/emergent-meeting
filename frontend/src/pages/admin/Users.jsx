@@ -126,10 +126,10 @@ function UserFormDialog({ initial, onClose, onSaved }) {
       data-testid="user-dialog"
     >
       <div
-        className="w-full max-w-md rounded-sm border border-slate-200 bg-white shadow-xl"
+        className="flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-sm border border-slate-200 bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 p-5">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 p-5">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               {initial ? "Edit User" : "New User"}
@@ -142,7 +142,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <form onSubmit={submit} className="space-y-4 p-5" data-testid="user-form">
+        <form onSubmit={submit} className="min-h-0 space-y-4 overflow-y-auto p-5" data-testid="user-form">
           {!initial && (
             <>
               <div>
