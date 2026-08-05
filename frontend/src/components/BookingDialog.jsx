@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X, Loader2, CalendarClock } from "lucide-react";
 import { api, formatApiError } from "../api";
 import { toYMD, nowTime } from "../utils/dates";
@@ -19,6 +19,58 @@ export default function BookingDialog({ room, onClose, onBooked }) {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [availability, setAvailability] = useState(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+
+  const availabilityMessage = (slot) => {
+    const conflict = slot?.conflicts?.[0];
+    if (conflict) {
+      return `${slot.reason}. Existing booking: ${conflict.start_time}-${conflict.end_time}.`;
+    }
+    return slot?.reason || "Room is not available for this date and time.";
+  };
+
+  const checkSlotAvailability = async () => {
+    const { data } = await api.get(`/rooms/${room.id}/availability/check`, {
+      params: {
+        date,
+        start_time: startTime,
+        end_time: endTime,
+      },
+    });
+    setAvailability(data);
+    return data;
+  };
+
+  useEffect(() => {
+    setAvailability(null);
+    if (!room?.id || !date || !startTime || !endTime || startTime >= endTime) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setCheckingAvailability(true);
+      try {
+        const data = await checkSlotAvailability();
+        if (!cancelled) setAvailability(data);
+      } catch (err) {
+        if (!cancelled) {
+          setAvailability({
+            available: false,
+            reason: formatApiError(err),
+            conflicts: [],
+          });
+        }
+      } finally {
+        if (!cancelled) setCheckingAvailability(false);
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.id, date, startTime, endTime]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -37,6 +89,12 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     }
     setLoading(true);
     try {
+      const slot = await checkSlotAvailability();
+      if (!slot.available) {
+        setError(availabilityMessage(slot));
+        setLoading(false);
+        return;
+      }
       await api.post("/bookings", {
         room_id: room.id,
         title,
@@ -133,6 +191,30 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               />
             </div>
           </div>
+          {checkingAvailability && (
+            <div
+              className="rounded-sm border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700"
+              data-testid="booking-availability-checking"
+            >
+              Checking room availability...
+            </div>
+          )}
+          {!checkingAvailability && availability?.available === true && (
+            <div
+              className="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+              data-testid="booking-availability-available"
+            >
+              Room is available for {date} at {startTime}-{endTime}.
+            </div>
+          )}
+          {!checkingAvailability && availability?.available === false && (
+            <div
+              className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              data-testid="booking-availability-unavailable"
+            >
+              {availabilityMessage(availability)}
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
               Participants (max {room.capacity})
@@ -178,7 +260,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || checkingAvailability || availability?.available === false}
               data-testid="booking-submit-btn"
               className="flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60"
             >

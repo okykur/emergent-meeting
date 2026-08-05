@@ -277,10 +277,10 @@ export default function Rooms() {
           <span className="inline-block h-3 w-5 rounded-sm bg-emerald-500" /> Free
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-5 rounded-sm bg-amber-400" /> Partially booked
+          <span className="inline-block h-3 w-5 rounded-sm bg-amber-400" /> Pending / partially booked
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-5 rounded-sm bg-red-500" /> Fully booked
+          <span className="inline-block h-3 w-5 rounded-sm bg-red-500" /> Fully booked (approved)
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-block h-3 w-5 rounded-sm bg-slate-200" /> No data / closed

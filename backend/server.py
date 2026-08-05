@@ -260,6 +260,10 @@ def _overlap(a_start: str, a_end: str, b_start: str, b_end: str) -> bool:
 
 
 async def _check_overlap(room_id: str, date: str, start: str, end: str, exclude_id: Optional[str] = None) -> bool:
+    return bool(await _find_overlaps(room_id, date, start, end, exclude_id=exclude_id))
+
+
+async def _find_overlaps(room_id: str, date: str, start: str, end: str, exclude_id: Optional[str] = None) -> List[dict]:
     cursor = db.bookings.find(
         {
             "room_id": room_id,
@@ -268,12 +272,13 @@ async def _check_overlap(room_id: str, date: str, start: str, end: str, exclude_
         },
         {"_id": 0},
     )
+    conflicts = []
     async for bk in cursor:
         if exclude_id and bk["id"] == exclude_id:
             continue
         if _overlap(start, end, bk["start_time"], bk["end_time"]):
-            return True
-    return False
+            conflicts.append(bk)
+    return conflicts
 
 
 # ---------- Auth Endpoints ----------
@@ -522,6 +527,50 @@ async def room_availability(
     return {"room_id": room_id, "bookings": bookings}
 
 
+@api.get("/rooms/{room_id}/availability/check")
+async def room_availability_check(
+    room_id: str,
+    date: str = Query(...),
+    start_time: str = Query(...),
+    end_time: str = Query(...),
+):
+    room = await db.rooms.find_one({"id": room_id}, {"_id": 0})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if not room.get("is_active"):
+        return {"room_id": room_id, "available": False, "reason": "Room is not active", "conflicts": []}
+    if start_time >= end_time:
+        raise HTTPException(status_code=400, detail="End time must be after start time")
+    try:
+        datetime.fromisoformat(f"{date}T{start_time}")
+        datetime.fromisoformat(f"{date}T{end_time}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid date/time format")
+
+    conflicts = await _find_overlaps(room_id, date, start_time, end_time)
+    safe_conflicts = [
+        {
+            "id": b["id"],
+            "title": b.get("title", ""),
+            "date": b["date"],
+            "start_time": b["start_time"],
+            "end_time": b["end_time"],
+            "status": b["status"],
+            "user_name": b.get("user_name", ""),
+        }
+        for b in conflicts
+    ]
+    return {
+        "room_id": room_id,
+        "date": date,
+        "start_time": start_time,
+        "end_time": end_time,
+        "available": len(safe_conflicts) == 0,
+        "reason": None if len(safe_conflicts) == 0 else "Room is already booked for this time slot",
+        "conflicts": safe_conflicts,
+    }
+
+
 # ---------- Bookings ----------
 @api.post("/bookings", response_model=Booking)
 async def create_booking(payload: BookingCreate, user: dict = Depends(get_current_user)):
@@ -544,8 +593,16 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
     if payload.participants > room["capacity"]:
         raise HTTPException(status_code=400, detail=f"Participants exceed room capacity ({room['capacity']})")
     # Check overlap
-    if await _check_overlap(payload.room_id, payload.date, payload.start_time, payload.end_time):
-        raise HTTPException(status_code=409, detail="Room is already booked for this time slot")
+    conflicts = await _find_overlaps(payload.room_id, payload.date, payload.start_time, payload.end_time)
+    if conflicts:
+        conflict = conflicts[0]
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Room is already booked for this time slot. "
+                f"Existing booking: {conflict['start_time']}-{conflict['end_time']}."
+            ),
+        )
 
     booking_id = str(uuid.uuid4())
     doc = {

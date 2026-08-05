@@ -49,19 +49,50 @@ export function rangeDays(startYMD, endYMD, max = 31) {
   return out;
 }
 
-// Compute availability status for a given day given bookings
+const WORKDAY_START_MINUTES = 8 * 60;
+const WORKDAY_END_MINUTES = 17 * 60 + 30;
+const FULL_WORKDAY_MINUTES = WORKDAY_END_MINUTES - WORKDAY_START_MINUTES;
+
+function timeToMinutes(time) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function mergedMinutes(intervals) {
+  if (intervals.length === 0) return 0;
+  const sorted = [...intervals].sort((a, b) => a[0] - b[0]);
+  let total = 0;
+  let [currentStart, currentEnd] = sorted[0];
+
+  for (const [start, end] of sorted.slice(1)) {
+    if (start <= currentEnd) {
+      currentEnd = Math.max(currentEnd, end);
+    } else {
+      total += currentEnd - currentStart;
+      [currentStart, currentEnd] = [start, end];
+    }
+  }
+
+  return total + currentEnd - currentStart;
+}
+
+// Compute availability status for a given day given bookings.
+// Pending requests reserve the slot operationally, but the heat bar only turns
+// red after approved bookings cover the 08:00-17:30 working day.
 // Returns: 'free' | 'partial' | 'full'
-// Heuristic: working hours 08:00-20:00 (12h). If total booked minutes >= 11.5h => full. 0 => free. else partial.
 export function dayAvailability(bookings, ymd) {
   const sameDay = bookings.filter((b) => b.date === ymd && (b.status === "pending" || b.status === "confirmed"));
   if (sameDay.length === 0) return "free";
-  let minutes = 0;
-  for (const b of sameDay) {
-    const [sh, sm] = b.start_time.split(":").map(Number);
-    const [eh, em] = b.end_time.split(":").map(Number);
-    minutes += eh * 60 + em - (sh * 60 + sm);
-  }
-  if (minutes >= 11 * 60) return "full";
+
+  const confirmed = sameDay.filter((b) => b.status === "confirmed");
+  const workdayIntervals = confirmed
+    .map((b) => [
+      Math.max(timeToMinutes(b.start_time), WORKDAY_START_MINUTES),
+      Math.min(timeToMinutes(b.end_time), WORKDAY_END_MINUTES),
+    ])
+    .filter(([start, end]) => end > start);
+  const confirmedMinutes = mergedMinutes(workdayIntervals);
+  if (confirmedMinutes >= FULL_WORKDAY_MINUTES) return "full";
   return "partial";
 }
 
