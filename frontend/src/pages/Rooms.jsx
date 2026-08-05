@@ -338,6 +338,9 @@ export default function Rooms() {
                     <div className="mt-1 text-xs font-medium text-slate-500">
                       Operational: {roomOperatingHoursLabel(r)}
                     </div>
+                    <div className="mt-1 text-xs font-medium text-slate-500">
+                      Layout: {r.layout_fixed !== false ? "Fixed" : "Flexible"}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 rounded-sm bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
                     <Users className="h-3 w-3" /> {r.capacity}

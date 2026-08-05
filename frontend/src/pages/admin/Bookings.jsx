@@ -172,6 +172,11 @@ export default function AdminBookings() {
                 </td>
                 <td className="px-6 py-4 text-slate-700">
                   <div>{b.title}</div>
+                  {b.layout_type && (
+                    <div className="mt-1 max-w-xs text-xs text-slate-500">
+                      Layout: {b.layout_type === "Lainnya" && b.layout_other ? b.layout_other : b.layout_type}
+                    </div>
+                  )}
                   {b.food_beverages && (
                     <div className="mt-1 max-w-xs text-xs text-slate-500">
                       F&amp;B: {b.food_beverages}

@@ -15,6 +15,7 @@ const EMPTY_ROOM = {
   is_active: true,
   operating_start_time: "08:00",
   operating_end_time: "17:30",
+  layout_fixed: true,
 };
 
 function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
@@ -54,6 +55,7 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
       is_active: !!form.is_active,
       operating_start_time: form.operating_start_time || "08:00",
       operating_end_time: form.operating_end_time || "17:30",
+      layout_fixed: !!form.layout_fixed,
     };
     try {
       if (initial) await api.put(`/rooms/${initial.id}`, payload);
@@ -166,6 +168,21 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
                 className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
               />
             </div>
+            <label className="col-span-2 flex items-start gap-3 rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                data-testid="room-layout-fixed-checkbox"
+                checked={!!form.layout_fixed}
+                onChange={(e) => setForm({ ...form, layout_fixed: e.target.checked })}
+                className="mt-1"
+              />
+              <span>
+                <span className="block font-medium text-slate-900">Fixed layout</span>
+                <span className="text-xs text-slate-500">
+                  Jika dicentang, layout ruangan tidak bisa berubah dan user tidak perlu memilih layout saat booking.
+                </span>
+              </span>
+            </label>
             <div className="col-span-2">
               <label className="mb-1 block text-sm font-medium text-slate-700">Image URL (optional)</label>
               <input
@@ -328,6 +345,9 @@ export default function AdminRooms() {
               </div>
               <div className="mt-2 flex items-center gap-1 text-xs font-medium text-slate-500">
                 <Clock3 className="h-3 w-3" /> {r.operating_start_time || "08:00"}-{r.operating_end_time || "17:30"}
+              </div>
+              <div className="mt-1 text-xs font-medium text-slate-500">
+                Layout: {r.layout_fixed !== false ? "Fixed" : "Flexible"}
               </div>
               <p className="mt-3 line-clamp-2 text-xs text-slate-500">{r.description}</p>
               <div className="mt-auto flex items-center gap-2 pt-4">

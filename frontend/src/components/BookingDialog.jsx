@@ -3,6 +3,8 @@ import { X, Loader2, CalendarClock } from "lucide-react";
 import { api, formatApiError } from "../api";
 import { getRoomOperatingHours, isWithinOperatingHours, roomOperatingHoursLabel, toYMD, nowTime } from "../utils/dates";
 
+const LAYOUT_OPTIONS = ["U-Shape", "Classroom", "Round", "Theater", "Lainnya"];
+
 function addMinutesToTime(time, minutesToAdd) {
   const [hours, minutes] = time.split(":").map(Number);
   const total = hours * 60 + minutes + minutesToAdd;
@@ -29,6 +31,8 @@ export default function BookingDialog({ room, onClose, onBooked }) {
   const [startTime, setStartTime] = useState(operatingHours.start);
   const [endTime, setEndTime] = useState(defaultEndTime);
   const [participants, setParticipants] = useState(1);
+  const [layoutType, setLayoutType] = useState("");
+  const [layoutOther, setLayoutOther] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [foodBeverages, setFoodBeverages] = useState("");
   const [notes, setNotes] = useState("");
@@ -36,10 +40,13 @@ export default function BookingDialog({ room, onClose, onBooked }) {
   const [loading, setLoading] = useState(false);
   const [availability, setAvailability] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const canChooseLayout = room?.layout_fixed === false;
 
   useEffect(() => {
     setStartTime(operatingHours.start);
     setEndTime(defaultEndTime);
+    setLayoutType("");
+    setLayoutOther("");
   }, [room?.id, operatingHours.start, defaultEndTime]);
 
   const availabilityMessage = (slot) => {
@@ -103,6 +110,14 @@ export default function BookingDialog({ room, onClose, onBooked }) {
       setError(`Participants exceed room capacity (${room.capacity}).`);
       return;
     }
+    if (canChooseLayout && !layoutType) {
+      setError("Please select a room layout.");
+      return;
+    }
+    if (canChooseLayout && layoutType === "Lainnya" && !layoutOther.trim()) {
+      setError("Please describe the custom room layout.");
+      return;
+    }
     if (!isWithinOperatingHours(room, startTime, endTime)) {
       setError(`Booking must be within room operational hours (${roomOperatingHoursLabel(room)}).`);
       return;
@@ -126,6 +141,8 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         start_time: startTime,
         end_time: endTime,
         participants: Number(participants),
+        layout_type: canChooseLayout ? layoutType : "",
+        layout_other: canChooseLayout && layoutType === "Lainnya" ? layoutOther : "",
         phone_number: phoneNumber,
         food_beverages: foodBeverages,
         notes,
@@ -269,6 +286,47 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
             />
           </div>
+          {canChooseLayout ? (
+            <div className="space-y-3 rounded-sm border border-slate-200 bg-slate-50 p-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Layout</label>
+                <select
+                  required
+                  value={layoutType}
+                  onChange={(e) => {
+                    setLayoutType(e.target.value);
+                    if (e.target.value !== "Lainnya") setLayoutOther("");
+                  }}
+                  data-testid="booking-layout-select"
+                  className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                >
+                  <option value="">Select layout</option>
+                  {LAYOUT_OPTIONS.map((layout) => (
+                    <option key={layout} value={layout}>
+                      {layout}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {layoutType === "Lainnya" && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Layout lainnya</label>
+                  <input
+                    required
+                    value={layoutOther}
+                    onChange={(e) => setLayoutOther(e.target.value)}
+                    data-testid="booking-layout-other-input"
+                    placeholder="Contoh: boardroom custom, cluster, standing discussion"
+                    className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              Room layout is fixed and cannot be changed for this room.
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Nomor HP</label>
             <input

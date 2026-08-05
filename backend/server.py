@@ -111,6 +111,7 @@ MEETING_BLOCKING_STATUSES = ["pending", "confirmed", "approved"]
 DEFAULT_OPERATING_START_TIME = "08:00"
 DEFAULT_OPERATING_END_TIME = "17:30"
 DEFAULT_ROOM_BUILDING = "Unassigned"
+LAYOUT_OPTIONS = {"U-Shape", "Classroom", "Round", "Theater", "Lainnya"}
 
 
 async def require_any_admin(user: dict = Depends(get_current_user)) -> dict:
@@ -204,6 +205,7 @@ class RoomBase(BaseModel):
     is_active: bool = True
     operating_start_time: str = DEFAULT_OPERATING_START_TIME
     operating_end_time: str = DEFAULT_OPERATING_END_TIME
+    layout_fixed: bool = True
 
 
 class RoomCreate(RoomBase):
@@ -221,6 +223,7 @@ class RoomUpdate(BaseModel):
     is_active: Optional[bool] = None
     operating_start_time: Optional[str] = None
     operating_end_time: Optional[str] = None
+    layout_fixed: Optional[bool] = None
 
 
 class Room(RoomBase):
@@ -235,6 +238,8 @@ class BookingCreate(BaseModel):
     start_time: str  # HH:MM (24h)
     end_time: str  # HH:MM (24h)
     participants: int = Field(ge=1)
+    layout_type: str = ""
+    layout_other: str = ""
     phone_number: str = ""
     food_beverages: str = ""
     notes: Optional[str] = ""
@@ -257,6 +262,8 @@ class Booking(BaseModel):
     start_time: str
     end_time: str
     participants: int
+    layout_type: str = ""
+    layout_other: str = ""
     phone_number: str = ""
     food_beverages: str = ""
     notes: str
@@ -279,6 +286,7 @@ def _normalize_room(room: dict) -> dict:
     room["building"] = _normalize_building(room.get("building"))
     room.setdefault("operating_start_time", DEFAULT_OPERATING_START_TIME)
     room.setdefault("operating_end_time", DEFAULT_OPERATING_END_TIME)
+    room.setdefault("layout_fixed", True)
     return room
 
 
@@ -366,6 +374,21 @@ def _operating_hours_error(room: dict, start_time: str, end_time: str) -> Option
     return None
 
 
+def _validate_booking_layout(room: dict, layout_type: str, layout_other: str) -> tuple[str, str]:
+    room = _normalize_room(room)
+    layout_type = (layout_type or "").strip()
+    layout_other = (layout_other or "").strip()
+    if room.get("layout_fixed", True):
+        return "", ""
+    if layout_type not in LAYOUT_OPTIONS:
+        raise HTTPException(status_code=400, detail="Please select a valid room layout")
+    if layout_type == "Lainnya" and not layout_other:
+        raise HTTPException(status_code=400, detail="Please describe the custom room layout")
+    if layout_type != "Lainnya":
+        layout_other = ""
+    return layout_type, layout_other
+
+
 async def _check_overlap(room_id: str, date: str, start: str, end: str, exclude_id: Optional[str] = None) -> bool:
     return bool(await _find_overlaps(room_id, date, start, end, exclude_id=exclude_id))
 
@@ -407,6 +430,8 @@ async def _normalize_booking_public(booking: dict) -> dict:
         booking["room_building"] = _normalize_building(room.get("building") if room else None)
     booking.setdefault("phone_number", "")
     booking.setdefault("food_beverages", "")
+    booking.setdefault("layout_type", "")
+    booking.setdefault("layout_other", "")
     return booking
 
 
@@ -420,6 +445,8 @@ async def _normalize_bookings_public(bookings: List[dict]) -> List[dict]:
         )
         booking.setdefault("phone_number", "")
         booking.setdefault("food_beverages", "")
+        booking.setdefault("layout_type", "")
+        booking.setdefault("layout_other", "")
     return bookings
 
 
@@ -749,6 +776,7 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         raise HTTPException(status_code=400, detail="Cannot book a time in the past")
     if payload.participants > room["capacity"]:
         raise HTTPException(status_code=400, detail=f"Participants exceed room capacity ({room['capacity']})")
+    layout_type, layout_other = _validate_booking_layout(room, payload.layout_type, payload.layout_other)
     # Check overlap
     conflicts = await _find_overlaps(payload.room_id, payload.date, payload.start_time, payload.end_time)
     if conflicts:
@@ -775,6 +803,8 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         "start_time": payload.start_time,
         "end_time": payload.end_time,
         "participants": payload.participants,
+        "layout_type": layout_type,
+        "layout_other": layout_other,
         "phone_number": payload.phone_number.strip(),
         "food_beverages": payload.food_beverages.strip(),
         "notes": payload.notes or "",
@@ -1239,6 +1269,12 @@ async def migrate_legacy_roles():
     )
     if res.modified_count:
         logger.info(f"Initialized building for {res.modified_count} rooms")
+    res = await db.rooms.update_many(
+        {"layout_fixed": {"$exists": False}},
+        {"$set": {"layout_fixed": True}},
+    )
+    if res.modified_count:
+        logger.info(f"Initialized layout_fixed for {res.modified_count} rooms")
 
 
 async def seed_rooms():
