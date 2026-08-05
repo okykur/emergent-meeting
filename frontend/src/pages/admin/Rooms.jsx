@@ -4,6 +4,8 @@ import { useAuth } from "../../context/AuthContext";
 import { ActiveTag } from "../../components/Status";
 import { Plus, Users, MapPin, Pencil, Trash2, X, Loader2, Clock3 } from "lucide-react";
 
+const FLEXIBLE_LAYOUT_OPTIONS = ["U-Shape", "Classroom", "Round", "Theater", "Lainnya"];
+
 const EMPTY_ROOM = {
   name: "",
   building: "",
@@ -183,6 +185,27 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
                 </span>
               </span>
             </label>
+            {!form.layout_fixed && (
+              <div
+                className="col-span-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-3"
+                data-testid="room-flexible-layout-options"
+              >
+                <div className="text-sm font-semibold text-slate-900">Layout options shown to users</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {FLEXIBLE_LAYOUT_OPTIONS.map((layout) => (
+                    <span
+                      key={layout}
+                      className="rounded-sm border border-emerald-200 bg-white px-2 py-1 text-xs font-semibold text-emerald-700"
+                    >
+                      {layout}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  Jika user memilih Lainnya, form booking akan meminta detail layout dalam free text.
+                </p>
+              </div>
+            )}
             <div className="col-span-2">
               <label className="mb-1 block text-sm font-medium text-slate-700">Image URL (optional)</label>
               <input
