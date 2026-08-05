@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, formatApiError } from "../api";
 import { ActiveTag } from "../components/Status";
-import { rangeDays, dayAvailability, toYMD, formatDate } from "../utils/dates";
+import { rangeDays, dayAvailability, toYMD, formatDate, roomOperatingHoursLabel } from "../utils/dates";
 import { Users, MapPin, Search, DoorOpen, CalendarClock, Loader2 } from "lucide-react";
 import BookingDialog from "../components/BookingDialog";
 
-function HeatBar({ days, bookings }) {
+function HeatBar({ days, bookings, room }) {
   // For up to 14 days show day abbreviations; beyond that show only start/end markers for clarity.
   const showLabels = days.length <= 14;
   return (
@@ -15,12 +15,12 @@ function HeatBar({ days, bookings }) {
         style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
       >
         {days.map((d) => {
-          const status = dayAvailability(bookings, d.ymd);
+          const status = dayAvailability(bookings, d.ymd, room);
           return (
             <div
               key={d.ymd}
               className={`heat-cell ${status}`}
-              title={`${d.ymd}: ${status}`}
+              title={`${d.ymd}: ${status} (${roomOperatingHoursLabel(room)})`}
             />
           );
         })}
@@ -137,6 +137,7 @@ export default function Rooms() {
     const matchesQ =
       !q ||
       r.name.toLowerCase().includes(q) ||
+      (r.building || "").toLowerCase().includes(q) ||
       r.location.toLowerCase().includes(q) ||
       r.facilities.some((f) => f.toLowerCase().includes(q));
     if (!matchesQ) return false;
@@ -331,6 +332,12 @@ export default function Rooms() {
                     <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
                       <MapPin className="h-3 w-3" /> {r.location}
                     </div>
+                    <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-[#0055FF]">
+                      {r.building || "Unassigned"}
+                    </div>
+                    <div className="mt-1 text-xs font-medium text-slate-500">
+                      Operational: {roomOperatingHoursLabel(r)}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 rounded-sm bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
                     <Users className="h-3 w-3" /> {r.capacity}
@@ -353,7 +360,7 @@ export default function Rooms() {
                     )}
                   </div>
                 )}
-                {days.length > 0 && <HeatBar days={days} bookings={bookingsByRoom[r.id] || []} />}
+                {days.length > 0 && <HeatBar days={days} bookings={bookingsByRoom[r.id] || []} room={r} />}
                 <div className="mt-5 flex gap-2">
                   <button
                     disabled={!r.is_active}

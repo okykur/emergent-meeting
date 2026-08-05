@@ -49,9 +49,10 @@ export function rangeDays(startYMD, endYMD, max = 31) {
   return out;
 }
 
-const WORKDAY_START_MINUTES = 8 * 60;
-const WORKDAY_END_MINUTES = 17 * 60 + 30;
-const FULL_WORKDAY_MINUTES = WORKDAY_END_MINUTES - WORKDAY_START_MINUTES;
+export const DEFAULT_OPERATING_START_TIME = "08:00";
+export const DEFAULT_OPERATING_END_TIME = "17:30";
+const ACTIVE_BOOKING_STATUSES = new Set(["pending", "confirmed", "approved"]);
+const APPROVED_BOOKING_STATUSES = new Set(["confirmed", "approved"]);
 
 function timeToMinutes(time) {
   const [hours, minutes] = time.split(":").map(Number);
@@ -76,23 +77,43 @@ function mergedMinutes(intervals) {
   return total + currentEnd - currentStart;
 }
 
+export function getRoomOperatingHours(room = {}) {
+  const start = room.operating_start_time || DEFAULT_OPERATING_START_TIME;
+  const end = room.operating_end_time || DEFAULT_OPERATING_END_TIME;
+  return { start, end, startMinutes: timeToMinutes(start), endMinutes: timeToMinutes(end) };
+}
+
+export function roomOperatingHoursLabel(room = {}) {
+  const { start, end } = getRoomOperatingHours(room);
+  return `${start}-${end}`;
+}
+
+export function isWithinOperatingHours(room = {}, startTime, endTime) {
+  const { start, end } = getRoomOperatingHours(room);
+  return startTime >= start && endTime <= end;
+}
+
 // Compute availability status for a given day given bookings.
 // Pending requests reserve the slot operationally, but the heat bar only turns
-// red after approved bookings cover the 08:00-17:30 working day.
+// red after approved bookings cover the room operating hours.
 // Returns: 'free' | 'partial' | 'full'
-export function dayAvailability(bookings, ymd) {
-  const sameDay = bookings.filter((b) => b.date === ymd && (b.status === "pending" || b.status === "confirmed"));
+export function dayAvailability(bookings, ymd, room = {}) {
+  const sameDay = bookings.filter((b) => b.date === ymd && ACTIVE_BOOKING_STATUSES.has(b.status));
   if (sameDay.length === 0) return "free";
 
-  const confirmed = sameDay.filter((b) => b.status === "confirmed");
+  const { startMinutes, endMinutes } = getRoomOperatingHours(room);
+  const fullOperatingMinutes = endMinutes - startMinutes;
+  if (fullOperatingMinutes <= 0) return "partial";
+
+  const confirmed = sameDay.filter((b) => APPROVED_BOOKING_STATUSES.has(b.status));
   const workdayIntervals = confirmed
     .map((b) => [
-      Math.max(timeToMinutes(b.start_time), WORKDAY_START_MINUTES),
-      Math.min(timeToMinutes(b.end_time), WORKDAY_END_MINUTES),
+      Math.max(timeToMinutes(b.start_time), startMinutes),
+      Math.min(timeToMinutes(b.end_time), endMinutes),
     ])
     .filter(([start, end]) => end > start);
   const confirmedMinutes = mergedMinutes(workdayIntervals);
-  if (confirmedMinutes >= FULL_WORKDAY_MINUTES) return "full";
+  if (confirmedMinutes >= fullOperatingMinutes) return "full";
   return "partial";
 }
 

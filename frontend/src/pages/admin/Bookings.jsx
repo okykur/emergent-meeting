@@ -1,23 +1,31 @@
 import { useEffect, useState } from "react";
 import { api, formatApiError } from "../../api";
+import { useAuth } from "../../context/AuthContext";
 import { StatusPill } from "../../components/Status";
 import { formatDate } from "../../utils/dates";
 import { Check, X, Search, Filter } from "lucide-react";
 
 export default function AdminBookings() {
+  const { user: me } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [roomId, setRoomId] = useState("");
+  const [building, setBuilding] = useState("");
   const [userQ, setUserQ] = useState("");
   const [date, setDate] = useState("");
+  const canManageRoom = (room) =>
+    me?.role === "super_admin" || (me?.meeting_buildings || []).includes(room.building || "Unassigned");
+  const visibleRooms = rooms.filter(canManageRoom);
+  const buildings = [...new Set(visibleRooms.map((r) => r.building || "Unassigned"))].sort();
 
   const load = async () => {
     try {
       const params = {};
       if (status) params.status = status;
       if (roomId) params.room_id = roomId;
+      if (building) params.building = building;
       if (userQ) params.user_query = userQ;
       if (date) params.date = date;
       const [{ data }, { data: rs }] = await Promise.all([
@@ -34,7 +42,7 @@ export default function AdminBookings() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, roomId, date]);
+  }, [status, roomId, building, date]);
 
   const updateStatus = async (id, newStatus) => {
     try {
@@ -56,7 +64,7 @@ export default function AdminBookings() {
         </h1>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-3 rounded-sm border border-slate-200 bg-white p-4 md:grid-cols-5">
+      <div className="mb-6 grid grid-cols-1 gap-3 rounded-sm border border-slate-200 bg-white p-4 md:grid-cols-6">
         <div className="relative md:col-span-2">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -81,13 +89,26 @@ export default function AdminBookings() {
           <option value="completed">Completed</option>
         </select>
         <select
+          data-testid="admin-bookings-building-filter"
+          value={building}
+          onChange={(e) => setBuilding(e.target.value)}
+          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+        >
+          <option value="">All buildings</option>
+          {buildings.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
+        <select
           data-testid="admin-bookings-room-filter"
           value={roomId}
           onChange={(e) => setRoomId(e.target.value)}
           className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
         >
           <option value="">All rooms</option>
-          {rooms.map((r) => (
+          {visibleRooms.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
             </option>
@@ -113,7 +134,7 @@ export default function AdminBookings() {
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
             <tr>
               <th className="px-6 py-3 text-left">User</th>
-              <th className="px-6 py-3 text-left">Room</th>
+              <th className="px-6 py-3 text-left">Room / Gedung</th>
               <th className="px-6 py-3 text-left">Title</th>
               <th className="px-6 py-3 text-left">Date</th>
               <th className="px-6 py-3 text-left">Time</th>
@@ -139,9 +160,24 @@ export default function AdminBookings() {
                 <td className="px-6 py-4">
                   <div className="font-medium text-slate-900">{b.user_name}</div>
                   <div className="text-xs text-slate-500">{b.user_email}</div>
+                  {b.phone_number && (
+                    <div className="mt-1 text-xs font-medium text-slate-600">HP: {b.phone_number}</div>
+                  )}
                 </td>
-                <td className="px-6 py-4 text-slate-700">{b.room_name}</td>
-                <td className="px-6 py-4 text-slate-700">{b.title}</td>
+                <td className="px-6 py-4 text-slate-700">
+                  <div>{b.room_name}</div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-[#0055FF]">
+                    {b.room_building || "Unassigned"}
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-slate-700">
+                  <div>{b.title}</div>
+                  {b.food_beverages && (
+                    <div className="mt-1 max-w-xs text-xs text-slate-500">
+                      F&amp;B: {b.food_beverages}
+                    </div>
+                  )}
+                </td>
                 <td className="px-6 py-4 text-slate-700">{formatDate(b.date)}</td>
                 <td className="px-6 py-4 text-slate-700">
                   {b.start_time}–{b.end_time}

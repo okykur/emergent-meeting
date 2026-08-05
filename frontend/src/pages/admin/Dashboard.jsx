@@ -129,7 +129,7 @@ export default function AdminDashboard() {
               <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="px-6 py-3 text-left">User</th>
-                  <th className="px-6 py-3 text-left">Room</th>
+                  <th className="px-6 py-3 text-left">Room / Gedung</th>
                   <th className="px-6 py-3 text-left">Title</th>
                   <th className="px-6 py-3 text-left">When</th>
                   <th className="px-6 py-3 text-left">Status</th>
@@ -146,9 +146,22 @@ export default function AdminDashboard() {
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-900">{b.user_name}</div>
                       <div className="text-xs text-slate-500">{b.user_email}</div>
+                      {b.phone_number && (
+                        <div className="mt-1 text-xs font-medium text-slate-600">HP: {b.phone_number}</div>
+                      )}
                     </td>
-                    <td className="px-6 py-4 text-slate-700">{b.room_name}</td>
-                    <td className="px-6 py-4 text-slate-700">{b.title}</td>
+                    <td className="px-6 py-4 text-slate-700">
+                      <div>{b.room_name}</div>
+                      <div className="text-xs font-semibold uppercase tracking-wider text-[#0055FF]">
+                        {b.room_building || "Unassigned"}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-700">
+                      <div>{b.title}</div>
+                      {b.food_beverages && (
+                        <div className="mt-1 max-w-xs text-xs text-slate-500">F&amp;B: {b.food_beverages}</div>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-slate-700">
                       {formatDate(b.date)} · {b.start_time}–{b.end_time}
                     </td>

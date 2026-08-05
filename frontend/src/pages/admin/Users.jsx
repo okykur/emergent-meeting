@@ -66,6 +66,17 @@ function ApprovalTag({ approved }) {
   );
 }
 
+function buildingsToInput(buildings = []) {
+  return buildings.join(", ");
+}
+
+function inputToBuildings(value = "") {
+  return value
+    .split(",")
+    .map((building) => building.trim())
+    .filter(Boolean);
+}
+
 function UserFormDialog({ initial, onClose, onSaved }) {
   const [form, setForm] = useState(() =>
     initial
@@ -75,6 +86,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           job_title: initial.job_title || "",
           department: initial.department || "",
           office_address: initial.office_address || "",
+          meeting_buildings: buildingsToInput(initial.meeting_buildings || []),
           role: initial.role || "user",
           is_approved: Boolean(initial.is_approved),
         }
@@ -86,6 +98,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           job_title: "",
           department: "",
           office_address: "",
+          meeting_buildings: "",
           role: "user",
           is_approved: true,
         }
@@ -98,18 +111,23 @@ function UserFormDialog({ initial, onClose, onSaved }) {
     setError("");
     setLoading(true);
     try {
+      const payload = {
+        ...form,
+        meeting_buildings: inputToBuildings(form.meeting_buildings),
+      };
       if (initial) {
         await api.patch(`/users/${initial.id}`, {
-          name: form.name,
-          company_name: form.company_name,
-          job_title: form.job_title,
-          department: form.department,
-          office_address: form.office_address,
-          role: form.role,
-          is_approved: form.is_approved,
+          name: payload.name,
+          company_name: payload.company_name,
+          job_title: payload.job_title,
+          department: payload.department,
+          office_address: payload.office_address,
+          meeting_buildings: payload.meeting_buildings,
+          role: payload.role,
+          is_approved: payload.is_approved,
         });
       } else {
-        await api.post("/users", form);
+        await api.post("/users", payload);
       }
       onSaved?.();
     } catch (err) {
@@ -237,6 +255,21 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               Each admin role only manages its own division. Super Admin has access to everything, including user management.
             </p>
           </div>
+          {form.role === "meeting_admin" && (
+            <div className="rounded-sm border border-emerald-100 bg-emerald-50 p-3">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Gedung approval meeting</label>
+              <input
+                data-testid="user-meeting-buildings-input"
+                value={form.meeting_buildings}
+                onChange={(e) => setForm({ ...form, meeting_buildings: e.target.value })}
+                placeholder="Head Office, Annex"
+                className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Satu meeting admin bisa menangani beberapa gedung. Pisahkan dengan koma.
+              </p>
+            </div>
+          )}
           <label className="flex items-start gap-3 rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             <input
               type="checkbox"
@@ -580,6 +613,11 @@ export default function AdminUsers() {
                   </td>
                   <td className="px-6 py-4">
                     <RoleTag role={u.role} />
+                    {u.role === "meeting_admin" && (
+                      <div className="mt-2 max-w-xs text-xs text-slate-500">
+                        Gedung: {(u.meeting_buildings || []).join(", ") || "Belum diset"}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <ApprovalTag approved={u.is_approved} />

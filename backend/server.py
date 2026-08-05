@@ -107,6 +107,10 @@ async def get_current_user(request: Request) -> dict:
 ADMIN_ROLES = {"meeting_admin", "car_admin", "super_admin"}
 MEETING_ADMIN_ROLES = {"meeting_admin", "super_admin"}
 CAR_ADMIN_ROLES = {"car_admin", "super_admin"}
+MEETING_BLOCKING_STATUSES = ["pending", "confirmed", "approved"]
+DEFAULT_OPERATING_START_TIME = "08:00"
+DEFAULT_OPERATING_END_TIME = "17:30"
+DEFAULT_ROOM_BUILDING = "Unassigned"
 
 
 async def require_any_admin(user: dict = Depends(get_current_user)) -> dict:
@@ -140,6 +144,7 @@ class UserPublic(BaseModel):
     job_title: str = ""
     department: str = ""
     office_address: str = ""
+    meeting_buildings: List[str] = []
     role: Literal["user", "meeting_admin", "car_admin", "super_admin"]
     is_approved: bool = True
     approved_at: Optional[str] = None
@@ -190,12 +195,15 @@ class RegisterResponse(BaseModel):
 
 class RoomBase(BaseModel):
     name: str
+    building: str = DEFAULT_ROOM_BUILDING
     location: str
     capacity: int = Field(ge=1)
     facilities: List[str] = []
     description: str = ""
     image_url: Optional[str] = None
     is_active: bool = True
+    operating_start_time: str = DEFAULT_OPERATING_START_TIME
+    operating_end_time: str = DEFAULT_OPERATING_END_TIME
 
 
 class RoomCreate(RoomBase):
@@ -204,12 +212,15 @@ class RoomCreate(RoomBase):
 
 class RoomUpdate(BaseModel):
     name: Optional[str] = None
+    building: Optional[str] = None
     location: Optional[str] = None
     capacity: Optional[int] = None
     facilities: Optional[List[str]] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
     is_active: Optional[bool] = None
+    operating_start_time: Optional[str] = None
+    operating_end_time: Optional[str] = None
 
 
 class Room(RoomBase):
@@ -224,6 +235,8 @@ class BookingCreate(BaseModel):
     start_time: str  # HH:MM (24h)
     end_time: str  # HH:MM (24h)
     participants: int = Field(ge=1)
+    phone_number: str = ""
+    food_beverages: str = ""
     notes: Optional[str] = ""
 
 
@@ -235,6 +248,7 @@ class Booking(BaseModel):
     id: str
     room_id: str
     room_name: str
+    room_building: str = DEFAULT_ROOM_BUILDING
     user_id: str
     user_name: str
     user_email: str
@@ -243,6 +257,8 @@ class Booking(BaseModel):
     start_time: str
     end_time: str
     participants: int
+    phone_number: str = ""
+    food_beverages: str = ""
     notes: str
     status: str
     created_at: str
@@ -259,6 +275,97 @@ def _overlap(a_start: str, a_end: str, b_start: str, b_end: str) -> bool:
     return a_start < b_end and b_start < a_end
 
 
+def _normalize_room(room: dict) -> dict:
+    room["building"] = _normalize_building(room.get("building"))
+    room.setdefault("operating_start_time", DEFAULT_OPERATING_START_TIME)
+    room.setdefault("operating_end_time", DEFAULT_OPERATING_END_TIME)
+    return room
+
+
+def _normalize_building(building: Optional[str]) -> str:
+    value = (building or "").strip()
+    return value or DEFAULT_ROOM_BUILDING
+
+
+def _normalize_building_list(buildings: Optional[List[str]]) -> List[str]:
+    normalized = []
+    seen = set()
+    for building in buildings or []:
+        value = _normalize_building(building)
+        key = value.lower()
+        if key not in seen:
+            normalized.append(value)
+            seen.add(key)
+    return normalized
+
+
+def _can_manage_meeting_building(admin: dict, building: str) -> bool:
+    if admin.get("role") == "super_admin":
+        return True
+    if admin.get("role") != "meeting_admin":
+        return False
+    return _normalize_building(building) in set(admin.get("meeting_buildings") or [])
+
+
+def _assert_can_manage_room(admin: dict, room: dict) -> None:
+    room = _normalize_room(room)
+    if not _can_manage_meeting_building(admin, room["building"]):
+        raise HTTPException(status_code=403, detail=f"You are not assigned to approve/manage building: {room['building']}")
+
+
+def _building_room_query(buildings: List[str]) -> dict:
+    buildings = _normalize_building_list(buildings)
+    query: dict = {"building": {"$in": buildings}}
+    if DEFAULT_ROOM_BUILDING in buildings:
+        query = {
+            "$or": [
+                {"building": {"$in": buildings}},
+                {"building": {"$exists": False}},
+                {"building": ""},
+                {"building": None},
+            ]
+        }
+    return query
+
+
+async def _allowed_meeting_room_ids(admin: dict, building: Optional[str] = None) -> Optional[List[str]]:
+    if admin.get("role") == "super_admin":
+        query = _building_room_query([building]) if building else {}
+        rooms = await db.rooms.find(query, {"_id": 0, "id": 1}).to_list(1000)
+        return [r["id"] for r in rooms] if building else None
+
+    buildings = _normalize_building_list(admin.get("meeting_buildings") or [])
+    if building:
+        requested = _normalize_building(building)
+        if requested not in buildings:
+            return []
+        buildings = [requested]
+    if not buildings:
+        return []
+    rooms = await db.rooms.find(_building_room_query(buildings), {"_id": 0, "id": 1}).to_list(1000)
+    return [r["id"] for r in rooms]
+
+
+def _validate_time_range(start_time: str, end_time: str) -> None:
+    try:
+        datetime.fromisoformat(f"2000-01-01T{start_time}")
+        datetime.fromisoformat(f"2000-01-01T{end_time}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid time format")
+    if start_time >= end_time:
+        raise HTTPException(status_code=400, detail="End time must be after start time")
+
+
+def _operating_hours_error(room: dict, start_time: str, end_time: str) -> Optional[str]:
+    room = _normalize_room(room)
+    if start_time < room["operating_start_time"] or end_time > room["operating_end_time"]:
+        return (
+            "Booking must be within room operating hours "
+            f"({room['operating_start_time']}-{room['operating_end_time']})."
+        )
+    return None
+
+
 async def _check_overlap(room_id: str, date: str, start: str, end: str, exclude_id: Optional[str] = None) -> bool:
     return bool(await _find_overlaps(room_id, date, start, end, exclude_id=exclude_id))
 
@@ -268,7 +375,7 @@ async def _find_overlaps(room_id: str, date: str, start: str, end: str, exclude_
         {
             "room_id": room_id,
             "date": date,
-            "status": {"$in": ["pending", "confirmed"]},
+            "status": {"$in": MEETING_BLOCKING_STATUSES},
         },
         {"_id": 0},
     )
@@ -287,10 +394,33 @@ def _normalize_user_public(user: dict) -> dict:
     user.setdefault("job_title", "")
     user.setdefault("department", "")
     user.setdefault("office_address", "")
+    user["meeting_buildings"] = _normalize_building_list(user.get("meeting_buildings") or [])
     user.setdefault("is_approved", True)
     user.setdefault("approved_at", None)
     user.setdefault("approved_by", None)
     return user
+
+
+async def _normalize_booking_public(booking: dict) -> dict:
+    if not booking.get("room_building"):
+        room = await db.rooms.find_one({"id": booking.get("room_id")}, {"_id": 0, "building": 1})
+        booking["room_building"] = _normalize_building(room.get("building") if room else None)
+    booking.setdefault("phone_number", "")
+    booking.setdefault("food_beverages", "")
+    return booking
+
+
+async def _normalize_bookings_public(bookings: List[dict]) -> List[dict]:
+    room_ids = list({b.get("room_id") for b in bookings if b.get("room_id") and not b.get("room_building")})
+    rooms = await db.rooms.find({"id": {"$in": room_ids}}, {"_id": 0, "id": 1, "building": 1}).to_list(1000) if room_ids else []
+    room_buildings = {r["id"]: _normalize_building(r.get("building")) for r in rooms}
+    for booking in bookings:
+        booking["room_building"] = _normalize_building(
+            booking.get("room_building") or room_buildings.get(booking.get("room_id"))
+        )
+        booking.setdefault("phone_number", "")
+        booking.setdefault("food_beverages", "")
+    return bookings
 
 
 def _hash_reset_token(token: str) -> str:
@@ -351,6 +481,7 @@ async def register(payload: RegisterRequest):
         "job_title": payload.job_title.strip(),
         "department": payload.department.strip(),
         "office_address": payload.office_address.strip(),
+        "meeting_buildings": [],
         "password_hash": hash_password(payload.password),
         "role": "user",
         "is_approved": False,
@@ -467,8 +598,8 @@ async def promote_user(payload: PromoteRequest, admin: dict = Depends(require_su
 @api.get("/rooms", response_model=List[Room])
 async def list_rooms(active_only: bool = False):
     query = {"is_active": True} if active_only else {}
-    rooms = await db.rooms.find(query, {"_id": 0}).sort("name", 1).to_list(500)
-    return [Room(**r) for r in rooms]
+    rooms = await db.rooms.find(query, {"_id": 0}).sort([("building", 1), ("name", 1)]).to_list(500)
+    return [Room(**_normalize_room(r)) for r in rooms]
 
 
 @api.get("/rooms/{room_id}", response_model=Room)
@@ -476,13 +607,17 @@ async def get_room(room_id: str):
     room = await db.rooms.find_one({"id": room_id}, {"_id": 0})
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
-    return Room(**room)
+    return Room(**_normalize_room(room))
 
 
 @api.post("/rooms", response_model=Room)
 async def create_room(payload: RoomCreate, admin: dict = Depends(require_admin)):
+    _validate_time_range(payload.operating_start_time, payload.operating_end_time)
+    building = _normalize_building(payload.building)
+    if not _can_manage_meeting_building(admin, building):
+        raise HTTPException(status_code=403, detail=f"You are not assigned to create rooms for building: {building}")
     room_id = str(uuid.uuid4())
-    doc = {"id": room_id, **payload.model_dump(), "created_at": _now_iso()}
+    doc = {"id": room_id, **payload.model_dump(), "building": building, "created_at": _now_iso()}
     await db.rooms.insert_one(doc)
     return Room(**{k: v for k, v in doc.items() if k != "_id"})
 
@@ -492,18 +627,31 @@ async def update_room(room_id: str, payload: RoomUpdate, admin: dict = Depends(r
     updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items()}
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
+    existing = await db.rooms.find_one({"id": room_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Room not found")
+    _assert_can_manage_room(admin, existing)
+    next_room = {**_normalize_room(existing), **updates}
+    next_room["building"] = _normalize_building(next_room.get("building"))
+    if not _can_manage_meeting_building(admin, next_room["building"]):
+        raise HTTPException(status_code=403, detail=f"You are not assigned to move rooms to building: {next_room['building']}")
+    _validate_time_range(next_room["operating_start_time"], next_room["operating_end_time"])
+    if "building" in updates:
+        updates["building"] = next_room["building"]
     result = await db.rooms.update_one({"id": room_id}, {"$set": updates})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Room not found")
     room = await db.rooms.find_one({"id": room_id}, {"_id": 0})
-    return Room(**room)
+    return Room(**_normalize_room(room))
 
 
 @api.delete("/rooms/{room_id}")
 async def delete_room(room_id: str, admin: dict = Depends(require_admin)):
-    result = await db.rooms.delete_one({"id": room_id})
-    if result.deleted_count == 0:
+    room = await db.rooms.find_one({"id": room_id}, {"_id": 0})
+    if not room:
         raise HTTPException(status_code=404, detail="Room not found")
+    _assert_can_manage_room(admin, room)
+    await db.rooms.delete_one({"id": room_id})
     return {"ok": True}
 
 
@@ -516,11 +664,12 @@ async def room_availability(
     room = await db.rooms.find_one({"id": room_id}, {"_id": 0})
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
+    _normalize_room(room)
     bookings = await db.bookings.find(
         {
             "room_id": room_id,
             "date": {"$gte": start_date, "$lte": end_date},
-            "status": {"$in": ["pending", "confirmed"]},
+            "status": {"$in": MEETING_BLOCKING_STATUSES},
         },
         {"_id": 0},
     ).to_list(500)
@@ -537,15 +686,18 @@ async def room_availability_check(
     room = await db.rooms.find_one({"id": room_id}, {"_id": 0})
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
+    _normalize_room(room)
     if not room.get("is_active"):
         return {"room_id": room_id, "available": False, "reason": "Room is not active", "conflicts": []}
-    if start_time >= end_time:
-        raise HTTPException(status_code=400, detail="End time must be after start time")
+    _validate_time_range(start_time, end_time)
     try:
         datetime.fromisoformat(f"{date}T{start_time}")
         datetime.fromisoformat(f"{date}T{end_time}")
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid date/time format")
+    hours_error = _operating_hours_error(room, start_time, end_time)
+    if hours_error:
+        return {"room_id": room_id, "available": False, "reason": hours_error, "conflicts": []}
 
     conflicts = await _find_overlaps(room_id, date, start_time, end_time)
     safe_conflicts = [
@@ -565,6 +717,8 @@ async def room_availability_check(
         "date": date,
         "start_time": start_time,
         "end_time": end_time,
+        "operating_start_time": room["operating_start_time"],
+        "operating_end_time": room["operating_end_time"],
         "available": len(safe_conflicts) == 0,
         "reason": None if len(safe_conflicts) == 0 else "Room is already booked for this time slot",
         "conflicts": safe_conflicts,
@@ -578,11 +732,14 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
     room = await db.rooms.find_one({"id": payload.room_id}, {"_id": 0})
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
+    _normalize_room(room)
     if not room.get("is_active"):
         raise HTTPException(status_code=400, detail="Room is not active")
     # Validate times
-    if payload.start_time >= payload.end_time:
-        raise HTTPException(status_code=400, detail="End time must be after start time")
+    _validate_time_range(payload.start_time, payload.end_time)
+    hours_error = _operating_hours_error(room, payload.start_time, payload.end_time)
+    if hours_error:
+        raise HTTPException(status_code=400, detail=hours_error)
     # Validate date/time not in past
     try:
         booking_dt = datetime.fromisoformat(f"{payload.date}T{payload.start_time}")
@@ -609,6 +766,7 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         "id": booking_id,
         "room_id": payload.room_id,
         "room_name": room["name"],
+        "room_building": room["building"],
         "user_id": user["id"],
         "user_name": user["name"],
         "user_email": user["email"],
@@ -617,6 +775,8 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         "start_time": payload.start_time,
         "end_time": payload.end_time,
         "participants": payload.participants,
+        "phone_number": payload.phone_number.strip(),
+        "food_beverages": payload.food_beverages.strip(),
         "notes": payload.notes or "",
         "status": "pending",
         "created_at": _now_iso(),
@@ -628,6 +788,7 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
 @api.get("/bookings/mine", response_model=List[Booking])
 async def my_bookings(user: dict = Depends(get_current_user)):
     items = await db.bookings.find({"user_id": user["id"]}, {"_id": 0}).sort([("date", -1), ("start_time", -1)]).to_list(500)
+    await _normalize_bookings_public(items)
     return [Booking(**b) for b in items]
 
 
@@ -636,6 +797,7 @@ async def all_bookings(
     admin: dict = Depends(require_admin),
     status: Optional[str] = None,
     room_id: Optional[str] = None,
+    building: Optional[str] = None,
     user_query: Optional[str] = None,
     date: Optional[str] = None,
 ):
@@ -644,6 +806,13 @@ async def all_bookings(
         q["status"] = status
     if room_id:
         q["room_id"] = room_id
+    allowed_room_ids = await _allowed_meeting_room_ids(admin, building=building)
+    if allowed_room_ids is not None:
+        if room_id:
+            if room_id not in allowed_room_ids:
+                q["room_id"] = {"$in": []}
+        else:
+            q["room_id"] = {"$in": allowed_room_ids}
     if date:
         q["date"] = date
     if user_query:
@@ -652,6 +821,7 @@ async def all_bookings(
             {"user_email": {"$regex": user_query, "$options": "i"}},
         ]
     items = await db.bookings.find(q, {"_id": 0}).sort([("date", -1), ("start_time", -1)]).to_list(1000)
+    await _normalize_bookings_public(items)
     return [Booking(**b) for b in items]
 
 
@@ -661,10 +831,19 @@ async def update_booking_status(
     payload: BookingStatusUpdate,
     admin: dict = Depends(require_admin),
 ):
-    result = await db.bookings.update_one({"id": booking_id}, {"$set": {"status": payload.status}})
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Booking not found")
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    room = await db.rooms.find_one({"id": bk["room_id"]}, {"_id": 0})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    _assert_can_manage_room(admin, room)
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": {"status": payload.status, "room_building": _normalize_room(room)["building"]}},
+    )
+    bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    await _normalize_booking_public(bk)
     return Booking(**bk)
 
 
@@ -675,6 +854,11 @@ async def cancel_booking(booking_id: str, user: dict = Depends(get_current_user)
         raise HTTPException(status_code=404, detail="Booking not found")
     if user["role"] not in ADMIN_ROLES and bk["user_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized to cancel this booking")
+    if user["role"] == "meeting_admin" and bk["user_id"] != user["id"]:
+        room = await db.rooms.find_one({"id": bk["room_id"]}, {"_id": 0})
+        if not room:
+            raise HTTPException(status_code=404, detail="Room not found")
+        _assert_can_manage_room(user, room)
     if bk["status"] in ("cancelled", "completed"):
         raise HTTPException(status_code=400, detail=f"Cannot cancel a {bk['status']} booking")
     await db.bookings.update_one({"id": booking_id}, {"$set": {"status": "cancelled"}})
@@ -753,6 +937,7 @@ class AdminUserUpdate(BaseModel):
     job_title: Optional[str] = Field(default=None, max_length=120)
     department: Optional[str] = Field(default=None, max_length=120)
     office_address: Optional[str] = Field(default=None, max_length=240)
+    meeting_buildings: Optional[List[str]] = None
     role: Optional[Literal["user", "meeting_admin", "car_admin", "super_admin"]] = None
     is_approved: Optional[bool] = None
 
@@ -769,6 +954,7 @@ class AdminUserCreate(BaseModel):
     job_title: str = ""
     department: str = ""
     office_address: str = ""
+    meeting_buildings: List[str] = []
     role: Literal["user", "meeting_admin", "car_admin", "super_admin"] = "user"
     is_approved: bool = True
 
@@ -795,6 +981,7 @@ async def list_users(
             {"job_title": {"$regex": q, "$options": "i"}},
             {"department": {"$regex": q, "$options": "i"}},
             {"office_address": {"$regex": q, "$options": "i"}},
+            {"meeting_buildings": {"$regex": q, "$options": "i"}},
         ]
     users = await db.users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(1000)
     for u in users:
@@ -815,6 +1002,7 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
         "job_title": payload.job_title.strip(),
         "department": payload.department.strip(),
         "office_address": payload.office_address.strip(),
+        "meeting_buildings": _normalize_building_list(payload.meeting_buildings),
         "password_hash": hash_password(payload.password),
         "role": payload.role,
         "is_approved": payload.is_approved,
@@ -839,6 +1027,8 @@ async def admin_update_user(
         raise HTTPException(status_code=400, detail="You cannot change your own role")
     if user_id == admin["id"] and updates.get("is_approved") is False:
         raise HTTPException(status_code=400, detail="You cannot unapprove your own account")
+    if "meeting_buildings" in updates:
+        updates["meeting_buildings"] = _normalize_building_list(updates["meeting_buildings"])
     if updates.get("is_approved") is True:
         updates["approved_at"] = _now_iso()
         updates["approved_by"] = admin["id"]
@@ -885,11 +1075,14 @@ async def admin_delete_user(user_id: str, admin: dict = Depends(require_super_ad
 @api.get("/admin/stats")
 async def admin_stats(admin: dict = Depends(require_any_admin)):
     today = datetime.now().strftime("%Y-%m-%d")
-    total_rooms = await db.rooms.count_documents({})
-    active_rooms = await db.rooms.count_documents({"is_active": True})
-    pending = await db.bookings.count_documents({"status": "pending"})
-    confirmed = await db.bookings.count_documents({"status": "confirmed"})
-    today_bookings = await db.bookings.count_documents({"date": today, "status": {"$in": ["pending", "confirmed"]}})
+    allowed_room_ids = await _allowed_meeting_room_ids(admin) if admin.get("role") in MEETING_ADMIN_ROLES else None
+    room_query = {"id": {"$in": allowed_room_ids}} if allowed_room_ids is not None else {}
+    booking_scope = {"room_id": {"$in": allowed_room_ids}} if allowed_room_ids is not None else {}
+    total_rooms = await db.rooms.count_documents(room_query)
+    active_rooms = await db.rooms.count_documents({**room_query, "is_active": True})
+    pending = await db.bookings.count_documents({**booking_scope, "status": "pending"})
+    confirmed = await db.bookings.count_documents({**booking_scope, "status": "confirmed"})
+    today_bookings = await db.bookings.count_documents({**booking_scope, "date": today, "status": {"$in": ["pending", "confirmed"]}})
     total_users = await db.users.count_documents({"role": "user"})
     return {
         "total_rooms": total_rooms,
@@ -911,6 +1104,7 @@ async def root():
 SAMPLE_ROOMS = [
     {
         "name": "Aurora Boardroom",
+        "building": "Head Office",
         "location": "Floor 12 · North Wing",
         "capacity": 16,
         "facilities": ["4K Display", "Video Conference", "Whiteboard", "Coffee Bar"],
@@ -920,6 +1114,7 @@ SAMPLE_ROOMS = [
     },
     {
         "name": "Helix Conference Room",
+        "building": "Head Office",
         "location": "Floor 8 · East Wing",
         "capacity": 10,
         "facilities": ["Dual Screens", "Polycom Phone", "Whiteboard"],
@@ -929,6 +1124,7 @@ SAMPLE_ROOMS = [
     },
     {
         "name": "Nimbus Huddle Space",
+        "building": "Annex",
         "location": "Floor 3 · Open Area",
         "capacity": 4,
         "facilities": ["Smart TV", "Wireless Cast"],
@@ -938,6 +1134,7 @@ SAMPLE_ROOMS = [
     },
     {
         "name": "Vertex Training Room",
+        "building": "Training Center",
         "location": "Floor 5 · Learning Center",
         "capacity": 24,
         "facilities": ["Projector", "Surround Sound", "Movable Tables", "Coffee Bar"],
@@ -947,6 +1144,7 @@ SAMPLE_ROOMS = [
     },
     {
         "name": "Quantum Focus Room",
+        "building": "Annex",
         "location": "Floor 2 · Quiet Zone",
         "capacity": 2,
         "facilities": ["Acoustic Panels", "Video Conference"],
@@ -956,6 +1154,7 @@ SAMPLE_ROOMS = [
     },
     {
         "name": "Orion Workshop Loft",
+        "building": "Innovation Hub",
         "location": "Floor 15 · Innovation Lab",
         "capacity": 20,
         "facilities": ["Modular Furniture", "Whiteboards", "Sticky Wall", "Workshop Kit"],
@@ -978,6 +1177,7 @@ async def seed_admin():
                 "job_title": "System Administrator",
                 "department": "IT",
                 "office_address": "KCSI Office",
+                "meeting_buildings": [],
                 "password_hash": hash_password(ADMIN_PASSWORD),
                 "role": "super_admin",
                 "is_approved": True,
@@ -1027,6 +1227,18 @@ async def migrate_legacy_roles():
     )
     if res.modified_count:
         logger.info(f"Approved {res.modified_count} legacy user accounts")
+    res = await db.users.update_many(
+        {"meeting_buildings": {"$exists": False}},
+        {"$set": {"meeting_buildings": []}},
+    )
+    if res.modified_count:
+        logger.info(f"Initialized meeting_buildings for {res.modified_count} users")
+    res = await db.rooms.update_many(
+        {"$or": [{"building": {"$exists": False}}, {"building": ""}, {"building": None}]},
+        {"$set": {"building": DEFAULT_ROOM_BUILDING}},
+    )
+    if res.modified_count:
+        logger.info(f"Initialized building for {res.modified_count} rooms")
 
 
 async def seed_rooms():
@@ -1742,7 +1954,9 @@ async def seed_fleet():
 async def on_startup():
     await db.users.create_index("email", unique=True)
     await db.rooms.create_index("name")
+    await db.rooms.create_index("building")
     await db.bookings.create_index([("room_id", 1), ("date", 1)])
+    await db.bookings.create_index("room_building")
     await db.bookings.create_index("user_id")
     await db.vehicles.create_index("plate_number", unique=True)
     await db.vehicle_bookings.create_index([("vehicle_id", 1), ("start_date", 1)])

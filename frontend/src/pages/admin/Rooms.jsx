@@ -1,23 +1,33 @@
 import { useEffect, useState } from "react";
 import { api, formatApiError } from "../../api";
+import { useAuth } from "../../context/AuthContext";
 import { ActiveTag } from "../../components/Status";
-import { Plus, Users, MapPin, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import { Plus, Users, MapPin, Pencil, Trash2, X, Loader2, Clock3 } from "lucide-react";
 
 const EMPTY_ROOM = {
   name: "",
+  building: "",
   location: "",
   capacity: 4,
   facilities: "",
   description: "",
   image_url: "",
   is_active: true,
+  operating_start_time: "08:00",
+  operating_end_time: "17:30",
 };
 
-function RoomFormDialog({ initial, onClose, onSaved }) {
+function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
   const [form, setForm] = useState(() =>
     initial
       ? { ...initial, facilities: initial.facilities.join(", ") }
-      : { ...EMPTY_ROOM }
+      : {
+          ...EMPTY_ROOM,
+          building:
+            currentUser?.role === "meeting_admin" && currentUser?.meeting_buildings?.length
+              ? currentUser.meeting_buildings[0]
+              : "",
+        }
   );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,9 +35,14 @@ function RoomFormDialog({ initial, onClose, onSaved }) {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    if ((form.operating_start_time || "08:00") >= (form.operating_end_time || "17:30")) {
+      setError("Operational end time must be after start time.");
+      return;
+    }
     setLoading(true);
     const payload = {
       name: form.name,
+      building: form.building || "Unassigned",
       location: form.location,
       capacity: Number(form.capacity),
       facilities: form.facilities
@@ -37,6 +52,8 @@ function RoomFormDialog({ initial, onClose, onSaved }) {
       description: form.description,
       image_url: form.image_url || null,
       is_active: !!form.is_active,
+      operating_start_time: form.operating_start_time || "08:00",
+      operating_end_time: form.operating_end_time || "17:30",
     };
     try {
       if (initial) await api.put(`/rooms/${initial.id}`, payload);
@@ -56,10 +73,10 @@ function RoomFormDialog({ initial, onClose, onSaved }) {
       data-testid="room-dialog"
     >
       <div
-        className="w-full max-w-xl rounded-sm border border-slate-200 bg-white shadow-xl"
+        className="flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-sm border border-slate-200 bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 p-5">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 p-5">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               {initial ? "Edit Room" : "New Room"}
@@ -72,7 +89,7 @@ function RoomFormDialog({ initial, onClose, onSaved }) {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <form onSubmit={submit} className="space-y-4 p-5" data-testid="room-form">
+        <form onSubmit={submit} className="min-h-0 space-y-4 overflow-y-auto p-5" data-testid="room-form">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <label className="mb-1 block text-sm font-medium text-slate-700">Name</label>
@@ -82,6 +99,17 @@ function RoomFormDialog({ initial, onClose, onSaved }) {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Gedung</label>
+              <input
+                required
+                data-testid="room-building-input"
+                value={form.building || ""}
+                onChange={(e) => setForm({ ...form, building: e.target.value })}
+                placeholder="Head Office"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
               />
             </div>
             <div>
@@ -113,6 +141,28 @@ function RoomFormDialog({ initial, onClose, onSaved }) {
                 value={form.facilities}
                 onChange={(e) => setForm({ ...form, facilities: e.target.value })}
                 placeholder="Projector, Whiteboard, Video Conference"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Operational start</label>
+              <input
+                type="time"
+                required
+                data-testid="room-operating-start-input"
+                value={form.operating_start_time || "08:00"}
+                onChange={(e) => setForm({ ...form, operating_start_time: e.target.value })}
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Operational end</label>
+              <input
+                type="time"
+                required
+                data-testid="room-operating-end-input"
+                value={form.operating_end_time || "17:30"}
+                onChange={(e) => setForm({ ...form, operating_end_time: e.target.value })}
                 className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
               />
             </div>
@@ -176,6 +226,7 @@ function RoomFormDialog({ initial, onClose, onSaved }) {
 }
 
 export default function AdminRooms() {
+  const { user: me } = useAuth();
   const [rooms, setRooms] = useState([]);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(null); // room or 'new'
@@ -201,6 +252,11 @@ export default function AdminRooms() {
       alert(formatApiError(e));
     }
   };
+
+  const canManageRoom = (room) =>
+    me?.role === "super_admin" || (me?.meeting_buildings || []).includes(room.building || "Unassigned");
+  const visibleRooms = rooms.filter(canManageRoom);
+  const canCreateRoom = me?.role === "super_admin" || (me?.meeting_buildings || []).length > 0;
 
   const remove = async (r) => {
     if (!window.confirm(`Delete "${r.name}"? This cannot be undone.`)) return;
@@ -228,8 +284,10 @@ export default function AdminRooms() {
         </div>
         <button
           onClick={() => setEditing("new")}
+          disabled={!canCreateRoom}
           data-testid="add-room-btn"
-          className="inline-flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]"
+          className="inline-flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+          title={!canCreateRoom ? "Assign at least one meeting building to this admin first" : "Add Room"}
         >
           <Plus className="h-4 w-4" />
           Add Room
@@ -243,7 +301,7 @@ export default function AdminRooms() {
       )}
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {rooms.map((r) => (
+        {visibleRooms.map((r) => (
           <div
             key={r.id}
             data-testid={`admin-room-card-${r.id}`}
@@ -262,8 +320,14 @@ export default function AdminRooms() {
                   <Users className="h-3 w-3" /> {r.capacity}
                 </div>
               </div>
+              <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-[#0055FF]">
+                {r.building || "Unassigned"}
+              </div>
               <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
                 <MapPin className="h-3 w-3" /> {r.location}
+              </div>
+              <div className="mt-2 flex items-center gap-1 text-xs font-medium text-slate-500">
+                <Clock3 className="h-3 w-3" /> {r.operating_start_time || "08:00"}-{r.operating_end_time || "17:30"}
               </div>
               <p className="mt-3 line-clamp-2 text-xs text-slate-500">{r.description}</p>
               <div className="mt-auto flex items-center gap-2 pt-4">
@@ -301,6 +365,7 @@ export default function AdminRooms() {
       {editing && (
         <RoomFormDialog
           initial={editing === "new" ? null : editing}
+          currentUser={me}
           onClose={() => setEditing(null)}
           onSaved={async () => {
             setEditing(null);

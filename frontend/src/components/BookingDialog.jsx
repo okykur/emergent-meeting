@@ -1,10 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, Loader2, CalendarClock } from "lucide-react";
 import { api, formatApiError } from "../api";
-import { toYMD, nowTime } from "../utils/dates";
+import { getRoomOperatingHours, isWithinOperatingHours, roomOperatingHoursLabel, toYMD, nowTime } from "../utils/dates";
+
+function addMinutesToTime(time, minutesToAdd) {
+  const [hours, minutes] = time.split(":").map(Number);
+  const total = hours * 60 + minutes + minutesToAdd;
+  const nextHours = Math.floor(total / 60);
+  const nextMinutes = total % 60;
+  return `${String(nextHours).padStart(2, "0")}:${String(nextMinutes).padStart(2, "0")}`;
+}
 
 export default function BookingDialog({ room, onClose, onBooked }) {
   const today = useMemo(() => toYMD(new Date()), []);
+  const operatingHours = useMemo(() => getRoomOperatingHours(room), [room]);
+  const defaultEndTime = useMemo(() => {
+    const oneHourAfterOpen = addMinutesToTime(operatingHours.start, 60);
+    return oneHourAfterOpen <= operatingHours.end ? oneHourAfterOpen : operatingHours.end;
+  }, [operatingHours]);
   const maxDate = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + 60);
@@ -13,14 +26,21 @@ export default function BookingDialog({ room, onClose, onBooked }) {
 
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(today);
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("10:00");
+  const [startTime, setStartTime] = useState(operatingHours.start);
+  const [endTime, setEndTime] = useState(defaultEndTime);
   const [participants, setParticipants] = useState(1);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [foodBeverages, setFoodBeverages] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [availability, setAvailability] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+
+  useEffect(() => {
+    setStartTime(operatingHours.start);
+    setEndTime(defaultEndTime);
+  }, [room?.id, operatingHours.start, defaultEndTime]);
 
   const availabilityMessage = (slot) => {
     const conflict = slot?.conflicts?.[0];
@@ -83,6 +103,10 @@ export default function BookingDialog({ room, onClose, onBooked }) {
       setError(`Participants exceed room capacity (${room.capacity}).`);
       return;
     }
+    if (!isWithinOperatingHours(room, startTime, endTime)) {
+      setError(`Booking must be within room operational hours (${roomOperatingHoursLabel(room)}).`);
+      return;
+    }
     if (date === today && startTime < nowTime()) {
       setError("Cannot book a time in the past.");
       return;
@@ -102,6 +126,8 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         start_time: startTime,
         end_time: endTime,
         participants: Number(participants),
+        phone_number: phoneNumber,
+        food_beverages: foodBeverages,
         notes,
       });
       onBooked?.();
@@ -119,10 +145,10 @@ export default function BookingDialog({ room, onClose, onBooked }) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-sm border border-slate-200 bg-white shadow-xl"
+        className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-sm border border-slate-200 bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between border-b border-slate-200 p-5">
+        <div className="flex shrink-0 items-start justify-between border-b border-slate-200 p-5">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Request Booking
@@ -130,6 +156,12 @@ export default function BookingDialog({ room, onClose, onBooked }) {
             <h3 className="mt-1 font-display text-xl font-semibold text-slate-900">
               {room.name}
             </h3>
+            <p className="mt-1 text-xs font-medium text-slate-500">
+              Operational hours: {roomOperatingHoursLabel(room)}
+            </p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#0055FF]">
+              {room.building || "Unassigned"}
+            </p>
             <p className="text-xs text-slate-500">
               {room.location} · Capacity {room.capacity}
             </p>
@@ -142,7 +174,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <form onSubmit={submit} className="space-y-4 p-5" data-testid="booking-form">
+        <form onSubmit={submit} className="min-h-0 space-y-4 overflow-y-auto p-5" data-testid="booking-form">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Meeting title</label>
             <input
@@ -173,6 +205,8 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               <input
                 type="time"
                 required
+                min={operatingHours.start}
+                max={operatingHours.end}
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 data-testid="booking-start-input"
@@ -184,12 +218,17 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               <input
                 type="time"
                 required
+                min={operatingHours.start}
+                max={operatingHours.end}
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
                 data-testid="booking-end-input"
                 className="w-full rounded-sm border border-slate-300 px-2 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
               />
             </div>
+          </div>
+          <div className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            This room can be booked only between {roomOperatingHoursLabel(room)}.
           </div>
           {checkingAvailability && (
             <div
@@ -228,6 +267,28 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               onChange={(e) => setParticipants(e.target.value)}
               data-testid="booking-participants-input"
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Nomor HP</label>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              data-testid="booking-phone-input"
+              placeholder="0812 3456 7890"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Food and Beverages</label>
+            <textarea
+              value={foodBeverages}
+              onChange={(e) => setFoodBeverages(e.target.value)}
+              data-testid="booking-food-beverages-input"
+              rows={2}
+              placeholder="morning snack, evening snack, lunch, kopi"
+              className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
             />
           </div>
           <div>
