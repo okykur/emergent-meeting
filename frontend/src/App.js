@@ -17,6 +17,7 @@ import MyCarBookings from "@/pages/car/MyCarBookings";
 import CarBookingDetail from "@/pages/car/CarBookingDetail";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminBookings from "@/pages/admin/Bookings";
+import AdminFnbApprovals from "@/pages/admin/FnbApprovals";
 import AdminRooms from "@/pages/admin/Rooms";
 import AdminCalendar from "@/pages/admin/Calendar";
 import AdminUsers from "@/pages/admin/Users";
@@ -31,6 +32,7 @@ function RootRedirect() {
   const { user } = useAuth();
   if (user === null) return null;
   if (user === false) return <Navigate to="/login" replace />;
+  if (user.role === "manager") return <Navigate to="/hub" replace />;
   const isAdmin = ["meeting_admin", "car_admin", "super_admin"].includes(user.role);
   return <Navigate to={isAdmin ? "/admin" : "/hub"} replace />;
 }
@@ -39,6 +41,9 @@ function AdminHome() {
   const { user } = useAuth();
   if (user && user.role === "car_admin") {
     return <Navigate to="/admin/cars" replace />;
+  }
+  if (user && user.role === "manager") {
+    return <Navigate to="/admin/fnb" replace />;
   }
   return <AdminDashboard />;
 }
@@ -81,6 +86,7 @@ function App() {
             >
               <Route path="/admin" element={<AdminHome />} />
               <Route path="/admin/bookings" element={<AdminBookings />} />
+              <Route path="/admin/fnb" element={<AdminFnbApprovals />} />
               <Route path="/admin/calendar" element={<AdminCalendar />} />
               <Route path="/admin/rooms" element={<AdminRooms />} />
               <Route path="/admin/cars" element={<AdminCarsDashboard />} />

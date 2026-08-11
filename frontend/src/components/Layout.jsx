@@ -52,12 +52,14 @@ export default function Layout({ admin = false }) {
   const isSuper = role === "super_admin";
   const isMeetingAdmin = role === "meeting_admin" || isSuper;
   const isCarAdmin = role === "car_admin" || isSuper;
+  const isFnbManager = role === "manager" || isSuper;
 
   const adminNavFull = [
     { to: "/admin", label: "Meeting Room Dashboard", icon: LayoutDashboard, testid: "nav-admin-dashboard", end: true, show: isMeetingAdmin },
     { to: "/admin/bookings", label: "Meeting Room Bookings", icon: CalendarCheck2, testid: "nav-admin-bookings", show: isMeetingAdmin },
     { to: "/admin/calendar", label: "Meeting Room Calendar", icon: CalendarDays, testid: "nav-admin-calendar", show: isMeetingAdmin },
     { to: "/admin/rooms", label: "Meeting Rooms", icon: DoorOpen, testid: "nav-admin-rooms", show: isMeetingAdmin },
+    { to: "/admin/fnb", label: "Meeting Activities", icon: BookMarked, testid: "nav-admin-fnb", show: isFnbManager },
     { to: "/admin/cars", label: "Car Booking Dashboard", icon: Car, testid: "nav-admin-cars", show: isCarAdmin, end: true },
     { to: "/admin/cars/bookings", label: "Car Bookings", icon: CalendarCheck2, testid: "nav-admin-cars-bookings", show: isCarAdmin },
     { to: "/admin/cars/vehicles", label: "Car Vehicles", icon: Car, testid: "nav-admin-vehicles", show: isCarAdmin },
@@ -99,7 +101,7 @@ export default function Layout({ admin = false }) {
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            {user && ["meeting_admin", "car_admin", "super_admin"].includes(user.role) && !admin && (
+            {user && ["meeting_admin", "car_admin", "manager", "super_admin"].includes(user.role) && !admin && (
               <Link
                 to="/admin"
                 data-testid="go-admin-link"
@@ -135,6 +137,7 @@ export default function Layout({ admin = false }) {
                       user: "User",
                       meeting_admin: "Meeting Admin",
                       car_admin: "Car Admin",
+                      manager: "Manager",
                       super_admin: "Super Admin",
                     }[user?.role] || user?.role
                   }

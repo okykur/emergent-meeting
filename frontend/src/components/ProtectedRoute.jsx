@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-const ADMIN_ROLES = ["meeting_admin", "car_admin", "super_admin"];
+const ADMIN_ROLES = ["meeting_admin", "car_admin", "manager", "super_admin"];
 
 export default function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false }) {
   const { user } = useAuth();

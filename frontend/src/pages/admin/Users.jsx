@@ -32,6 +32,11 @@ function RoleTag({ role }) {
       icon: Shield,
       cls: "border-amber-200 bg-amber-50 text-amber-700",
     },
+    manager: {
+      label: "Manager",
+      icon: Shield,
+      cls: "border-sky-200 bg-sky-50 text-sky-700",
+    },
     user: {
       label: "User",
       icon: UserIcon,
@@ -87,6 +92,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           department: initial.department || "",
           office_address: initial.office_address || "",
           meeting_buildings: buildingsToInput(initial.meeting_buildings || []),
+          fnb_locations: buildingsToInput(initial.fnb_locations || []),
           role: initial.role || "user",
           is_approved: Boolean(initial.is_approved),
         }
@@ -99,6 +105,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           department: "",
           office_address: "",
           meeting_buildings: "",
+          fnb_locations: "",
           role: "user",
           is_approved: true,
         }
@@ -114,6 +121,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
       const payload = {
         ...form,
         meeting_buildings: inputToBuildings(form.meeting_buildings),
+        fnb_locations: inputToBuildings(form.fnb_locations),
       };
       if (initial) {
         await api.patch(`/users/${initial.id}`, {
@@ -123,6 +131,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           department: payload.department,
           office_address: payload.office_address,
           meeting_buildings: payload.meeting_buildings,
+          fnb_locations: payload.fnb_locations,
           role: payload.role,
           is_approved: payload.is_approved,
         });
@@ -249,6 +258,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               <option value="user">User</option>
               <option value="meeting_admin">Meeting Admin — approve meeting-room bookings</option>
               <option value="car_admin">Car Admin — approve car/vehicle bookings</option>
+              <option value="manager">Manager - approve Food &amp; Beverages</option>
               <option value="super_admin">Super Admin — full access</option>
             </select>
             <p className="mt-1 text-xs text-slate-500">
@@ -267,6 +277,21 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               />
               <p className="mt-1 text-xs text-slate-500">
                 Satu meeting admin bisa menangani beberapa gedung. Pisahkan dengan koma.
+              </p>
+            </div>
+          )}
+          {form.role === "manager" && (
+            <div className="rounded-sm border border-sky-100 bg-sky-50 p-3">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Lokasi approval F&amp;B</label>
+              <input
+                data-testid="user-fnb-locations-input"
+                value={form.fnb_locations}
+                onChange={(e) => setForm({ ...form, fnb_locations: e.target.value })}
+                placeholder="Kudus, Pulogadung"
+                className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Satu manager bisa menangani beberapa lokasi F&amp;B. Pisahkan dengan koma.
               </p>
             </div>
           )}
@@ -526,6 +551,7 @@ export default function AdminUsers() {
           <option value="user">Users</option>
           <option value="meeting_admin">Meeting Admins</option>
           <option value="car_admin">Car Admins</option>
+          <option value="manager">Managers</option>
           <option value="super_admin">Super Admins</option>
         </select>
         <select
@@ -616,6 +642,11 @@ export default function AdminUsers() {
                     {u.role === "meeting_admin" && (
                       <div className="mt-2 max-w-xs text-xs text-slate-500">
                         Gedung: {(u.meeting_buildings || []).join(", ") || "Belum diset"}
+                      </div>
+                    )}
+                    {u.role === "manager" && (
+                      <div className="mt-2 max-w-xs text-xs text-slate-500">
+                        F&amp;B lokasi: {(u.fnb_locations || []).join(", ") || "Belum diset"}
                       </div>
                     )}
                   </td>

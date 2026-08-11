@@ -180,6 +180,9 @@ export default function AdminBookings() {
                   {b.food_beverages && (
                     <div className="mt-1 max-w-xs text-xs text-slate-500">
                       F&amp;B: {b.food_beverages}
+                      <span className="ml-2 font-semibold uppercase text-slate-400">
+                        ({b.fnb_status || "pending"})
+                      </span>
                     </div>
                   )}
                 </td>

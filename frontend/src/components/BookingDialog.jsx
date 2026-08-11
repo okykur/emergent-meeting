@@ -4,6 +4,10 @@ import { api, formatApiError } from "../api";
 import { getRoomOperatingHours, isWithinOperatingHours, roomOperatingHoursLabel, toYMD, nowTime } from "../utils/dates";
 
 const LAYOUT_OPTIONS = ["U-Shape", "Classroom", "Round", "Theater", "Lainnya"];
+const FOOD_BEVERAGE_RULES = [
+  { label: "Snack", minMinutes: 4 * 60 },
+  { label: "Makan siang", minMinutes: 5 * 60 },
+];
 
 function addMinutesToTime(time, minutesToAdd) {
   const [hours, minutes] = time.split(":").map(Number);
@@ -11,6 +15,18 @@ function addMinutesToTime(time, minutesToAdd) {
   const nextHours = Math.floor(total / 60);
   const nextMinutes = total % 60;
   return `${String(nextHours).padStart(2, "0")}:${String(nextMinutes).padStart(2, "0")}`;
+}
+
+function timeToMinutes(time) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function buildFoodBeverages(selectedItems, notes) {
+  const parts = [...selectedItems];
+  const trimmedNotes = notes.trim();
+  if (trimmedNotes) parts.push(trimmedNotes);
+  return parts.join(", ");
 }
 
 export default function BookingDialog({ room, onClose, onBooked }) {
@@ -34,13 +50,22 @@ export default function BookingDialog({ room, onClose, onBooked }) {
   const [layoutType, setLayoutType] = useState("");
   const [layoutOther, setLayoutOther] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [foodBeverages, setFoodBeverages] = useState("");
+  const [selectedFoodBeverages, setSelectedFoodBeverages] = useState([]);
+  const [foodBeverageNotes, setFoodBeverageNotes] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [availability, setAvailability] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const canChooseLayout = room?.layout_fixed === false;
+  const durationMinutes = useMemo(
+    () => (startTime && endTime && startTime < endTime ? timeToMinutes(endTime) - timeToMinutes(startTime) : 0),
+    [startTime, endTime]
+  );
+  const availableFoodBeverages = useMemo(
+    () => FOOD_BEVERAGE_RULES.filter((item) => durationMinutes >= item.minMinutes),
+    [durationMinutes]
+  );
 
   useEffect(() => {
     setStartTime(operatingHours.start);
@@ -48,6 +73,12 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     setLayoutType("");
     setLayoutOther("");
   }, [room?.id, operatingHours.start, defaultEndTime]);
+
+  useEffect(() => {
+    const allowed = new Set(availableFoodBeverages.map((item) => item.label));
+    setSelectedFoodBeverages((items) => items.filter((item) => allowed.has(item)));
+    if (availableFoodBeverages.length === 0) setFoodBeverageNotes("");
+  }, [availableFoodBeverages]);
 
   const availabilityMessage = (slot) => {
     const conflict = slot?.conflicts?.[0];
@@ -144,7 +175,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         layout_type: canChooseLayout ? layoutType : "",
         layout_other: canChooseLayout && layoutType === "Lainnya" ? layoutOther : "",
         phone_number: phoneNumber,
-        food_beverages: foodBeverages,
+        food_beverages: buildFoodBeverages(selectedFoodBeverages, foodBeverageNotes),
         notes,
       });
       onBooked?.();
@@ -338,17 +369,48 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Food and Beverages</label>
-            <textarea
-              value={foodBeverages}
-              onChange={(e) => setFoodBeverages(e.target.value)}
-              data-testid="booking-food-beverages-input"
-              rows={2}
-              placeholder="morning snack, evening snack, lunch, kopi"
-              className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
-            />
-          </div>
+          {availableFoodBeverages.length > 0 ? (
+            <div className="space-y-3 rounded-sm border border-amber-200 bg-amber-50 p-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">Food and Beverages</div>
+                <p className="mt-1 text-xs text-slate-500">
+                  Pilihan ini muncul otomatis untuk meeting berdurasi {durationMinutes >= 5 * 60 ? "5 jam atau lebih" : "4 jam atau lebih"}.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {availableFoodBeverages.map((item) => (
+                  <label
+                    key={item.label}
+                    className="flex items-center gap-2 rounded-sm border border-amber-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFoodBeverages.includes(item.label)}
+                      onChange={(e) =>
+                        setSelectedFoodBeverages((items) =>
+                          e.target.checked ? [...items, item.label] : items.filter((value) => value !== item.label)
+                        )
+                      }
+                      data-testid={`booking-food-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                    />
+                    {item.label}
+                  </label>
+                ))}
+              </div>
+              <textarea
+                value={foodBeverageNotes}
+                onChange={(e) => setFoodBeverageNotes(e.target.value)}
+                data-testid="booking-food-beverages-input"
+                rows={2}
+                placeholder="Catatan optional: morning snack, evening snack, kopi"
+                className="w-full resize-none rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              />
+            </div>
+          ) : (
+            <div className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              Pilihan Food and Beverages akan muncul otomatis jika durasi meeting 4 jam atau lebih.
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Notes (optional)</label>
             <textarea

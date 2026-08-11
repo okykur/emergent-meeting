@@ -104,9 +104,10 @@ async def get_current_user(request: Request) -> dict:
     return user
 
 
-ADMIN_ROLES = {"meeting_admin", "car_admin", "super_admin"}
+ADMIN_ROLES = {"meeting_admin", "car_admin", "manager", "super_admin"}
 MEETING_ADMIN_ROLES = {"meeting_admin", "super_admin"}
 CAR_ADMIN_ROLES = {"car_admin", "super_admin"}
+FNB_MANAGER_ROLES = {"manager", "super_admin"}
 MEETING_BLOCKING_STATUSES = ["pending", "confirmed", "approved"]
 DEFAULT_OPERATING_START_TIME = "08:00"
 DEFAULT_OPERATING_END_TIME = "17:30"
@@ -132,6 +133,12 @@ async def require_super_admin(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
+async def require_fnb_manager(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") not in FNB_MANAGER_ROLES:
+        raise HTTPException(status_code=403, detail="F&B manager access required")
+    return user
+
+
 # Backward-compat alias — treat the old 'admin' name as meeting admin checker for existing routes.
 require_admin = require_meeting_admin
 
@@ -146,7 +153,8 @@ class UserPublic(BaseModel):
     department: str = ""
     office_address: str = ""
     meeting_buildings: List[str] = []
-    role: Literal["user", "meeting_admin", "car_admin", "super_admin"]
+    fnb_locations: List[str] = []
+    role: Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"]
     is_approved: bool = True
     approved_at: Optional[str] = None
     approved_by: Optional[str] = None
@@ -249,6 +257,10 @@ class BookingStatusUpdate(BaseModel):
     status: Literal["pending", "confirmed", "cancelled", "completed"]
 
 
+class FnbStatusUpdate(BaseModel):
+    status: Literal["pending", "approved", "rejected"]
+
+
 class Booking(BaseModel):
     id: str
     room_id: str
@@ -266,6 +278,9 @@ class Booking(BaseModel):
     layout_other: str = ""
     phone_number: str = ""
     food_beverages: str = ""
+    fnb_status: str = "not_required"
+    fnb_reviewed_at: Optional[str] = None
+    fnb_reviewed_by: Optional[str] = None
     notes: str
     status: str
     created_at: str
@@ -315,10 +330,24 @@ def _can_manage_meeting_building(admin: dict, building: str) -> bool:
     return _normalize_building(building) in set(admin.get("meeting_buildings") or [])
 
 
+def _can_manage_fnb_location(manager: dict, building: str) -> bool:
+    if manager.get("role") == "super_admin":
+        return True
+    if manager.get("role") != "manager":
+        return False
+    return _normalize_building(building) in set(manager.get("fnb_locations") or [])
+
+
 def _assert_can_manage_room(admin: dict, room: dict) -> None:
     room = _normalize_room(room)
     if not _can_manage_meeting_building(admin, room["building"]):
         raise HTTPException(status_code=403, detail=f"You are not assigned to approve/manage building: {room['building']}")
+
+
+def _assert_can_manage_fnb(manager: dict, room: dict) -> None:
+    room = _normalize_room(room)
+    if not _can_manage_fnb_location(manager, room["building"]):
+        raise HTTPException(status_code=403, detail=f"You are not assigned to approve F&B for location: {room['building']}")
 
 
 def _building_room_query(buildings: List[str]) -> dict:
@@ -351,6 +380,24 @@ async def _allowed_meeting_room_ids(admin: dict, building: Optional[str] = None)
     if not buildings:
         return []
     rooms = await db.rooms.find(_building_room_query(buildings), {"_id": 0, "id": 1}).to_list(1000)
+    return [r["id"] for r in rooms]
+
+
+async def _allowed_fnb_room_ids(manager: dict, building: Optional[str] = None) -> Optional[List[str]]:
+    if manager.get("role") == "super_admin":
+        query = _building_room_query([building]) if building else {}
+        rooms = await db.rooms.find(query, {"_id": 0, "id": 1}).to_list(1000)
+        return [r["id"] for r in rooms] if building else None
+
+    locations = _normalize_building_list(manager.get("fnb_locations") or [])
+    if building:
+        requested = _normalize_building(building)
+        if requested not in locations:
+            return []
+        locations = [requested]
+    if not locations:
+        return []
+    rooms = await db.rooms.find(_building_room_query(locations), {"_id": 0, "id": 1}).to_list(1000)
     return [r["id"] for r in rooms]
 
 
@@ -418,6 +465,7 @@ def _normalize_user_public(user: dict) -> dict:
     user.setdefault("department", "")
     user.setdefault("office_address", "")
     user["meeting_buildings"] = _normalize_building_list(user.get("meeting_buildings") or [])
+    user["fnb_locations"] = _normalize_building_list(user.get("fnb_locations") or [])
     user.setdefault("is_approved", True)
     user.setdefault("approved_at", None)
     user.setdefault("approved_by", None)
@@ -430,6 +478,9 @@ async def _normalize_booking_public(booking: dict) -> dict:
         booking["room_building"] = _normalize_building(room.get("building") if room else None)
     booking.setdefault("phone_number", "")
     booking.setdefault("food_beverages", "")
+    booking["fnb_status"] = booking.get("fnb_status") or ("pending" if booking.get("food_beverages") else "not_required")
+    booking.setdefault("fnb_reviewed_at", None)
+    booking.setdefault("fnb_reviewed_by", None)
     booking.setdefault("layout_type", "")
     booking.setdefault("layout_other", "")
     return booking
@@ -445,6 +496,9 @@ async def _normalize_bookings_public(bookings: List[dict]) -> List[dict]:
         )
         booking.setdefault("phone_number", "")
         booking.setdefault("food_beverages", "")
+        booking["fnb_status"] = booking.get("fnb_status") or ("pending" if booking.get("food_beverages") else "not_required")
+        booking.setdefault("fnb_reviewed_at", None)
+        booking.setdefault("fnb_reviewed_by", None)
         booking.setdefault("layout_type", "")
         booking.setdefault("layout_other", "")
     return bookings
@@ -509,6 +563,7 @@ async def register(payload: RegisterRequest):
         "department": payload.department.strip(),
         "office_address": payload.office_address.strip(),
         "meeting_buildings": [],
+        "fnb_locations": [],
         "password_hash": hash_password(payload.password),
         "role": "user",
         "is_approved": False,
@@ -607,7 +662,7 @@ async def me(current_user: dict = Depends(get_current_user)):
 # Admin: promote a user (super admin only)
 class PromoteRequest(BaseModel):
     email: EmailStr
-    role: Literal["user", "meeting_admin", "car_admin", "super_admin"] = "meeting_admin"
+    role: Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"] = "meeting_admin"
 
 
 @api.post("/auth/promote", response_model=UserPublic)
@@ -615,8 +670,14 @@ async def promote_user(payload: PromoteRequest, admin: dict = Depends(require_su
     target = await db.users.find_one({"email": payload.email.lower()})
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
-    await db.users.update_one({"id": target["id"]}, {"$set": {"role": payload.role}})
+    updates = {"role": payload.role}
+    if payload.role != "meeting_admin":
+        updates["meeting_buildings"] = []
+    if payload.role != "manager":
+        updates["fnb_locations"] = []
+    await db.users.update_one({"id": target["id"]}, {"$set": updates})
     target["role"] = payload.role
+    target.update(updates)
     _normalize_user_public(target)
     return UserPublic(**{k: v for k, v in target.items() if k not in ("password_hash", "_id")})
 
@@ -790,6 +851,7 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         )
 
     booking_id = str(uuid.uuid4())
+    food_beverages = payload.food_beverages.strip()
     doc = {
         "id": booking_id,
         "room_id": payload.room_id,
@@ -806,7 +868,10 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         "layout_type": layout_type,
         "layout_other": layout_other,
         "phone_number": payload.phone_number.strip(),
-        "food_beverages": payload.food_beverages.strip(),
+        "food_beverages": food_beverages,
+        "fnb_status": "pending" if food_beverages else "not_required",
+        "fnb_reviewed_at": None,
+        "fnb_reviewed_by": None,
         "notes": payload.notes or "",
         "status": "pending",
         "created_at": _now_iso(),
@@ -871,6 +936,103 @@ async def update_booking_status(
     await db.bookings.update_one(
         {"id": booking_id},
         {"$set": {"status": payload.status, "room_building": _normalize_room(room)["building"]}},
+    )
+    bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    await _normalize_booking_public(bk)
+    return Booking(**bk)
+
+
+@api.get("/fnb/bookings", response_model=List[Booking])
+async def list_fnb_bookings(
+    manager: dict = Depends(require_fnb_manager),
+    fnb_status: Optional[Literal["pending", "approved", "rejected", "not_required"]] = None,
+    booking_status: Optional[Literal["pending", "confirmed", "cancelled", "completed"]] = None,
+    building: Optional[str] = None,
+    date: Optional[str] = None,
+    user_query: Optional[str] = None,
+):
+    q: dict = {}
+    and_conditions = []
+    if booking_status:
+        q["status"] = booking_status
+    if fnb_status == "pending":
+        and_conditions.append(
+            {
+                "$and": [
+                    {"food_beverages": {"$exists": True, "$nin": ["", None]}},
+                    {
+                        "$or": [
+                            {"fnb_status": "pending"},
+                            {"fnb_status": {"$exists": False}},
+                            {"fnb_status": ""},
+                            {"fnb_status": None},
+                        ]
+                    },
+                ],
+            }
+        )
+    elif fnb_status == "not_required":
+        and_conditions.append(
+            {
+                "$and": [
+                    {"$or": [{"food_beverages": {"$exists": False}}, {"food_beverages": ""}, {"food_beverages": None}]},
+                    {"$or": [{"fnb_status": "not_required"}, {"fnb_status": {"$exists": False}}]},
+                ]
+            }
+        )
+    elif fnb_status:
+        q["fnb_status"] = fnb_status
+    allowed_room_ids = await _allowed_fnb_room_ids(manager, building=building)
+    if allowed_room_ids is not None:
+        q["room_id"] = {"$in": allowed_room_ids}
+    if date:
+        q["date"] = date
+    if user_query:
+        and_conditions.append(
+            {
+                "$or": [
+                    {"user_name": {"$regex": user_query, "$options": "i"}},
+                    {"user_email": {"$regex": user_query, "$options": "i"}},
+                    {"title": {"$regex": user_query, "$options": "i"}},
+                    {"room_name": {"$regex": user_query, "$options": "i"}},
+                    {"food_beverages": {"$regex": user_query, "$options": "i"}},
+                ]
+            }
+        )
+    if and_conditions:
+        q["$and"] = and_conditions
+    items = await db.bookings.find(q, {"_id": 0}).sort([("date", -1), ("start_time", -1)]).to_list(1000)
+    await _normalize_bookings_public(items)
+    return [Booking(**b) for b in items]
+
+
+@api.patch("/fnb/bookings/{booking_id}/status", response_model=Booking)
+async def update_fnb_status(
+    booking_id: str,
+    payload: FnbStatusUpdate,
+    manager: dict = Depends(require_fnb_manager),
+):
+    bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if not (bk.get("food_beverages") or "").strip():
+        raise HTTPException(status_code=400, detail="This booking has no F&B request")
+    if bk.get("status") != "confirmed":
+        raise HTTPException(status_code=400, detail="F&B can be approved only after meeting-room admin approval")
+    room = await db.rooms.find_one({"id": bk["room_id"]}, {"_id": 0})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    _assert_can_manage_fnb(manager, room)
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {
+            "$set": {
+                "fnb_status": payload.status,
+                "fnb_reviewed_at": _now_iso(),
+                "fnb_reviewed_by": manager["id"],
+                "room_building": _normalize_room(room)["building"],
+            }
+        },
     )
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     await _normalize_booking_public(bk)
@@ -968,7 +1130,8 @@ class AdminUserUpdate(BaseModel):
     department: Optional[str] = Field(default=None, max_length=120)
     office_address: Optional[str] = Field(default=None, max_length=240)
     meeting_buildings: Optional[List[str]] = None
-    role: Optional[Literal["user", "meeting_admin", "car_admin", "super_admin"]] = None
+    fnb_locations: Optional[List[str]] = None
+    role: Optional[Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"]] = None
     is_approved: Optional[bool] = None
 
 
@@ -985,7 +1148,8 @@ class AdminUserCreate(BaseModel):
     department: str = ""
     office_address: str = ""
     meeting_buildings: List[str] = []
-    role: Literal["user", "meeting_admin", "car_admin", "super_admin"] = "user"
+    fnb_locations: List[str] = []
+    role: Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"] = "user"
     is_approved: bool = True
 
 
@@ -993,7 +1157,7 @@ class AdminUserCreate(BaseModel):
 async def list_users(
     admin: dict = Depends(require_super_admin),
     q: Optional[str] = None,
-    role: Optional[Literal["user", "meeting_admin", "car_admin", "super_admin"]] = None,
+    role: Optional[Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"]] = None,
     approval: Optional[Literal["approved", "pending"]] = None,
 ):
     query: dict = {}
@@ -1012,6 +1176,7 @@ async def list_users(
             {"department": {"$regex": q, "$options": "i"}},
             {"office_address": {"$regex": q, "$options": "i"}},
             {"meeting_buildings": {"$regex": q, "$options": "i"}},
+            {"fnb_locations": {"$regex": q, "$options": "i"}},
         ]
     users = await db.users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(1000)
     for u in users:
@@ -1024,6 +1189,8 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
     email = payload.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Email already registered")
+    meeting_buildings = _normalize_building_list(payload.meeting_buildings) if payload.role == "meeting_admin" else []
+    fnb_locations = _normalize_building_list(payload.fnb_locations) if payload.role == "manager" else []
     doc = {
         "id": str(uuid.uuid4()),
         "email": email,
@@ -1032,7 +1199,8 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
         "job_title": payload.job_title.strip(),
         "department": payload.department.strip(),
         "office_address": payload.office_address.strip(),
-        "meeting_buildings": _normalize_building_list(payload.meeting_buildings),
+        "meeting_buildings": meeting_buildings,
+        "fnb_locations": fnb_locations,
         "password_hash": hash_password(payload.password),
         "role": payload.role,
         "is_approved": payload.is_approved,
@@ -1059,6 +1227,12 @@ async def admin_update_user(
         raise HTTPException(status_code=400, detail="You cannot unapprove your own account")
     if "meeting_buildings" in updates:
         updates["meeting_buildings"] = _normalize_building_list(updates["meeting_buildings"])
+    if "fnb_locations" in updates:
+        updates["fnb_locations"] = _normalize_building_list(updates["fnb_locations"])
+    if updates.get("role") and updates["role"] != "meeting_admin":
+        updates["meeting_buildings"] = []
+    if updates.get("role") and updates["role"] != "manager":
+        updates["fnb_locations"] = []
     if updates.get("is_approved") is True:
         updates["approved_at"] = _now_iso()
         updates["approved_by"] = admin["id"]
@@ -1208,6 +1382,7 @@ async def seed_admin():
                 "department": "IT",
                 "office_address": "KCSI Office",
                 "meeting_buildings": [],
+                "fnb_locations": [],
                 "password_hash": hash_password(ADMIN_PASSWORD),
                 "role": "super_admin",
                 "is_approved": True,
@@ -1263,6 +1438,27 @@ async def migrate_legacy_roles():
     )
     if res.modified_count:
         logger.info(f"Initialized meeting_buildings for {res.modified_count} users")
+    res = await db.users.update_many(
+        {"fnb_locations": {"$exists": False}},
+        {"$set": {"fnb_locations": []}},
+    )
+    if res.modified_count:
+        logger.info(f"Initialized fnb_locations for {res.modified_count} users")
+    res = await db.bookings.update_many(
+        {"food_beverages": {"$nin": ["", None]}, "fnb_status": {"$exists": False}},
+        {"$set": {"fnb_status": "pending", "fnb_reviewed_at": None, "fnb_reviewed_by": None}},
+    )
+    if res.modified_count:
+        logger.info(f"Initialized F&B approval status for {res.modified_count} bookings")
+    res = await db.bookings.update_many(
+        {
+            "$or": [{"food_beverages": ""}, {"food_beverages": None}, {"food_beverages": {"$exists": False}}],
+            "fnb_status": {"$exists": False},
+        },
+        {"$set": {"fnb_status": "not_required", "fnb_reviewed_at": None, "fnb_reviewed_by": None}},
+    )
+    if res.modified_count:
+        logger.info(f"Initialized F&B not-required status for {res.modified_count} bookings")
     res = await db.rooms.update_many(
         {"$or": [{"building": {"$exists": False}}, {"building": ""}, {"building": None}]},
         {"$set": {"building": DEFAULT_ROOM_BUILDING}},
@@ -1993,6 +2189,7 @@ async def on_startup():
     await db.rooms.create_index("building")
     await db.bookings.create_index([("room_id", 1), ("date", 1)])
     await db.bookings.create_index("room_building")
+    await db.bookings.create_index("fnb_status")
     await db.bookings.create_index("user_id")
     await db.vehicles.create_index("plate_number", unique=True)
     await db.vehicle_bookings.create_index([("vehicle_id", 1), ("start_date", 1)])
