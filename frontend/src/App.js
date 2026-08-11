@@ -32,9 +32,7 @@ function RootRedirect() {
   const { user } = useAuth();
   if (user === null) return null;
   if (user === false) return <Navigate to="/login" replace />;
-  if (user.role === "manager") return <Navigate to="/hub" replace />;
-  const isAdmin = ["meeting_admin", "car_admin", "super_admin"].includes(user.role);
-  return <Navigate to={isAdmin ? "/admin" : "/hub"} replace />;
+  return <Navigate to="/hub" replace />;
 }
 
 function AdminHome() {

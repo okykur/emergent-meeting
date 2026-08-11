@@ -1,7 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
-  LayoutDashboard,
   CalendarCheck2,
   CalendarDays,
   DoorOpen,
@@ -33,7 +32,7 @@ function BrandMark() {
   );
 }
 
-export default function Layout({ admin = false }) {
+export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -43,32 +42,27 @@ export default function Layout({ admin = false }) {
     navigate("/login");
   };
 
-  const userNav = [
-    { to: "/hub", label: "Home", icon: Home, testid: "nav-hub", end: true },
-    { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-calendar" },
-  ];
-
   const role = user?.role;
   const isSuper = role === "super_admin";
   const isMeetingAdmin = role === "meeting_admin" || isSuper;
   const isCarAdmin = role === "car_admin" || isSuper;
   const isFnbManager = role === "manager" || isSuper;
 
-  const adminNavFull = [
-    { to: "/admin", label: "Meeting Room Dashboard", icon: LayoutDashboard, testid: "nav-admin-dashboard", end: true, show: isMeetingAdmin },
-    { to: "/admin/bookings", label: "Meeting Room Bookings", icon: CalendarCheck2, testid: "nav-admin-bookings", show: isMeetingAdmin },
-    { to: "/admin/calendar", label: "Meeting Room Calendar", icon: CalendarDays, testid: "nav-admin-calendar", show: isMeetingAdmin },
-    { to: "/admin/rooms", label: "Meeting Rooms", icon: DoorOpen, testid: "nav-admin-rooms", show: isMeetingAdmin },
-    { to: "/admin/fnb", label: "Meeting Activities", icon: BookMarked, testid: "nav-admin-fnb", show: isFnbManager },
-    { to: "/admin/cars", label: "Car Booking Dashboard", icon: Car, testid: "nav-admin-cars", show: isCarAdmin, end: true },
-    { to: "/admin/cars/bookings", label: "Car Bookings", icon: CalendarCheck2, testid: "nav-admin-cars-bookings", show: isCarAdmin },
-    { to: "/admin/cars/vehicles", label: "Car Vehicles", icon: Car, testid: "nav-admin-vehicles", show: isCarAdmin },
-    { to: "/admin/cars/drivers", label: "Car Drivers", icon: Users, testid: "nav-admin-drivers", show: isCarAdmin },
+  const navFull = [
+    { to: "/hub", label: "Home", icon: Home, testid: "nav-hub", end: true, show: true },
+    { to: "/rooms", label: "Meeting Room", icon: DoorOpen, testid: "nav-rooms", show: true },
+    { to: "/my-bookings", label: "My Booking", icon: BookMarked, testid: "nav-my-bookings", show: true },
+    { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-calendar", show: true },
+    { to: "/car", label: "Car / Vehicle", icon: Car, testid: "nav-car", show: true },
+    { to: "/admin/bookings", label: "Approval Meeting", icon: CalendarCheck2, testid: "nav-approval-meeting", show: isMeetingAdmin },
+    { to: "/admin/cars/bookings", label: "Approval Kendaraan", icon: Car, testid: "nav-approval-cars", show: isCarAdmin },
+    { to: "/admin/fnb", label: "Approval F&B", icon: BookMarked, testid: "nav-approval-fnb", show: isFnbManager },
+    { to: "/admin/rooms", label: "Master Room", icon: Building2, testid: "nav-admin-rooms", show: isMeetingAdmin },
+    { to: "/admin/cars/vehicles", label: "Master Vehicle", icon: Car, testid: "nav-admin-vehicles", show: isCarAdmin },
+    { to: "/admin/cars/drivers", label: "Master Driver", icon: Users, testid: "nav-admin-drivers", show: isCarAdmin },
     { to: "/admin/users", label: "Users", icon: Users, testid: "nav-admin-users", show: isSuper },
   ];
-  const adminNav = adminNavFull.filter((n) => n.show);
-
-  const nav = admin ? adminNav : userNav;
+  const nav = navFull.filter((n) => n.show);
 
   return (
     <div className="min-h-screen bg-[#f8f9fa]">
@@ -101,33 +95,6 @@ export default function Layout({ admin = false }) {
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            {user && ["meeting_admin", "car_admin", "manager", "super_admin"].includes(user.role) && !admin && (
-              <Link
-                to="/admin"
-                data-testid="go-admin-link"
-                className="hidden rounded-sm border border-slate-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-700 transition-colors hover:bg-slate-50 md:inline-flex"
-              >
-                Admin Console
-              </Link>
-            )}
-            {user && user.role === "user" && admin && (
-              <Link
-                to="/hub"
-                data-testid="go-user-link"
-                className="hidden rounded-sm border border-slate-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-700 transition-colors hover:bg-slate-50 md:inline-flex"
-              >
-                User App
-              </Link>
-            )}
-            {admin && (
-              <Link
-                to="/hub"
-                data-testid="go-user-from-admin"
-                className="hidden rounded-sm border border-slate-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-700 transition-colors hover:bg-slate-50 md:inline-flex"
-              >
-                User View
-              </Link>
-            )}
             <div className="hidden items-center gap-3 md:flex" data-testid="user-menu">
               <div className="text-right">
                 <div className="text-sm font-medium text-slate-900">{user?.name}</div>
