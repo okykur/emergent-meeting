@@ -17,9 +17,24 @@ function addMinutesToTime(time, minutesToAdd) {
   return `${String(nextHours).padStart(2, "0")}:${String(nextMinutes).padStart(2, "0")}`;
 }
 
+function minutesToTime(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
 function timeToMinutes(time) {
   const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;
+}
+
+function roundUpTime(time, stepMinutes = 15) {
+  return minutesToTime(Math.ceil(timeToMinutes(time) / stepMinutes) * stepMinutes);
+}
+
+function getEarliestStartForDate(date, today, operatingStart) {
+  if (date !== today) return operatingStart;
+  return minutesToTime(Math.max(timeToMinutes(operatingStart), timeToMinutes(roundUpTime(nowTime()))));
 }
 
 function buildFoodBeverages(selectedItems, notes) {
@@ -32,10 +47,6 @@ function buildFoodBeverages(selectedItems, notes) {
 export default function BookingDialog({ room, onClose, onBooked }) {
   const today = useMemo(() => toYMD(new Date()), []);
   const operatingHours = useMemo(() => getRoomOperatingHours(room), [room]);
-  const defaultEndTime = useMemo(() => {
-    const oneHourAfterOpen = addMinutesToTime(operatingHours.start, 60);
-    return oneHourAfterOpen <= operatingHours.end ? oneHourAfterOpen : operatingHours.end;
-  }, [operatingHours]);
   const maxDate = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + 60);
@@ -44,8 +55,12 @@ export default function BookingDialog({ room, onClose, onBooked }) {
 
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(today);
-  const [startTime, setStartTime] = useState(operatingHours.start);
-  const [endTime, setEndTime] = useState(defaultEndTime);
+  const [startTime, setStartTime] = useState(() => getEarliestStartForDate(today, today, operatingHours.start));
+  const [endTime, setEndTime] = useState(() => {
+    const firstStart = getEarliestStartForDate(today, today, operatingHours.start);
+    const oneHourAfterStart = addMinutesToTime(firstStart, 60);
+    return oneHourAfterStart <= operatingHours.end ? oneHourAfterStart : operatingHours.end;
+  });
   const [participants, setParticipants] = useState(1);
   const [layoutType, setLayoutType] = useState("");
   const [layoutOther, setLayoutOther] = useState("");
@@ -66,13 +81,39 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     () => FOOD_BEVERAGE_RULES.filter((item) => durationMinutes >= item.minMinutes),
     [durationMinutes]
   );
+  const effectiveMinStartTime = useMemo(
+    () => getEarliestStartForDate(date, today, operatingHours.start),
+    [date, today, operatingHours.start]
+  );
+  const isTodayPastOperatingHours = date === today && effectiveMinStartTime >= operatingHours.end;
+  const isPastTimeSelection = date === today && startTime < effectiveMinStartTime;
 
   useEffect(() => {
-    setStartTime(operatingHours.start);
-    setEndTime(defaultEndTime);
+    const nextStart = getEarliestStartForDate(today, today, operatingHours.start);
+    const nextEnd = addMinutesToTime(nextStart, 60);
+    setStartTime(nextStart <= operatingHours.end ? nextStart : operatingHours.end);
+    setEndTime(nextEnd <= operatingHours.end ? nextEnd : operatingHours.end);
     setLayoutType("");
     setLayoutOther("");
-  }, [room?.id, operatingHours.start, defaultEndTime]);
+  }, [room?.id, operatingHours.start, operatingHours.end, today]);
+
+  useEffect(() => {
+    const nextStart = getEarliestStartForDate(date, today, operatingHours.start);
+    if (nextStart >= operatingHours.end) {
+      setStartTime(operatingHours.end);
+      setEndTime(operatingHours.end);
+      return;
+    }
+    setStartTime((currentStart) => {
+      if (currentStart >= nextStart && currentStart < operatingHours.end) return currentStart;
+      return nextStart;
+    });
+    setEndTime((currentEnd) => {
+      const minimumEnd = addMinutesToTime(nextStart, 60);
+      if (currentEnd > nextStart && currentEnd <= operatingHours.end) return currentEnd;
+      return minimumEnd <= operatingHours.end ? minimumEnd : operatingHours.end;
+    });
+  }, [date, today, operatingHours.start, operatingHours.end]);
 
   useEffect(() => {
     const allowed = new Set(availableFoodBeverages.map((item) => item.label));
@@ -102,7 +143,24 @@ export default function BookingDialog({ room, onClose, onBooked }) {
 
   useEffect(() => {
     setAvailability(null);
-    if (!room?.id || !date || !startTime || !endTime || startTime >= endTime) return;
+    if (!room?.id || !date || !startTime || !endTime) return;
+    if (isTodayPastOperatingHours) {
+      setAvailability({
+        available: false,
+        reason: `No more available operational time today. This room can be booked until ${operatingHours.end}.`,
+        conflicts: [],
+      });
+      return;
+    }
+    if (startTime >= endTime) return;
+    if (isPastTimeSelection) {
+      setAvailability({
+        available: false,
+        reason: `Selected time has passed. For today, choose ${effectiveMinStartTime} or later.`,
+        conflicts: [],
+      });
+      return;
+    }
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -128,7 +186,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room?.id, date, startTime, endTime]);
+  }, [room?.id, date, startTime, endTime, effectiveMinStartTime, isPastTimeSelection, isTodayPastOperatingHours, operatingHours.end]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -153,8 +211,12 @@ export default function BookingDialog({ room, onClose, onBooked }) {
       setError(`Booking must be within room operational hours (${roomOperatingHoursLabel(room)}).`);
       return;
     }
-    if (date === today && startTime < nowTime()) {
-      setError("Cannot book a time in the past.");
+    if (isTodayPastOperatingHours) {
+      setError(`No more available operational time today. This room can be booked until ${operatingHours.end}.`);
+      return;
+    }
+    if (isPastTimeSelection) {
+      setError(`Cannot book a time in the past. For today, choose ${effectiveMinStartTime} or later.`);
       return;
     }
     setLoading(true);
@@ -253,7 +315,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               <input
                 type="time"
                 required
-                min={operatingHours.start}
+                min={effectiveMinStartTime}
                 max={operatingHours.end}
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
@@ -276,7 +338,11 @@ export default function BookingDialog({ room, onClose, onBooked }) {
             </div>
           </div>
           <div className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            This room can be booked only between {roomOperatingHoursLabel(room)}.
+            {isTodayPastOperatingHours
+              ? `No more available operational time today. This room can be booked until ${operatingHours.end}.`
+              : date === today
+              ? `For today, this room can be booked from ${effectiveMinStartTime} until ${operatingHours.end}.`
+              : `This room can be booked only between ${roomOperatingHoursLabel(room)}.`}
           </div>
           {checkingAvailability && (
             <div
@@ -441,7 +507,13 @@ export default function BookingDialog({ room, onClose, onBooked }) {
             </button>
             <button
               type="submit"
-              disabled={loading || checkingAvailability || availability?.available === false}
+              disabled={
+                loading ||
+                checkingAvailability ||
+                availability?.available === false ||
+                isPastTimeSelection ||
+                isTodayPastOperatingHours
+              }
               data-testid="booking-submit-btn"
               className="flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60"
             >

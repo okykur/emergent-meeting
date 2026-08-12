@@ -15,6 +15,7 @@ import smtplib
 from datetime import datetime, timezone, timedelta
 from email.message import EmailMessage
 from typing import List, Optional, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query
 from fastapi.security import HTTPBearer
@@ -43,6 +44,10 @@ SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USERNAME or ADMIN_EMAIL)
 SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
+try:
+    APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jakarta"))
+except ZoneInfoNotFoundError:
+    APP_TIMEZONE = timezone(timedelta(hours=7))
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -291,6 +296,10 @@ class Booking(BaseModel):
 # ---------- Util ----------
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _app_now_naive() -> datetime:
+    return datetime.now(APP_TIMEZONE).replace(tzinfo=None)
 
 
 def _overlap(a_start: str, a_end: str, b_start: str, b_end: str) -> bool:
@@ -794,10 +803,12 @@ async def room_availability_check(
         return {"room_id": room_id, "available": False, "reason": "Room is not active", "conflicts": []}
     _validate_time_range(start_time, end_time)
     try:
-        datetime.fromisoformat(f"{date}T{start_time}")
+        booking_dt = datetime.fromisoformat(f"{date}T{start_time}")
         datetime.fromisoformat(f"{date}T{end_time}")
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid date/time format")
+    if booking_dt < _app_now_naive().replace(second=0, microsecond=0):
+        return {"room_id": room_id, "available": False, "reason": "Cannot book a time in the past", "conflicts": []}
     hours_error = _operating_hours_error(room, start_time, end_time)
     if hours_error:
         return {"room_id": room_id, "available": False, "reason": hours_error, "conflicts": []}
@@ -848,7 +859,7 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         booking_dt = datetime.fromisoformat(f"{payload.date}T{payload.start_time}")
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid date/time format")
-    if booking_dt < datetime.now().replace(second=0, microsecond=0):
+    if booking_dt < _app_now_naive().replace(second=0, microsecond=0):
         raise HTTPException(status_code=400, detail="Cannot book a time in the past")
     if payload.participants > room["capacity"]:
         raise HTTPException(status_code=400, detail=f"Participants exceed room capacity ({room['capacity']})")
