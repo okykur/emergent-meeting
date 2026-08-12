@@ -411,6 +411,21 @@ def _validate_time_range(start_time: str, end_time: str) -> None:
         raise HTTPException(status_code=400, detail="End time must be after start time")
 
 
+def _time_to_minutes(time_value: str) -> int:
+    hours, minutes = time_value.split(":")
+    return int(hours) * 60 + int(minutes)
+
+
+def _validate_food_beverages_request(food_beverages: str, start_time: str, end_time: str) -> None:
+    if not food_beverages:
+        return
+    duration = _time_to_minutes(end_time) - _time_to_minutes(start_time)
+    if duration < 4 * 60:
+        raise HTTPException(status_code=400, detail="F&B request is available only for meetings of 4 hours or more")
+    if "makan siang" in food_beverages.lower() and duration < 5 * 60:
+        raise HTTPException(status_code=400, detail="Makan siang is available only for meetings of 5 hours or more")
+
+
 def _operating_hours_error(room: dict, start_time: str, end_time: str) -> Optional[str]:
     room = _normalize_room(room)
     if start_time < room["operating_start_time"] or end_time > room["operating_end_time"]:
@@ -850,8 +865,9 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
             ),
         )
 
-    booking_id = str(uuid.uuid4())
     food_beverages = payload.food_beverages.strip()
+    _validate_food_beverages_request(food_beverages, payload.start_time, payload.end_time)
+    booking_id = str(uuid.uuid4())
     doc = {
         "id": booking_id,
         "room_id": payload.room_id,
@@ -1019,6 +1035,8 @@ async def update_fnb_status(
         raise HTTPException(status_code=400, detail="This booking has no F&B request")
     if bk.get("status") != "confirmed":
         raise HTTPException(status_code=400, detail="F&B can be approved only after meeting-room admin approval")
+    if payload.status == "approved":
+        _validate_food_beverages_request(bk.get("food_beverages") or "", bk["start_time"], bk["end_time"])
     room = await db.rooms.find_one({"id": bk["room_id"]}, {"_id": 0})
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -1858,19 +1876,21 @@ async def get_vehicle_booking(booking_id: str, user: dict = Depends(get_current_
     bk = await db.vehicle_bookings.find_one({"id": booking_id}, {"_id": 0})
     if not bk:
         raise HTTPException(status_code=404, detail="Booking not found")
-    if user["role"] not in CAR_ADMIN_ROLES and bk["user_id"] != user["id"]:
+    if user["role"] not in CAR_ADMIN_ROLES and user["role"] not in FNB_MANAGER_ROLES and bk["user_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized")
     return VehicleBooking(**_public_booking(bk))
 
 
 @api.get("/vehicle-bookings", response_model=List[VehicleBooking])
 async def list_vehicle_bookings(
-    admin: dict = Depends(require_car_admin),
+    admin: dict = Depends(require_any_admin),
     status: Optional[str] = None,
     vehicle_id: Optional[str] = None,
     user_query: Optional[str] = None,
     date: Optional[str] = None,
 ):
+    if admin.get("role") not in CAR_ADMIN_ROLES and admin.get("role") not in FNB_MANAGER_ROLES:
+        raise HTTPException(status_code=403, detail="Car booking monitor access required")
     q: dict = {}
     if status:
         q["status"] = status

@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2, Check, X, Car as CarIcon, AlertTriangle, LogIn, Log
 import { formatDate } from "../../utils/dates";
 import SignaturePad from "../../components/SignaturePad";
 import PhotoUploader from "../../components/PhotoUploader";
+import { useAuth } from "../../context/AuthContext";
 
 function fmt(iso) {
   if (!iso) return "—";
@@ -320,6 +321,7 @@ function AdminConfirmDialog({ booking, scope, onClose, onSaved }) {
 }
 
 export default function AdminCarBookingDetail() {
+  const { user } = useAuth();
   const { id } = useParams();
   const [b, setB] = useState(null);
   const [error, setError] = useState("");
@@ -349,16 +351,18 @@ export default function AdminCarBookingDetail() {
   if (loading) return <div className="text-sm text-slate-500"><Loader2 className="inline h-4 w-4 animate-spin" /> Loading…</div>;
   if (error || !b) return <div className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error || "Not found"}</div>;
 
-  const canApprove = b.status === "pending";
-  const canReject = ["pending", "approved"].includes(b.status);
-  const canAssign = ["approved", "assigned"].includes(b.status);
-  const canHandover = b.status === "assigned";
-  const canReturn = b.status === "in_use";
+  const canAdminCars = user?.role === "car_admin" || user?.role === "super_admin";
+  const backTo = user?.role === "manager" ? "/admin/fnb" : "/admin/cars/bookings";
+  const canApprove = canAdminCars && b.status === "pending";
+  const canReject = canAdminCars && ["pending", "approved"].includes(b.status);
+  const canAssign = canAdminCars && ["approved", "assigned"].includes(b.status);
+  const canHandover = canAdminCars && b.status === "assigned";
+  const canReturn = canAdminCars && b.status === "in_use";
 
   return (
     <div data-testid="admin-car-detail-page">
-      <Link to="/admin/cars/bookings" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900">
-        <ArrowLeft className="h-4 w-4" /> All bookings
+      <Link to={backTo} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900">
+        <ArrowLeft className="h-4 w-4" /> {user?.role === "manager" ? "Approval Manager" : "All bookings"}
       </Link>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>

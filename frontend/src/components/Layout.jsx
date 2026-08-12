@@ -56,7 +56,7 @@ export default function Layout() {
     { to: "/car", label: "Car / Vehicle", icon: Car, testid: "nav-car", show: true },
     { to: "/admin/bookings", label: "Approval Meeting", icon: CalendarCheck2, testid: "nav-approval-meeting", show: isMeetingAdmin },
     { to: "/admin/cars/bookings", label: "Approval Kendaraan", icon: Car, testid: "nav-approval-cars", show: isCarAdmin },
-    { to: "/admin/fnb", label: "Approval F&B", icon: BookMarked, testid: "nav-approval-fnb", show: isFnbManager },
+    { to: "/admin/fnb", label: "Approval Manager", icon: BookMarked, testid: "nav-approval-manager", show: isFnbManager },
     { to: "/admin/rooms", label: "Master Room", icon: Building2, testid: "nav-admin-rooms", show: isMeetingAdmin },
     { to: "/admin/cars/vehicles", label: "Master Vehicle", icon: Car, testid: "nav-admin-vehicles", show: isCarAdmin },
     { to: "/admin/cars/drivers", label: "Master Driver", icon: Users, testid: "nav-admin-drivers", show: isCarAdmin },
