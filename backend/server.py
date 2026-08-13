@@ -255,6 +255,19 @@ class BookingCreate(BaseModel):
     layout_other: str = ""
     phone_number: str = ""
     food_beverages: str = ""
+    fnb_department: str = ""
+    fnb_division: str = ""
+    fnb_cost_center: str = ""
+    fnb_activity_code: str = ""
+    fnb_activity_name: str = ""
+    guest_type: str = ""
+    snack_type: str = ""
+    snack_times: Optional[int] = None
+    snack_pax: Optional[int] = None
+    snack_packaging: str = ""
+    meal_types: List[str] = []
+    meal_pax: Optional[int] = None
+    meal_packaging: str = ""
     notes: Optional[str] = ""
 
 
@@ -283,6 +296,19 @@ class Booking(BaseModel):
     layout_other: str = ""
     phone_number: str = ""
     food_beverages: str = ""
+    fnb_department: str = ""
+    fnb_division: str = ""
+    fnb_cost_center: str = ""
+    fnb_activity_code: str = ""
+    fnb_activity_name: str = ""
+    guest_type: str = ""
+    snack_type: str = ""
+    snack_times: Optional[int] = None
+    snack_pax: Optional[int] = None
+    snack_packaging: str = ""
+    meal_types: List[str] = []
+    meal_pax: Optional[int] = None
+    meal_packaging: str = ""
     fnb_status: str = "not_required"
     fnb_reviewed_at: Optional[str] = None
     fnb_reviewed_by: Optional[str] = None
@@ -502,6 +528,19 @@ async def _normalize_booking_public(booking: dict) -> dict:
         booking["room_building"] = _normalize_building(room.get("building") if room else None)
     booking.setdefault("phone_number", "")
     booking.setdefault("food_beverages", "")
+    booking.setdefault("fnb_department", "")
+    booking.setdefault("fnb_division", "")
+    booking.setdefault("fnb_cost_center", "")
+    booking.setdefault("fnb_activity_code", "")
+    booking.setdefault("fnb_activity_name", "")
+    booking.setdefault("guest_type", "")
+    booking.setdefault("snack_type", "")
+    booking.setdefault("snack_times", None)
+    booking.setdefault("snack_pax", None)
+    booking.setdefault("snack_packaging", "")
+    booking.setdefault("meal_types", [])
+    booking.setdefault("meal_pax", None)
+    booking.setdefault("meal_packaging", "")
     booking["fnb_status"] = booking.get("fnb_status") or ("pending" if booking.get("food_beverages") else "not_required")
     booking.setdefault("fnb_reviewed_at", None)
     booking.setdefault("fnb_reviewed_by", None)
@@ -520,6 +559,19 @@ async def _normalize_bookings_public(bookings: List[dict]) -> List[dict]:
         )
         booking.setdefault("phone_number", "")
         booking.setdefault("food_beverages", "")
+        booking.setdefault("fnb_department", "")
+        booking.setdefault("fnb_division", "")
+        booking.setdefault("fnb_cost_center", "")
+        booking.setdefault("fnb_activity_code", "")
+        booking.setdefault("fnb_activity_name", "")
+        booking.setdefault("guest_type", "")
+        booking.setdefault("snack_type", "")
+        booking.setdefault("snack_times", None)
+        booking.setdefault("snack_pax", None)
+        booking.setdefault("snack_packaging", "")
+        booking.setdefault("meal_types", [])
+        booking.setdefault("meal_pax", None)
+        booking.setdefault("meal_packaging", "")
         booking["fnb_status"] = booking.get("fnb_status") or ("pending" if booking.get("food_beverages") else "not_required")
         booking.setdefault("fnb_reviewed_at", None)
         booking.setdefault("fnb_reviewed_by", None)
@@ -878,6 +930,22 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
 
     food_beverages = payload.food_beverages.strip()
     _validate_food_beverages_request(food_beverages, payload.start_time, payload.end_time)
+    if "snack" in food_beverages.lower():
+        if not payload.snack_type.strip():
+            raise HTTPException(status_code=400, detail="Snack type is required when requesting snack")
+        if payload.snack_times is None or payload.snack_times < 1:
+            raise HTTPException(status_code=400, detail="Snack frequency must be at least 1")
+        if payload.snack_pax is None or payload.snack_pax < 1:
+            raise HTTPException(status_code=400, detail="Snack pax must be at least 1")
+        if payload.snack_packaging not in ("Plating", "Dus"):
+            raise HTTPException(status_code=400, detail="Snack packaging must be Plating or Dus")
+    if "makan" in food_beverages.lower():
+        if not payload.meal_types:
+            raise HTTPException(status_code=400, detail="Please select at least one meal type")
+        if payload.meal_pax is None or payload.meal_pax < 1:
+            raise HTTPException(status_code=400, detail="Meal pax must be at least 1")
+        if payload.meal_packaging not in ("Prasmanan", "Dus"):
+            raise HTTPException(status_code=400, detail="Meal packaging must be Prasmanan or Dus")
     booking_id = str(uuid.uuid4())
     doc = {
         "id": booking_id,
@@ -896,6 +964,19 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         "layout_other": layout_other,
         "phone_number": payload.phone_number.strip(),
         "food_beverages": food_beverages,
+        "fnb_department": payload.fnb_department.strip(),
+        "fnb_division": payload.fnb_division.strip(),
+        "fnb_cost_center": payload.fnb_cost_center.strip(),
+        "fnb_activity_code": payload.fnb_activity_code.strip(),
+        "fnb_activity_name": payload.fnb_activity_name.strip(),
+        "guest_type": payload.guest_type.strip(),
+        "snack_type": payload.snack_type.strip(),
+        "snack_times": payload.snack_times,
+        "snack_pax": payload.snack_pax,
+        "snack_packaging": payload.snack_packaging.strip(),
+        "meal_types": payload.meal_types,
+        "meal_pax": payload.meal_pax,
+        "meal_packaging": payload.meal_packaging.strip(),
         "fnb_status": "pending" if food_beverages else "not_required",
         "fnb_reviewed_at": None,
         "fnb_reviewed_by": None,

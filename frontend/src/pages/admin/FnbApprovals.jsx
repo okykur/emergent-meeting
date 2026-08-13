@@ -89,6 +89,32 @@ function MeetingDetailDialog({ booking, onClose, onUpdateFnb }) {
             <div className="mt-2 whitespace-pre-wrap text-sm font-medium text-slate-900">
               {hasFnb ? booking.food_beverages : "Tidak ada request F&B untuk booking ini."}
             </div>
+            {hasFnb && (
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <DetailItem label="Departement" value={booking.fnb_department} />
+                <DetailItem label="Divisi" value={booking.fnb_division} />
+                <DetailItem label="Cost Center" value={booking.fnb_cost_center} />
+                <DetailItem label="Activity Code" value={booking.fnb_activity_code} />
+                <DetailItem label="Activity Name" value={booking.fnb_activity_name} />
+                <DetailItem label="Tamu" value={booking.guest_type} />
+                <DetailItem
+                  label="Snack"
+                  value={
+                    booking.snack_type
+                      ? `${booking.snack_type}, ${booking.snack_times || "-"} kali, ${booking.snack_pax || "-"} pax, ${booking.snack_packaging || "-"}`
+                      : ""
+                  }
+                />
+                <DetailItem
+                  label="Makan"
+                  value={
+                    (booking.meal_types || []).length
+                      ? `${booking.meal_types.join(", ")}, ${booking.meal_pax || "-"} pax, ${booking.meal_packaging || "-"}`
+                      : ""
+                  }
+                />
+              </div>
+            )}
             {hasFnb && !fnbRuleValid && (
               <div className="mt-2 text-xs font-medium text-red-600">Request F&amp;B ini tidak sesuai rule durasi meeting.</div>
             )}
