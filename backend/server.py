@@ -938,6 +938,19 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
     if invalid_facilities:
         raise HTTPException(status_code=400, detail="Invalid additional facility request")
     _validate_food_beverages_request(food_beverages, payload.start_time, payload.end_time)
+    if food_beverages:
+        if not payload.fnb_department.strip():
+            raise HTTPException(status_code=400, detail="Department is required when requesting F&B")
+        if not payload.fnb_division.strip():
+            raise HTTPException(status_code=400, detail="Division is required when requesting F&B")
+        if not payload.fnb_cost_center.strip():
+            raise HTTPException(status_code=400, detail="Cost center is required when requesting F&B")
+        if not payload.fnb_activity_code.strip():
+            raise HTTPException(status_code=400, detail="Activity code is required when requesting F&B")
+        if not payload.fnb_activity_name.strip():
+            raise HTTPException(status_code=400, detail="Activity name is required when requesting F&B")
+        if payload.guest_type.strip() not in ("Internal", "BOD", "Tamu"):
+            raise HTTPException(status_code=400, detail="Guest type is required when requesting F&B")
     if "snack" in food_beverages.lower():
         if not payload.snack_type.strip():
             raise HTTPException(status_code=400, detail="Snack type is required when requesting snack")

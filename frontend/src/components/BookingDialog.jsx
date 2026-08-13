@@ -104,6 +104,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     () => FOOD_BEVERAGE_RULES.filter((item) => durationMinutes >= item.minMinutes),
     [durationMinutes]
   );
+  const fnbSelected = selectedFoodBeverages.length > 0;
   const snackSelected = selectedFoodBeverages.includes("Snack");
   const mealSelected = selectedFoodBeverages.includes("Makan siang");
   const effectiveMinStartTime = useMemo(
@@ -161,12 +162,6 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         next.snackPackaging = "";
       }
       if (!mealSelected) {
-        next.department = "";
-        next.division = "";
-        next.costCenter = "";
-        next.activityCode = "";
-        next.activityName = "";
-        next.guestType = "";
         next.mealTypes = [];
         next.mealPax = "";
         next.mealPackaging = "";
@@ -296,6 +291,19 @@ export default function BookingDialog({ room, onClose, onBooked }) {
       setError("Please select at least one additional facility.");
       return;
     }
+    if (fnbSelected) {
+      if (
+        !fnbDetails.department.trim() ||
+        !fnbDetails.division.trim() ||
+        !fnbDetails.costCenter.trim() ||
+        !fnbDetails.activityCode.trim() ||
+        !fnbDetails.activityName.trim() ||
+        !fnbDetails.guestType
+      ) {
+        setError("Please complete department, division, cost center, activity, and guest type for F&B request.");
+        return;
+      }
+    }
     if (snackSelected) {
       if (!fnbDetails.snackType.trim() || !fnbDetails.snackTimes || !fnbDetails.snackPax || !fnbDetails.snackPackaging) {
         setError("Please complete snack type, frequency, pax, and packaging.");
@@ -304,17 +312,11 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     }
     if (mealSelected) {
       if (
-        !fnbDetails.department.trim() ||
-        !fnbDetails.division.trim() ||
-        !fnbDetails.costCenter.trim() ||
-        !fnbDetails.activityCode.trim() ||
-        !fnbDetails.activityName.trim() ||
-        !fnbDetails.guestType ||
         fnbDetails.mealTypes.length === 0 ||
         !fnbDetails.mealPax ||
         !fnbDetails.mealPackaging
       ) {
-        setError("Please complete department, division, cost center, activity, guest type, meal type, pax, and packaging.");
+        setError("Please complete meal type, pax, and packaging.");
         return;
       }
     }
@@ -338,12 +340,12 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         phone_number: phoneNumber,
         additional_facilities: requestAdditionalFacilities ? additionalFacilities : [],
         food_beverages: buildFoodBeverages(selectedFoodBeverages, foodBeverageNotes),
-        fnb_department: mealSelected ? fnbDetails.department : "",
-        fnb_division: mealSelected ? fnbDetails.division : "",
-        fnb_cost_center: mealSelected ? fnbDetails.costCenter : "",
-        fnb_activity_code: mealSelected ? fnbDetails.activityCode : "",
-        fnb_activity_name: mealSelected ? fnbDetails.activityName : "",
-        guest_type: mealSelected ? fnbDetails.guestType : "",
+        fnb_department: fnbSelected ? fnbDetails.department : "",
+        fnb_division: fnbSelected ? fnbDetails.division : "",
+        fnb_cost_center: fnbSelected ? fnbDetails.costCenter : "",
+        fnb_activity_code: fnbSelected ? fnbDetails.activityCode : "",
+        fnb_activity_name: fnbSelected ? fnbDetails.activityName : "",
+        guest_type: fnbSelected ? fnbDetails.guestType : "",
         snack_type: snackSelected ? fnbDetails.snackType : "",
         snack_times: snackSelected ? Number(fnbDetails.snackTimes) : null,
         snack_pax: snackSelected ? Number(fnbDetails.snackPax) : null,
@@ -588,34 +590,77 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                   Tambah pilihan jenis konsumsi sesuai durasi meeting.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {FOOD_BEVERAGE_RULES.map((item) => {
-                  const enabled = availableFoodBeverages.some((available) => available.label === item.label);
-                  return (
-                  <label
-                    key={item.label}
-                    className={`flex items-center gap-2 rounded-sm border px-3 py-2 text-sm font-medium ${
-                      enabled
-                        ? "border-amber-200 bg-white text-slate-700"
-                        : "border-slate-200 bg-slate-100 text-slate-400"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      disabled={!enabled}
-                      checked={selectedFoodBeverages.includes(item.label)}
-                      onChange={(e) =>
-                        setSelectedFoodBeverages((items) =>
-                          e.target.checked ? [...items, item.label] : items.filter((value) => value !== item.label)
-                        )
-                      }
-                      data-testid={`booking-food-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
-                    />
-                    {item.label}
-                    {!enabled && <span className="text-[11px] font-normal">min {item.minMinutes / 60} jam</span>}
-                  </label>
-                  );
-                })}
+              <div className="space-y-3 rounded-sm border border-amber-200 bg-white p-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Detail F&amp;B</div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Departement</label>
+                    <input value={fnbDetails.department} onChange={(e) => setFnbDetail("department", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Divisi</label>
+                    <input value={fnbDetails.division} onChange={(e) => setFnbDetail("division", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Cost Center</label>
+                    <input value={fnbDetails.costCenter} onChange={(e) => setFnbDetail("costCenter", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Activity Code</label>
+                    <input value={fnbDetails.activityCode} onChange={(e) => setFnbDetail("activityCode", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Activity Name</label>
+                    <input value={fnbDetails.activityName} onChange={(e) => setFnbDetail("activityName", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-1 text-xs font-medium text-slate-700">Tamu</div>
+                  <div className="flex flex-wrap gap-2">
+                    {GUEST_TYPES.map((item) => (
+                      <label key={item} className="flex items-center gap-2 rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={fnbDetails.guestType === item}
+                          onChange={(e) => setFnbDetail("guestType", e.target.checked ? item : "")}
+                        />
+                        {item}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Pilihan konsumsi</div>
+                <div className="flex flex-wrap gap-2">
+                  {FOOD_BEVERAGE_RULES.map((item) => {
+                    const enabled = availableFoodBeverages.some((available) => available.label === item.label);
+                    return (
+                      <label
+                        key={item.label}
+                        className={`flex items-center gap-2 rounded-sm border px-3 py-2 text-sm font-medium ${
+                          enabled
+                            ? "border-amber-200 bg-white text-slate-700"
+                            : "border-slate-200 bg-slate-100 text-slate-400"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!enabled}
+                          checked={selectedFoodBeverages.includes(item.label)}
+                          onChange={(e) =>
+                            setSelectedFoodBeverages((items) =>
+                              e.target.checked ? [...items, item.label] : items.filter((value) => value !== item.label)
+                            )
+                          }
+                          data-testid={`booking-food-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                        />
+                        {item.label}
+                        {!enabled && <span className="text-[11px] font-normal">min {item.minMinutes / 60} jam</span>}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
               {snackSelected && (
                 <div className="space-y-3 rounded-sm border border-amber-200 bg-white p-3">
@@ -673,43 +718,6 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               {mealSelected && (
                 <div className="space-y-3 rounded-sm border border-amber-200 bg-white p-3">
                   <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Makan</div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-700">Departement</label>
-                      <input value={fnbDetails.department} onChange={(e) => setFnbDetail("department", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-700">Divisi</label>
-                      <input value={fnbDetails.division} onChange={(e) => setFnbDetail("division", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-700">Cost Center</label>
-                      <input value={fnbDetails.costCenter} onChange={(e) => setFnbDetail("costCenter", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-700">Activity Code</label>
-                      <input value={fnbDetails.activityCode} onChange={(e) => setFnbDetail("activityCode", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="mb-1 block text-xs font-medium text-slate-700">Activity Name</label>
-                      <input value={fnbDetails.activityName} onChange={(e) => setFnbDetail("activityName", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="mb-1 text-xs font-medium text-slate-700">Tamu</div>
-                    <div className="flex flex-wrap gap-2">
-                      {GUEST_TYPES.map((item) => (
-                        <label key={item} className="flex items-center gap-2 rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={fnbDetails.guestType === item}
-                            onChange={(e) => setFnbDetail("guestType", e.target.checked ? item : "")}
-                          />
-                          {item}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <div className="mb-1 text-xs font-medium text-slate-700">Jenis makan</div>
