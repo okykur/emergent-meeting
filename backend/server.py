@@ -1109,7 +1109,7 @@ async def check_in_booking(booking_id: str, user: dict = Depends(get_current_use
     if bk.get("checked_in_at"):
         raise HTTPException(status_code=400, detail="You have already checked in to this booking")
     start, end = _booking_window(bk)
-    now = datetime.now()
+    now = _app_now_naive()
     if now < start:
         raise HTTPException(
             status_code=400,
@@ -1138,7 +1138,7 @@ async def check_out_booking(booking_id: str, user: dict = Depends(get_current_us
     if bk.get("checked_out_at"):
         raise HTTPException(status_code=400, detail="You have already checked out of this booking")
     start, _end = _booking_window(bk)
-    now = datetime.now()
+    now = _app_now_naive()
     if now < start:
         raise HTTPException(status_code=400, detail="Cannot check out before the booking has started")
     ts = datetime.now(timezone.utc).isoformat()
