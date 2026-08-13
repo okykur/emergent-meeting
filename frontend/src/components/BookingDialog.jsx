@@ -51,6 +51,46 @@ function roundUpTime(time, stepMinutes = 15) {
   return minutesToTime(Math.ceil(timeToMinutes(time) / stepMinutes) * stepMinutes);
 }
 
+function mergeTimeRanges(ranges) {
+  if (!ranges.length) return [];
+  const sorted = [...ranges].sort((a, b) => a.start - b.start);
+  const merged = [sorted[0]];
+  for (const range of sorted.slice(1)) {
+    const last = merged[merged.length - 1];
+    if (range.start <= last.end) {
+      last.end = Math.max(last.end, range.end);
+    } else {
+      merged.push({ ...range });
+    }
+  }
+  return merged;
+}
+
+function availableTimeRangesForDate(bookings, date, operatingStart, operatingEnd, earliestStart) {
+  const rangeStart = Math.max(timeToMinutes(operatingStart), timeToMinutes(earliestStart));
+  const rangeEnd = timeToMinutes(operatingEnd);
+  if (rangeStart >= rangeEnd) return [];
+
+  const busyRanges = mergeTimeRanges(
+    (bookings || [])
+      .filter((booking) => booking.date === date)
+      .map((booking) => ({
+        start: Math.max(timeToMinutes(booking.start_time), rangeStart),
+        end: Math.min(timeToMinutes(booking.end_time), rangeEnd),
+      }))
+      .filter((range) => range.end > range.start)
+  );
+
+  const availableRanges = [];
+  let cursor = rangeStart;
+  for (const busy of busyRanges) {
+    if (busy.start > cursor) availableRanges.push({ start: cursor, end: busy.start });
+    cursor = Math.max(cursor, busy.end);
+  }
+  if (cursor < rangeEnd) availableRanges.push({ start: cursor, end: rangeEnd });
+  return availableRanges.map((range) => `${minutesToTime(range.start)}-${minutesToTime(range.end)}`);
+}
+
 function getEarliestStartForDate(date, today, operatingStart) {
   if (date !== today) return operatingStart;
   return minutesToTime(Math.max(timeToMinutes(operatingStart), timeToMinutes(roundUpTime(nowTime()))));
@@ -94,6 +134,8 @@ export default function BookingDialog({ room, onClose, onBooked }) {
   const [loading, setLoading] = useState(false);
   const [availability, setAvailability] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [dayAvailability, setDayAvailability] = useState(null);
+  const [checkingDayAvailability, setCheckingDayAvailability] = useState(false);
   const canChooseLayout = room?.layout_fixed === false;
   const durationMinutes = useMemo(
     () => (startTime && endTime && startTime < endTime ? timeToMinutes(endTime) - timeToMinutes(startTime) : 0),
@@ -207,6 +249,47 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     setAvailability(data);
     return data;
   };
+
+  useEffect(() => {
+    setDayAvailability(null);
+    if (!room?.id || !date) return;
+    if (isTodayPastOperatingHours) {
+      setDayAvailability({
+        availableRanges: [],
+        reason: `No more available operational time today. This room can be booked until ${operatingHours.end}.`,
+      });
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setCheckingDayAvailability(true);
+      try {
+        const { data } = await api.get(`/rooms/${room.id}/availability`, {
+          params: { start_date: date, end_date: date },
+        });
+        const availableRanges = availableTimeRangesForDate(
+          data.bookings || [],
+          date,
+          operatingHours.start,
+          operatingHours.end,
+          effectiveMinStartTime
+        );
+        if (!cancelled) {
+          setDayAvailability({ availableRanges, reason: availableRanges.length ? "" : "No available booking time for this date." });
+        }
+      } catch (err) {
+        if (!cancelled) setDayAvailability({ availableRanges: [], reason: formatApiError(err) });
+      } finally {
+        if (!cancelled) setCheckingDayAvailability(false);
+      }
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [room?.id, date, effectiveMinStartTime, isTodayPastOperatingHours, operatingHours.start, operatingHours.end]);
 
   useEffect(() => {
     setAvailability(null);
@@ -457,20 +540,36 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               ? `For today, this room can be booked from ${effectiveMinStartTime} until ${operatingHours.end}.`
               : `This room can be booked only between ${roomOperatingHoursLabel(room)}.`}
           </div>
+          {checkingDayAvailability && (
+            <div
+              className="rounded-sm border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700"
+              data-testid="booking-day-availability-checking"
+            >
+              Checking available booking times for {date}...
+            </div>
+          )}
+          {!checkingDayAvailability && dayAvailability?.availableRanges?.length > 0 && (
+            <div
+              className="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+              data-testid="booking-day-availability-available"
+            >
+              Available booking times for {date}: {dayAvailability.availableRanges.join(", ")}.
+            </div>
+          )}
+          {!checkingDayAvailability && dayAvailability && dayAvailability.availableRanges.length === 0 && (
+            <div
+              className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              data-testid="booking-day-availability-unavailable"
+            >
+              {dayAvailability.reason}
+            </div>
+          )}
           {checkingAvailability && (
             <div
               className="rounded-sm border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700"
               data-testid="booking-availability-checking"
             >
-              Checking room availability...
-            </div>
-          )}
-          {!checkingAvailability && availability?.available === true && (
-            <div
-              className="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
-              data-testid="booking-availability-available"
-            >
-              Room is available for {date} at {startTime}-{endTime}.
+              Checking selected time...
             </div>
           )}
           {!checkingAvailability && availability?.available === false && (
