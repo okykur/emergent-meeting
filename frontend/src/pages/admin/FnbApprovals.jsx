@@ -66,7 +66,6 @@ function formatGuestTypes(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean)
-    .map((item) => (item === "Tamu" ? "Xternal" : item))
     .join(", ");
 }
 
