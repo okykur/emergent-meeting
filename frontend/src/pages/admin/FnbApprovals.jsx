@@ -42,6 +42,25 @@ function DetailItem({ label, value }) {
   );
 }
 
+function formatSnackDetail(booking) {
+  if (!booking.snack_type && !booking.snack_times && !booking.snack_pax && !booking.snack_packaging) return "";
+  return [
+    booking.snack_type ? `Jenis: ${booking.snack_type}` : "",
+    booking.snack_times ? `${booking.snack_times} kali` : "",
+    booking.snack_pax ? `${booking.snack_pax} pax` : "",
+    booking.snack_packaging ? `Kemasan: ${booking.snack_packaging}` : "",
+  ].filter(Boolean).join(", ");
+}
+
+function formatMealDetail(booking) {
+  if (!(booking.meal_types || []).length && !booking.meal_pax && !booking.meal_packaging) return "";
+  return [
+    (booking.meal_types || []).length ? `Jenis: ${booking.meal_types.join(", ")}` : "",
+    booking.meal_pax ? `${booking.meal_pax} pax` : "",
+    booking.meal_packaging ? `Kemasan: ${booking.meal_packaging}` : "",
+  ].filter(Boolean).join(", ");
+}
+
 function MeetingDetailDialog({ booking, onClose, onUpdateFnb }) {
   if (!booking) return null;
   const hasFnb = Boolean((booking.food_beverages || "").trim());
@@ -53,6 +72,8 @@ function MeetingDetailDialog({ booking, onClose, onUpdateFnb }) {
       ? booking.layout_other
       : booking.layout_type
     : "Fixed layout / not selected";
+  const snackDetail = formatSnackDetail(booking);
+  const mealDetail = formatMealDetail(booking);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" onClick={onClose} data-testid="manager-meeting-detail">
@@ -91,29 +112,25 @@ function MeetingDetailDialog({ booking, onClose, onUpdateFnb }) {
               {hasFnb ? booking.food_beverages : "Tidak ada request F&B untuk booking ini."}
             </div>
             {hasFnb && (
-              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                <DetailItem label="Departement" value={booking.fnb_department} />
-                <DetailItem label="Divisi" value={booking.fnb_division} />
-                <DetailItem label="Cost Center" value={booking.fnb_cost_center} />
-                <DetailItem label="Activity Code" value={booking.fnb_activity_code} />
-                <DetailItem label="Activity Name" value={booking.fnb_activity_name} />
-                <DetailItem label="Tamu" value={booking.guest_type} />
-                <DetailItem
-                  label="Snack"
-                  value={
-                    booking.snack_type
-                      ? `${booking.snack_type}, ${booking.snack_times || "-"} kali, ${booking.snack_pax || "-"} pax, ${booking.snack_packaging || "-"}`
-                      : ""
-                  }
-                />
-                <DetailItem
-                  label="Makan"
-                  value={
-                    (booking.meal_types || []).length
-                      ? `${booking.meal_types.join(", ")}, ${booking.meal_pax || "-"} pax, ${booking.meal_packaging || "-"}`
-                      : ""
-                  }
-                />
+              <div className="mt-4 space-y-4">
+                <div>
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">Detail Request User</div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <DetailItem label="Departement" value={booking.fnb_department} />
+                    <DetailItem label="Divisi" value={booking.fnb_division} />
+                    <DetailItem label="Cost Center" value={booking.fnb_cost_center} />
+                    <DetailItem label="Activity Code" value={booking.fnb_activity_code} />
+                    <DetailItem label="Activity Name" value={booking.fnb_activity_name} />
+                    <DetailItem label="Tamu" value={booking.guest_type} />
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">Detail Konsumsi</div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <DetailItem label="Snack" value={snackDetail} />
+                    <DetailItem label="Makan" value={mealDetail} />
+                  </div>
+                </div>
               </div>
             )}
             {hasFnb && !fnbRuleValid && (
