@@ -4,6 +4,7 @@ import { api, formatApiError } from "../api";
 import { getRoomOperatingHours, isWithinOperatingHours, roomOperatingHoursLabel, toYMD, nowTime } from "../utils/dates";
 
 const LAYOUT_OPTIONS = ["U-Shape", "Classroom", "Round", "Theater", "Lainnya"];
+const ADDITIONAL_FACILITY_OPTIONS = ["LCD", "Pointer", "Laptop", "Zoom"];
 const FOOD_BEVERAGE_RULES = [
   { label: "Snack", minMinutes: 4 * 60 },
   { label: "Makan siang", minMinutes: 5 * 60 },
@@ -84,6 +85,8 @@ export default function BookingDialog({ room, onClose, onBooked }) {
   const [layoutType, setLayoutType] = useState("");
   const [layoutOther, setLayoutOther] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [requestAdditionalFacilities, setRequestAdditionalFacilities] = useState(false);
+  const [additionalFacilities, setAdditionalFacilities] = useState([]);
   const [selectedFoodBeverages, setSelectedFoodBeverages] = useState([]);
   const [foodBeverageNotes, setFoodBeverageNotes] = useState("");
   const [fnbDetails, setFnbDetails] = useState(EMPTY_FNB_DETAILS);
@@ -117,6 +120,8 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     setEndTime(nextEnd <= operatingHours.end ? nextEnd : operatingHours.end);
     setLayoutType("");
     setLayoutOther("");
+    setRequestAdditionalFacilities(false);
+    setAdditionalFacilities([]);
   }, [room?.id, operatingHours.start, operatingHours.end, today]);
 
   useEffect(() => {
@@ -181,6 +186,12 @@ export default function BookingDialog({ room, onClose, onBooked }) {
       ...current,
       mealTypes: checked ? [...current.mealTypes, type] : current.mealTypes.filter((item) => item !== type),
     }));
+  };
+
+  const toggleAdditionalFacility = (facility, checked) => {
+    setAdditionalFacilities((items) =>
+      checked ? [...items, facility] : items.filter((item) => item !== facility)
+    );
   };
 
   const availabilityMessage = (slot) => {
@@ -281,6 +292,10 @@ export default function BookingDialog({ room, onClose, onBooked }) {
       setError(`Cannot book a time in the past. For today, choose ${effectiveMinStartTime} or later.`);
       return;
     }
+    if (requestAdditionalFacilities && additionalFacilities.length === 0) {
+      setError("Please select at least one additional facility.");
+      return;
+    }
     if (snackSelected) {
       if (!fnbDetails.snackType.trim() || !fnbDetails.snackTimes || !fnbDetails.snackPax || !fnbDetails.snackPackaging) {
         setError("Please complete snack type, frequency, pax, and packaging.");
@@ -321,6 +336,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         layout_type: canChooseLayout ? layoutType : "",
         layout_other: canChooseLayout && layoutType === "Lainnya" ? layoutOther : "",
         phone_number: phoneNumber,
+        additional_facilities: requestAdditionalFacilities ? additionalFacilities : [],
         food_beverages: buildFoodBeverages(selectedFoodBeverages, foodBeverageNotes),
         fnb_department: mealSelected ? fnbDetails.department : "",
         fnb_division: mealSelected ? fnbDetails.division : "",
@@ -531,6 +547,38 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               placeholder="0812 3456 7890"
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
             />
+          </div>
+          <div className="space-y-3 rounded-sm border border-slate-200 bg-slate-50 p-3">
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <input
+                type="checkbox"
+                checked={requestAdditionalFacilities}
+                onChange={(e) => {
+                  setRequestAdditionalFacilities(e.target.checked);
+                  if (!e.target.checked) setAdditionalFacilities([]);
+                }}
+                data-testid="booking-request-additional-facilities"
+              />
+              Request Fasilitas Tambahan
+            </label>
+            {requestAdditionalFacilities && (
+              <div>
+                <div className="mb-2 text-xs font-medium text-slate-600">Pilih fasilitas:</div>
+                <div className="flex flex-wrap gap-2">
+                  {ADDITIONAL_FACILITY_OPTIONS.map((facility) => (
+                    <label key={facility} className="flex items-center gap-2 rounded-sm border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={additionalFacilities.includes(facility)}
+                        onChange={(e) => toggleAdditionalFacility(facility, e.target.checked)}
+                        data-testid={`booking-additional-facility-${facility.toLowerCase()}`}
+                      />
+                      {facility}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           {availableFoodBeverages.length > 0 ? (
             <div className="space-y-3 rounded-sm border border-amber-200 bg-amber-50 p-3">

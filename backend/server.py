@@ -254,6 +254,7 @@ class BookingCreate(BaseModel):
     layout_type: str = ""
     layout_other: str = ""
     phone_number: str = ""
+    additional_facilities: List[str] = []
     food_beverages: str = ""
     fnb_department: str = ""
     fnb_division: str = ""
@@ -295,6 +296,7 @@ class Booking(BaseModel):
     layout_type: str = ""
     layout_other: str = ""
     phone_number: str = ""
+    additional_facilities: List[str] = []
     food_beverages: str = ""
     fnb_department: str = ""
     fnb_division: str = ""
@@ -527,6 +529,7 @@ async def _normalize_booking_public(booking: dict) -> dict:
         room = await db.rooms.find_one({"id": booking.get("room_id")}, {"_id": 0, "building": 1})
         booking["room_building"] = _normalize_building(room.get("building") if room else None)
     booking.setdefault("phone_number", "")
+    booking.setdefault("additional_facilities", [])
     booking.setdefault("food_beverages", "")
     booking.setdefault("fnb_department", "")
     booking.setdefault("fnb_division", "")
@@ -558,6 +561,7 @@ async def _normalize_bookings_public(bookings: List[dict]) -> List[dict]:
             booking.get("room_building") or room_buildings.get(booking.get("room_id"))
         )
         booking.setdefault("phone_number", "")
+        booking.setdefault("additional_facilities", [])
         booking.setdefault("food_beverages", "")
         booking.setdefault("fnb_department", "")
         booking.setdefault("fnb_division", "")
@@ -929,6 +933,10 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         )
 
     food_beverages = payload.food_beverages.strip()
+    additional_facilities = [item.strip() for item in payload.additional_facilities if item.strip()]
+    invalid_facilities = [item for item in additional_facilities if item not in ("LCD", "Pointer", "Laptop", "Zoom")]
+    if invalid_facilities:
+        raise HTTPException(status_code=400, detail="Invalid additional facility request")
     _validate_food_beverages_request(food_beverages, payload.start_time, payload.end_time)
     if "snack" in food_beverages.lower():
         if not payload.snack_type.strip():
@@ -963,6 +971,7 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         "layout_type": layout_type,
         "layout_other": layout_other,
         "phone_number": payload.phone_number.strip(),
+        "additional_facilities": additional_facilities,
         "food_beverages": food_beverages,
         "fnb_department": payload.fnb_department.strip(),
         "fnb_division": payload.fnb_division.strip(),

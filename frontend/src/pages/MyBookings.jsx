@@ -282,6 +282,11 @@ export default function MyBookings() {
                         <td className="px-6 py-4">
                           <div className="font-medium text-slate-900">{b.title}</div>
                           <div className="text-xs text-slate-500">{b.room_name}</div>
+                          {(b.additional_facilities || []).length > 0 && (
+                            <div className="mt-1 text-xs text-slate-500">
+                              Fasilitas: {b.additional_facilities.join(", ")}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-slate-700">
                           <div>{formatDate(b.date)}</div>
@@ -448,6 +453,11 @@ export default function MyBookings() {
                     </div>
                     <div className="font-display text-base font-semibold text-slate-900">{b.title}</div>
                     <div className="text-sm text-slate-500">{b.room_name}</div>
+                    {(b.additional_facilities || []).length > 0 && (
+                      <div className="mt-1 text-xs text-slate-500">
+                        Fasilitas: {b.additional_facilities.join(", ")}
+                      </div>
+                    )}
                     <div className="mt-2 text-sm text-slate-700">
                       {formatDate(b.date)} · {b.start_time} – {b.end_time}
                     </div>

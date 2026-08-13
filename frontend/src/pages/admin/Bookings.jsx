@@ -177,6 +177,11 @@ export default function AdminBookings() {
                       Layout: {b.layout_type === "Lainnya" && b.layout_other ? b.layout_other : b.layout_type}
                     </div>
                   )}
+                  {(b.additional_facilities || []).length > 0 && (
+                    <div className="mt-1 max-w-xs text-xs text-slate-500">
+                      Fasilitas: {b.additional_facilities.join(", ")}
+                    </div>
+                  )}
                   {b.food_beverages && (
                     <div className="mt-1 max-w-xs text-xs text-slate-500">
                       F&amp;B: {b.food_beverages}

@@ -81,6 +81,7 @@ function MeetingDetailDialog({ booking, onClose, onUpdateFnb }) {
             <DetailItem label="Room / Lokasi" value={`${booking.room_name} / ${booking.room_building || "Unassigned"}`} />
             <DetailItem label="Participants" value={booking.participants} />
             <DetailItem label="Layout" value={layout} />
+            <DetailItem label="Fasilitas Tambahan" value={(booking.additional_facilities || []).join(", ")} />
             <DetailItem label="Created At" value={booking.created_at ? new Date(booking.created_at).toLocaleString() : "-"} />
           </div>
 
