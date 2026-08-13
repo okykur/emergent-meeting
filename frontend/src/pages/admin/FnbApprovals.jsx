@@ -61,6 +61,15 @@ function formatMealDetail(booking) {
   ].filter(Boolean).join(", ");
 }
 
+function formatGuestTypes(value) {
+  return (value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => (item === "Tamu" ? "Xternal" : item))
+    .join(", ");
+}
+
 function MeetingDetailDialog({ booking, onClose, onUpdateFnb }) {
   if (!booking) return null;
   const hasFnb = Boolean((booking.food_beverages || "").trim());
@@ -121,7 +130,7 @@ function MeetingDetailDialog({ booking, onClose, onUpdateFnb }) {
                     <DetailItem label="Cost Center" value={booking.fnb_cost_center} />
                     <DetailItem label="Activity Code" value={booking.fnb_activity_code} />
                     <DetailItem label="Activity Name" value={booking.fnb_activity_name} />
-                    <DetailItem label="Tamu" value={booking.guest_type} />
+                    <DetailItem label="Tamu" value={formatGuestTypes(booking.guest_type)} />
                   </div>
                 </div>
                 <div>

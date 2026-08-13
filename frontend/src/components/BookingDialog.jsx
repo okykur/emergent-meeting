@@ -10,7 +10,7 @@ const FOOD_BEVERAGE_RULES = [
   { label: "Makan siang", minMinutes: 5 * 60 },
   { label: "Makan malam", minMinutes: 5 * 60 },
 ];
-const GUEST_TYPES = ["Internal", "BOD", "Tamu"];
+const GUEST_TYPES = ["Internal", "BOD", "Xternal"];
 const SNACK_PACKAGING = ["Plating", "Dus"];
 const MEAL_PACKAGING = ["Prasmanan", "Dus"];
 const EMPTY_FNB_DETAILS = {
@@ -19,7 +19,7 @@ const EMPTY_FNB_DETAILS = {
   costCenter: "",
   activityCode: "",
   activityName: "",
-  guestType: "",
+  guestTypes: [],
   snackType: "",
   snackTimes: "",
   snackPax: "",
@@ -179,6 +179,15 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     );
   };
 
+  const toggleGuestType = (guestType, checked) => {
+    setFnbDetails((current) => ({
+      ...current,
+      guestTypes: checked
+        ? [...current.guestTypes, guestType]
+        : current.guestTypes.filter((item) => item !== guestType),
+    }));
+  };
+
   const availabilityMessage = (slot) => {
     const conflict = slot?.conflicts?.[0];
     if (conflict) {
@@ -288,7 +297,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         !fnbDetails.costCenter.trim() ||
         !fnbDetails.activityCode.trim() ||
         !fnbDetails.activityName.trim() ||
-        !fnbDetails.guestType
+        fnbDetails.guestTypes.length === 0
       ) {
         setError("Please complete department, division, cost center, activity, and guest type for F&B request.");
         return;
@@ -334,7 +343,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         fnb_cost_center: fnbSelected ? fnbDetails.costCenter : "",
         fnb_activity_code: fnbSelected ? fnbDetails.activityCode : "",
         fnb_activity_name: fnbSelected ? fnbDetails.activityName : "",
-        guest_type: fnbSelected ? fnbDetails.guestType : "",
+        guest_type: fnbSelected ? fnbDetails.guestTypes.join(", ") : "",
         snack_type: snackSelected ? fnbDetails.snackType : "",
         snack_times: snackSelected ? Number(fnbDetails.snackTimes) : null,
         snack_pax: snackSelected ? Number(fnbDetails.snackPax) : null,
@@ -610,8 +619,8 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                       <label key={item} className="flex items-center gap-2 rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                         <input
                           type="checkbox"
-                          checked={fnbDetails.guestType === item}
-                          onChange={(e) => setFnbDetail("guestType", e.target.checked ? item : "")}
+                          checked={fnbDetails.guestTypes.includes(item)}
+                          onChange={(e) => toggleGuestType(item, e.target.checked)}
                         />
                         {item}
                       </label>

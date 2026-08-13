@@ -950,7 +950,9 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
             raise HTTPException(status_code=400, detail="Activity code is required when requesting F&B")
         if not payload.fnb_activity_name.strip():
             raise HTTPException(status_code=400, detail="Activity name is required when requesting F&B")
-        if payload.guest_type.strip() not in ("Internal", "BOD", "Tamu"):
+        guest_types = [item.strip() for item in payload.guest_type.split(",") if item.strip()]
+        invalid_guest_types = [item for item in guest_types if item not in ("Internal", "BOD", "Xternal", "Tamu")]
+        if not guest_types or invalid_guest_types:
             raise HTTPException(status_code=400, detail="Guest type is required when requesting F&B")
     if "snack" in food_beverages.lower():
         if not payload.snack_type.strip():
