@@ -457,10 +457,11 @@ def _validate_food_beverages_request(food_beverages: str, start_time: str, end_t
     if not food_beverages:
         return
     duration = _time_to_minutes(end_time) - _time_to_minutes(start_time)
+    food_lower = food_beverages.lower()
     if duration < 4 * 60:
         raise HTTPException(status_code=400, detail="F&B request is available only for meetings of 4 hours or more")
-    if "makan siang" in food_beverages.lower() and duration < 5 * 60:
-        raise HTTPException(status_code=400, detail="Makan siang is available only for meetings of 5 hours or more")
+    if "makan" in food_lower and duration < 5 * 60:
+        raise HTTPException(status_code=400, detail="Meal request is available only for meetings of 5 hours or more")
 
 
 def _operating_hours_error(room: dict, start_time: str, end_time: str) -> Optional[str]:
@@ -960,8 +961,25 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
             raise HTTPException(status_code=400, detail="Snack pax must be at least 1")
         if payload.snack_packaging not in ("Plating", "Dus"):
             raise HTTPException(status_code=400, detail="Snack packaging must be Plating or Dus")
+    meal_types = []
+    for item in payload.meal_types:
+        meal_type = item.strip()
+        if meal_type.lower() == "makan siang":
+            meal_type = "Makan siang"
+        elif meal_type.lower() == "makan malam":
+            meal_type = "Makan malam"
+        if meal_type and meal_type not in meal_types:
+            meal_types.append(meal_type)
+    food_lower = food_beverages.lower()
+    if "makan siang" in food_lower and "Makan siang" not in meal_types:
+        meal_types.append("Makan siang")
+    if "makan malam" in food_lower and "Makan malam" not in meal_types:
+        meal_types.append("Makan malam")
+    invalid_meal_types = [item for item in meal_types if item not in ("Makan siang", "Makan malam", "Makan Siang", "Makan Malam")]
+    if invalid_meal_types:
+        raise HTTPException(status_code=400, detail="Invalid meal type request")
     if "makan" in food_beverages.lower():
-        if not payload.meal_types:
+        if not meal_types:
             raise HTTPException(status_code=400, detail="Please select at least one meal type")
         if payload.meal_pax is None or payload.meal_pax < 1:
             raise HTTPException(status_code=400, detail="Meal pax must be at least 1")
@@ -996,7 +1014,7 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         "snack_times": payload.snack_times,
         "snack_pax": payload.snack_pax,
         "snack_packaging": payload.snack_packaging.strip(),
-        "meal_types": payload.meal_types,
+        "meal_types": meal_types,
         "meal_pax": payload.meal_pax,
         "meal_packaging": payload.meal_packaging.strip(),
         "fnb_status": "pending" if food_beverages else "not_required",

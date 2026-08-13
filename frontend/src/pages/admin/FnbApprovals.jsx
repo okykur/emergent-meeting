@@ -29,7 +29,7 @@ function hasValidFnbRule(booking) {
   if (!food) return false;
   const duration = minutesBetween(booking.start_time, booking.end_time);
   if (duration < 4 * 60) return false;
-  if (food.includes("makan siang") && duration < 5 * 60) return false;
+  if (food.includes("makan") && duration < 5 * 60) return false;
   return true;
 }
 

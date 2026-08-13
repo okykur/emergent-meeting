@@ -8,10 +8,10 @@ const ADDITIONAL_FACILITY_OPTIONS = ["LCD", "Pointer", "Laptop", "Zoom"];
 const FOOD_BEVERAGE_RULES = [
   { label: "Snack", minMinutes: 4 * 60 },
   { label: "Makan siang", minMinutes: 5 * 60 },
+  { label: "Makan malam", minMinutes: 5 * 60 },
 ];
 const GUEST_TYPES = ["Internal", "BOD", "Tamu"];
 const SNACK_PACKAGING = ["Plating", "Dus"];
-const MEAL_TYPES = ["Makan Siang", "Makan Malam"];
 const MEAL_PACKAGING = ["Prasmanan", "Dus"];
 const EMPTY_FNB_DETAILS = {
   department: "",
@@ -24,7 +24,6 @@ const EMPTY_FNB_DETAILS = {
   snackTimes: "",
   snackPax: "",
   snackPackaging: "",
-  mealTypes: [],
   mealPax: "",
   mealPackaging: "",
 };
@@ -106,7 +105,8 @@ export default function BookingDialog({ room, onClose, onBooked }) {
   );
   const fnbSelected = selectedFoodBeverages.length > 0;
   const snackSelected = selectedFoodBeverages.includes("Snack");
-  const mealSelected = selectedFoodBeverages.includes("Makan siang");
+  const selectedMealTypes = selectedFoodBeverages.filter((item) => item.toLowerCase().startsWith("makan"));
+  const mealSelected = selectedMealTypes.length > 0;
   const effectiveMinStartTime = useMemo(
     () => getEarliestStartForDate(date, today, operatingHours.start),
     [date, today, operatingHours.start]
@@ -162,11 +162,8 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         next.snackPackaging = "";
       }
       if (!mealSelected) {
-        next.mealTypes = [];
         next.mealPax = "";
         next.mealPackaging = "";
-      } else if (!next.mealTypes.length) {
-        next.mealTypes = ["Makan Siang"];
       }
       return next;
     });
@@ -174,13 +171,6 @@ export default function BookingDialog({ room, onClose, onBooked }) {
 
   const setFnbDetail = (key, value) => {
     setFnbDetails((current) => ({ ...current, [key]: value }));
-  };
-
-  const toggleMealType = (type, checked) => {
-    setFnbDetails((current) => ({
-      ...current,
-      mealTypes: checked ? [...current.mealTypes, type] : current.mealTypes.filter((item) => item !== type),
-    }));
   };
 
   const toggleAdditionalFacility = (facility, checked) => {
@@ -312,7 +302,6 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     }
     if (mealSelected) {
       if (
-        fnbDetails.mealTypes.length === 0 ||
         !fnbDetails.mealPax ||
         !fnbDetails.mealPackaging
       ) {
@@ -350,7 +339,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         snack_times: snackSelected ? Number(fnbDetails.snackTimes) : null,
         snack_pax: snackSelected ? Number(fnbDetails.snackPax) : null,
         snack_packaging: snackSelected ? fnbDetails.snackPackaging : "",
-        meal_types: mealSelected ? fnbDetails.mealTypes : [],
+        meal_types: mealSelected ? selectedMealTypes : [],
         meal_pax: mealSelected ? Number(fnbDetails.mealPax) : null,
         meal_packaging: mealSelected ? fnbDetails.mealPackaging : "",
         notes,
@@ -718,33 +707,16 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               {mealSelected && (
                 <div className="space-y-3 rounded-sm border border-amber-200 bg-white p-3">
                   <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Makan</div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <div className="mb-1 text-xs font-medium text-slate-700">Jenis makan</div>
-                      <div className="flex flex-wrap gap-2">
-                        {MEAL_TYPES.map((item) => (
-                          <label key={item} className="flex items-center gap-2 rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                            <input
-                              type="checkbox"
-                              checked={fnbDetails.mealTypes.includes(item)}
-                              onChange={(e) => toggleMealType(item, e.target.checked)}
-                            />
-                            {item}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-700">Jumlah pax</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={fnbDetails.mealPax}
-                        onChange={(e) => setFnbDetail("mealPax", e.target.value)}
-                        placeholder="10"
-                        className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
-                      />
-                    </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Jumlah pax</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={fnbDetails.mealPax}
+                      onChange={(e) => setFnbDetail("mealPax", e.target.value)}
+                      placeholder="10"
+                      className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                    />
                   </div>
                   <div>
                     <div className="mb-1 text-xs font-medium text-slate-700">Kemasan</div>
