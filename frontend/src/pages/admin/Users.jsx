@@ -258,7 +258,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               <option value="user">User</option>
               <option value="meeting_admin">Meeting Admin — approve meeting-room bookings</option>
               <option value="car_admin">Car Admin — approve car/vehicle bookings</option>
-              <option value="manager">Manager - approve Food &amp; Beverages</option>
+              <option value="manager">Manager - approve meeting room &amp; F&amp;B</option>
               <option value="super_admin">Super Admin — full access</option>
             </select>
             <p className="mt-1 text-xs text-slate-500">
@@ -282,7 +282,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           )}
           {form.role === "manager" && (
             <div className="rounded-sm border border-sky-100 bg-sky-50 p-3">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Lokasi approval F&amp;B</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Lokasi approval meeting &amp; F&amp;B</label>
               <input
                 data-testid="user-fnb-locations-input"
                 value={form.fnb_locations}
@@ -291,7 +291,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
                 className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
               />
               <p className="mt-1 text-xs text-slate-500">
-                Satu manager bisa menangani beberapa lokasi F&amp;B. Pisahkan dengan koma.
+                Satu manager bisa menangani approval meeting room dan F&amp;B untuk beberapa lokasi. Pisahkan dengan koma.
               </p>
             </div>
           )}

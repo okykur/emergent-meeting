@@ -69,10 +69,11 @@ function formatGuestTypes(value) {
     .join(", ");
 }
 
-function MeetingDetailDialog({ booking, onClose, onUpdateFnb }) {
+function MeetingDetailDialog({ booking, onClose, onUpdateFnb, onUpdateMeeting }) {
   if (!booking) return null;
   const hasFnb = Boolean((booking.food_beverages || "").trim());
   const fnbRuleValid = hasValidFnbRule(booking);
+  const canApproveMeeting = booking.status === "pending";
   const canApproveFnb = booking.status === "confirmed" && hasFnb && fnbRuleValid && booking.fnb_status === "pending";
   const waitingForRoomApproval = booking.status === "pending" && hasFnb && booking.fnb_status === "pending";
   const layout = booking.layout_type
@@ -167,6 +168,16 @@ function MeetingDetailDialog({ booking, onClose, onUpdateFnb }) {
           <button type="button" onClick={onClose} className="rounded-sm border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
             Close
           </button>
+          {canApproveMeeting && (
+            <>
+              <button onClick={() => onUpdateMeeting(booking.id, "confirmed")} className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
+                <Check className="h-4 w-4" /> Approve Meeting
+              </button>
+              <button onClick={() => onUpdateMeeting(booking.id, "cancelled")} className="inline-flex items-center gap-1 rounded-sm border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">
+                <X className="h-4 w-4" /> Reject Meeting
+              </button>
+            </>
+          )}
           {canApproveFnb && (
             <>
               <button onClick={() => onUpdateFnb(booking.id, "approved")} className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
@@ -239,6 +250,16 @@ function ManagerMeetingTab() {
     }
   };
 
+  const updateMeetingStatus = async (id, nextStatus) => {
+    try {
+      const { data } = await api.patch(`/fnb/bookings/${id}/meeting-status`, { status: nextStatus });
+      setSelectedBooking(data);
+      await load();
+    } catch (err) {
+      alert(formatApiError(err));
+    }
+  };
+
   return (
     <>
       <form onSubmit={(event) => { event.preventDefault(); load(); }} className="mb-6 grid grid-cols-1 gap-3 rounded-sm border border-slate-200 bg-white p-4 md:grid-cols-6">
@@ -296,6 +317,7 @@ function ManagerMeetingTab() {
             ) : bookings.map((booking) => {
               const hasFnb = Boolean((booking.food_beverages || "").trim());
               const fnbRuleValid = hasValidFnbRule(booking);
+              const canApproveMeeting = booking.status === "pending";
               const canApproveFnb = booking.status === "confirmed" && hasFnb && fnbRuleValid && booking.fnb_status === "pending";
               const waitingForRoomApproval = booking.status === "pending" && hasFnb && booking.fnb_status === "pending";
               return (
@@ -326,6 +348,16 @@ function ManagerMeetingTab() {
                       <button onClick={() => setSelectedBooking(booking)} className="inline-flex items-center gap-1 rounded-sm border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
                         <Eye className="h-3 w-3" /> Detail
                       </button>
+                      {canApproveMeeting && (
+                        <>
+                          <button onClick={() => updateMeetingStatus(booking.id, "confirmed")} className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
+                            <Check className="h-3 w-3" /> Approve Meeting
+                          </button>
+                          <button onClick={() => updateMeetingStatus(booking.id, "cancelled")} className="inline-flex items-center gap-1 rounded-sm border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100">
+                            <X className="h-3 w-3" /> Reject Meeting
+                          </button>
+                        </>
+                      )}
                       {canApproveFnb && (
                         <>
                           <button onClick={() => updateFnbStatus(booking.id, "approved")} className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
@@ -345,7 +377,7 @@ function ManagerMeetingTab() {
         </table>
       </div>
 
-      <MeetingDetailDialog booking={selectedBooking} onClose={() => setSelectedBooking(null)} onUpdateFnb={updateFnbStatus} />
+      <MeetingDetailDialog booking={selectedBooking} onClose={() => setSelectedBooking(null)} onUpdateFnb={updateFnbStatus} onUpdateMeeting={updateMeetingStatus} />
     </>
   );
 }
@@ -453,7 +485,7 @@ export default function AdminFnbApprovals() {
         <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Manager Approval</div>
         <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">Approval Manager</h1>
         <p className="mt-2 text-sm text-slate-500">
-          Manager memonitor approval meeting room dan car booking dalam satu view. Approval F&amp;B muncul hanya saat request sesuai rule durasi dan meeting room sudah approved.
+          Manager dapat menjadi backup approval meeting room jika admin meeting room tidak tersedia. Approval F&amp;B tetap dilakukan setelah meeting room approved.
         </p>
       </div>
 

@@ -1191,6 +1191,32 @@ async def update_fnb_status(
     return Booking(**bk)
 
 
+@api.patch("/fnb/bookings/{booking_id}/meeting-status", response_model=Booking)
+async def update_manager_meeting_status(
+    booking_id: str,
+    payload: BookingStatusUpdate,
+    manager: dict = Depends(require_fnb_manager),
+):
+    if payload.status not in ("confirmed", "cancelled"):
+        raise HTTPException(status_code=400, detail="Manager can only approve or reject meeting-room bookings")
+    bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if bk.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="Only pending meeting-room bookings can be approved or rejected")
+    room = await db.rooms.find_one({"id": bk["room_id"]}, {"_id": 0})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    _assert_can_manage_fnb(manager, room)
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": {"status": payload.status, "room_building": _normalize_room(room)["building"]}},
+    )
+    bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    await _normalize_booking_public(bk)
+    return Booking(**bk)
+
+
 @api.post("/bookings/{booking_id}/cancel", response_model=Booking)
 async def cancel_booking(booking_id: str, user: dict = Depends(get_current_user)):
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
