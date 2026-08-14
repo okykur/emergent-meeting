@@ -52,7 +52,8 @@ export default function Layout() {
     { to: "/hub", label: "Home", icon: Home, testid: "nav-hub", end: true, show: true },
     { to: "/rooms", label: "Meeting Room", icon: DoorOpen, testid: "nav-rooms", show: true },
     { to: "/my-bookings", label: "My Booking", icon: BookMarked, testid: "nav-my-bookings", show: true },
-    { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-calendar", show: true },
+    // Calendar menu hidden for all roles by request; route/page kept for future re-enable.
+    { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-calendar", show: false },
     { to: "/car", label: "Car / Vehicle", icon: Car, testid: "nav-car", show: true },
     { to: "/admin/bookings", label: "Approval Meeting", icon: CalendarCheck2, testid: "nav-approval-meeting", show: isMeetingAdmin },
     { to: "/admin/cars/bookings", label: "Approval Kendaraan", icon: Car, testid: "nav-approval-cars", show: isCarAdmin },
