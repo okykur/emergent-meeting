@@ -330,6 +330,10 @@ def _app_now_naive() -> datetime:
     return datetime.now(APP_TIMEZONE).replace(tzinfo=None)
 
 
+def _app_today():
+    return datetime.now(APP_TIMEZONE).date()
+
+
 def _overlap(a_start: str, a_end: str, b_start: str, b_end: str) -> bool:
     return a_start < b_end and b_start < a_end
 
@@ -1231,6 +1235,16 @@ async def cancel_booking(booking_id: str, user: dict = Depends(get_current_user)
         _assert_can_manage_room(user, room)
     if bk["status"] in ("cancelled", "completed"):
         raise HTTPException(status_code=400, detail=f"Cannot cancel a {bk['status']} booking")
+    if user["role"] == "user":
+        if bk.get("checked_in_at") and not bk.get("checked_out_at"):
+            raise HTTPException(status_code=400, detail="You must check out to release this room after check-in")
+        if (bk.get("food_beverages") or "").strip():
+            try:
+                meeting_date = datetime.fromisoformat(f"{bk['date']}T00:00:00").date()
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid booking date")
+            if (meeting_date - _app_today()).days < 1:
+                raise HTTPException(status_code=400, detail="F&B bookings can be cancelled only at least 1 day before the meeting date")
     await db.bookings.update_one({"id": booking_id}, {"$set": {"status": "cancelled"}})
     bk["status"] = "cancelled"
     return Booking(**bk)

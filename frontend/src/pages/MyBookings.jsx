@@ -12,7 +12,7 @@ import {
   Car,
   ArrowRight,
 } from "lucide-react";
-import { formatDate } from "../utils/dates";
+import { formatDate, toYMD } from "../utils/dates";
 
 function fmtTime(iso) {
   if (!iso) return null;
@@ -36,6 +36,18 @@ function meetingCheckState(b, now = new Date()) {
   if (now < start) return { canIn: false, canOut: false, reason: `Check-in opens at ${b.start_time}` };
   if (now > end) return { canIn: false, canOut: false, reason: "Window has ended" };
   return { canIn: true, canOut: false, reason: null };
+}
+
+function meetingCancelState(b, now = new Date()) {
+  if (!["pending", "confirmed"].includes(b.status)) return { canCancel: false, reason: null };
+  if (b.checked_in_at && !b.checked_out_at) {
+    return { canCancel: false, reason: "Check out to release this room" };
+  }
+  if (b.checked_in_at) return { canCancel: false, reason: null };
+  if ((b.food_beverages || "").trim() && b.date <= toYMD(now)) {
+    return { canCancel: false, reason: "F&B booking can be cancelled until D-1" };
+  }
+  return { canCancel: true, reason: null };
 }
 
 // Normalise both booking shapes into a single timeline row
@@ -268,6 +280,7 @@ export default function MyBookings() {
                   if (row._kind === "meeting") {
                     const b = row.raw;
                     const { canIn, canOut, reason } = meetingCheckState(b, now);
+                    const { canCancel, reason: cancelReason } = meetingCancelState(b, now);
                     return (
                       <tr
                         key={`m-${row.id}`}
@@ -335,7 +348,7 @@ export default function MyBookings() {
                                 <LogOut className="h-3 w-3" /> Check out
                               </button>
                             )}
-                            {(b.status === "pending" || b.status === "confirmed") && !b.checked_in_at && (
+                            {canCancel && (
                               <button
                                 onClick={() => cancelMeeting(b.id)}
                                 disabled={actingId === b.id}
@@ -344,6 +357,9 @@ export default function MyBookings() {
                               >
                                 <CalendarX2 className="h-3 w-3" /> Cancel
                               </button>
+                            )}
+                            {!canCancel && cancelReason && (
+                              <span className="text-right text-[11px] font-medium text-slate-400">{cancelReason}</span>
                             )}
                           </div>
                         </td>
@@ -439,6 +455,7 @@ export default function MyBookings() {
               if (row._kind === "meeting") {
                 const b = row.raw;
                 const { canIn, canOut, reason } = meetingCheckState(b, now);
+                const { canCancel, reason: cancelReason } = meetingCancelState(b, now);
                 return (
                   <div
                     key={`mc-${row.id}`}
@@ -495,7 +512,7 @@ export default function MyBookings() {
                           <LogOut className="h-4 w-4" /> Check out
                         </button>
                       )}
-                      {(b.status === "pending" || b.status === "confirmed") && !b.checked_in_at && (
+                      {canCancel && (
                         <button
                           onClick={() => cancelMeeting(b.id)}
                           disabled={actingId === b.id}
@@ -504,6 +521,11 @@ export default function MyBookings() {
                         >
                           <CalendarX2 className="h-4 w-4" /> Cancel
                         </button>
+                      )}
+                      {!canCancel && cancelReason && (
+                        <div className="w-full rounded-sm bg-slate-50 px-3 py-2 text-center text-xs font-medium text-slate-500">
+                          {cancelReason}
+                        </div>
                       )}
                     </div>
                   </div>
