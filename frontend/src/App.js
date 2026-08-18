@@ -10,7 +10,6 @@ import ResetPassword from "@/pages/ResetPassword";
 import Rooms from "@/pages/Rooms";
 import MyBookings from "@/pages/MyBookings";
 import MyCalendar from "@/pages/MyCalendar";
-import CarHome from "@/pages/car/CarHome";
 import CarBookingNew from "@/pages/car/CarBookingNew";
 import MyCarBookings from "@/pages/car/MyCarBookings";
 import CarBookingDetail from "@/pages/car/CarBookingDetail";
@@ -69,7 +68,7 @@ function App() {
               <Route path="/rooms" element={<Rooms />} />
               <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/calendar" element={<MyCalendar />} />
-              <Route path="/car" element={<CarHome />} />
+              <Route path="/car" element={<Navigate to="/car/new" replace />} />
               <Route path="/car/new" element={<CarBookingNew />} />
               <Route path="/car/my-bookings" element={<MyCarBookings />} />
               <Route path="/car/bookings/:id" element={<CarBookingDetail />} />

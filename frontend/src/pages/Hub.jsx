@@ -33,7 +33,7 @@ const TILES = [
     subtitle: "Reserve a vehicle",
     description:
       "Request a company car or van for official trips — single-trip with driver, or multi-day reservations.",
-    to: "/car",
+    to: "/car/new",
     icon: Car,
     accent: "#F59E0B",
     status: "active",
