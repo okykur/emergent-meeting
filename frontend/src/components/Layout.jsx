@@ -51,7 +51,8 @@ export default function Layout() {
   const navFull = [
     { to: "/hub", label: "Home", icon: Home, testid: "nav-hub", end: true, show: true },
     { to: "/rooms", label: "Meeting Room", icon: DoorOpen, testid: "nav-rooms", show: true },
-    { to: "/my-bookings", label: "My Booking", icon: BookMarked, testid: "nav-my-bookings", show: true },
+    // My Booking menu hidden; Home now renders the same content. Route/page kept for future re-enable.
+    { to: "/my-bookings", label: "My Booking", icon: BookMarked, testid: "nav-my-bookings", show: false },
     // Calendar menu hidden for all roles by request; route/page kept for future re-enable.
     { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-calendar", show: false },
     { to: "/car", label: "Car / Vehicle", icon: Car, testid: "nav-car", show: true },

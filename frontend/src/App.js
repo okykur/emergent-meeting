@@ -10,7 +10,6 @@ import ResetPassword from "@/pages/ResetPassword";
 import Rooms from "@/pages/Rooms";
 import MyBookings from "@/pages/MyBookings";
 import MyCalendar from "@/pages/MyCalendar";
-import Hub from "@/pages/Hub";
 import CarHome from "@/pages/car/CarHome";
 import CarBookingNew from "@/pages/car/CarBookingNew";
 import MyCarBookings from "@/pages/car/MyCarBookings";
@@ -65,7 +64,8 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/hub" element={<Hub />} />
+              {/* Home uses My Booking content by request; Hub page kept in source for future re-enable. */}
+              <Route path="/hub" element={<MyBookings />} />
               <Route path="/rooms" element={<Rooms />} />
               <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/calendar" element={<MyCalendar />} />
