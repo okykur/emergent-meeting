@@ -4,6 +4,7 @@ import { api, formatApiError } from "../../api";
 import { VBStatusPill, FUEL_LEVELS } from "../../components/VehicleStatus";
 import { ArrowLeft, Loader2, Check, X, Car as CarIcon, AlertTriangle, LogIn, LogOut } from "lucide-react";
 import { formatDate } from "../../utils/dates";
+import { vehicleServiceLabel } from "../../utils/carBookingRules";
 import SignaturePad from "../../components/SignaturePad";
 import PhotoUploader from "../../components/PhotoUploader";
 import { useAuth } from "../../context/AuthContext";
@@ -413,11 +414,16 @@ export default function AdminCarBookingDetail() {
             <Field label="Employee">{b.employee_name}</Field>
             <Field label="Job title">{b.job_title}</Field>
             <Field label="Department">{b.department}</Field>
+            <Field label="Division">{b.division}</Field>
+            <Field label="Cost Center">{b.cost_center}</Field>
             <Field label="Email">{b.user_email}</Field>
             <Field label="Type">
               {b.booking_type === "single_trip" ? "Single trip" : "Multi-day"} · {b.with_driver ? "with driver" : "self-drive"}
             </Field>
+            <Field label="Service Type">{vehicleServiceLabel(b)}</Field>
+            <Field label="Distance">{b.distance_km ? `${b.distance_km} KM` : ""}</Field>
             <Field label="Passengers">{b.passengers}</Field>
+            <Field label="Activity Code">{b.activity_code}</Field>
             <Field label="Pickup">{b.pickup_location}</Field>
             <Field label="Destination">{b.destination}</Field>
             <Field label="Usage area">{b.usage_area}</Field>
@@ -429,6 +435,21 @@ export default function AdminCarBookingDetail() {
             <Field label="Submitted">{fmt(b.created_at)}</Field>
           </div>
           <div className="mt-4"><Field label="Purpose">{b.purpose}</Field></div>
+          {b.notes && <div className="mt-4"><Field label="Notes">{b.notes}</Field></div>}
+          {b.passenger_list?.length > 0 && (
+            <div className="mt-4">
+              <Field label="Passenger List">
+                {b.passenger_list.map((p, index) => (
+                  <div key={`${p.name}-${index}`}>
+                    {p.name} - {p.status}{p.nik ? ` - ${p.nik}` : ""}
+                  </div>
+                ))}
+              </Field>
+            </div>
+          )}
+          {b.pro_in_file?.name && (
+            <div className="mt-4"><Field label="Pro-In Document">{b.pro_in_file.name}</Field></div>
+          )}
         </div>
 
         <div className="rounded-sm border border-slate-200 bg-white p-5">

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, formatApiError } from "../../api";
 import { VBStatusPill } from "../../components/VehicleStatus";
 import { formatDate } from "../../utils/dates";
+import { vehicleServiceLabel } from "../../utils/carBookingRules";
 import { Search } from "lucide-react";
 
 export default function AdminCarsBookings() {
@@ -104,7 +105,7 @@ export default function AdminCarsBookings() {
                 </td>
                 <td className="px-6 py-4 text-slate-700">{b.purpose}</td>
                 <td className="px-6 py-4 text-slate-700">
-                  {b.booking_type === "single_trip" ? "Single" : "Multi-day"}
+                  {vehicleServiceLabel(b)}
                   {b.with_driver ? " · w/ driver" : " · self"}
                 </td>
                 <td className="px-6 py-4 text-slate-700">

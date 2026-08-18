@@ -4,6 +4,7 @@ import { api, formatApiError } from "../../api";
 import { VBStatusPill } from "../../components/VehicleStatus";
 import { Plus, ListChecks, Car as CarIcon, ArrowRight, Loader2 } from "lucide-react";
 import { formatDate } from "../../utils/dates";
+import { vehicleServiceLabel } from "../../utils/carBookingRules";
 
 function StatCard({ label, value, accent = "#0055FF" }) {
   return (
@@ -126,7 +127,7 @@ export default function CarHome() {
                 <tr key={b.id} className="border-t border-slate-200 hover:bg-slate-50" data-testid={`car-row-${b.id}`}>
                   <td className="px-6 py-4 font-medium text-slate-900">{b.purpose}</td>
                   <td className="px-6 py-4 text-slate-700">
-                    {b.booking_type === "single_trip" ? "Single trip" : "Multi-day"}
+                    {vehicleServiceLabel(b)}
                     {b.with_driver ? " · with driver" : " · self-drive"}
                   </td>
                   <td className="px-6 py-4 text-slate-700">

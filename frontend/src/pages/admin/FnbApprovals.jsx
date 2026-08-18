@@ -6,6 +6,7 @@ import { StatusPill } from "../../components/Status";
 import { VBStatusPill } from "../../components/VehicleStatus";
 import { useAuth } from "../../context/AuthContext";
 import { formatDate } from "../../utils/dates";
+import { vehicleServiceLabel } from "../../utils/carBookingRules";
 
 function FnbStatusPill({ status }) {
   const map = {
@@ -458,7 +459,7 @@ function ManagerCarTab() {
                   <div className="text-xs text-slate-500">{booking.job_title}{booking.department ? ` - ${booking.department}` : ""}</div>
                 </td>
                 <td className="px-6 py-4 text-slate-700">{booking.purpose}</td>
-                <td className="px-6 py-4 text-slate-700">{booking.booking_type === "single_trip" ? "Single" : "Multi-day"}{booking.with_driver ? " - w/ driver" : " - self"}</td>
+                <td className="px-6 py-4 text-slate-700">{vehicleServiceLabel(booking)}{booking.with_driver ? " - w/ driver" : " - self"}</td>
                 <td className="px-6 py-4 text-slate-700">{formatDate(booking.start_date)}{booking.start_date !== booking.end_date && ` -> ${formatDate(booking.end_date)}`}</td>
                 <td className="px-6 py-4 text-slate-700">{booking.vehicle_name ? `${booking.vehicle_name} - ${booking.vehicle_plate}` : "-"}</td>
                 <td className="px-6 py-4"><VBStatusPill status={booking.status} /></td>

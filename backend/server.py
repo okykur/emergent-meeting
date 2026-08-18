@@ -1774,15 +1774,25 @@ class ReturnInfo(BaseModel):
 
 class VehicleBookingCreate(BaseModel):
     booking_type: Literal["single_trip", "multi_day"]
+    service_type: Literal["dalam_kota", "luar_kota"] = "dalam_kota"
     employee_name: str = Field(min_length=1)
     job_title: str = Field(min_length=1)
     department: str = ""
+    division: str = ""
+    cost_center: str = ""
     with_driver: bool = True
     pickup_location: str = ""
     destination: str = ""
     usage_area: str = ""
     purpose: str = Field(min_length=1)
+    activity_code: str = ""
     passengers: int = Field(ge=1, default=1)
+    passenger_list: List[dict] = Field(default_factory=list)
+    distance_km: Optional[int] = None
+    require_pro_in: bool = False
+    require_dept_head_approval: bool = False
+    pro_in_file: Optional[dict] = None
+    notes: str = ""
     start_date: str  # YYYY-MM-DD
     start_time: str = "08:00"
     end_date: str  # YYYY-MM-DD
@@ -1849,13 +1859,23 @@ class VehicleBooking(BaseModel):
     employee_name: str
     job_title: str
     department: str = ""
+    division: str = ""
+    cost_center: str = ""
     booking_type: str
+    service_type: str = "dalam_kota"
     with_driver: bool
     pickup_location: str = ""
     destination: str = ""
     usage_area: str = ""
     purpose: str
+    activity_code: str = ""
     passengers: int
+    passenger_list: List[dict] = Field(default_factory=list)
+    distance_km: Optional[int] = None
+    require_pro_in: bool = False
+    require_dept_head_approval: bool = False
+    pro_in_file: Optional[dict] = None
+    notes: str = ""
     start_date: str
     start_time: str
     end_date: str
@@ -1994,6 +2014,16 @@ def _public_booking(doc: dict) -> dict:
     out = _strip(doc)
     out.setdefault("handover", {})
     out.setdefault("return_info", {})
+    out.setdefault("division", "")
+    out.setdefault("cost_center", "")
+    out.setdefault("service_type", "dalam_kota")
+    out.setdefault("activity_code", "")
+    out.setdefault("passenger_list", [])
+    out.setdefault("distance_km", None)
+    out.setdefault("require_pro_in", False)
+    out.setdefault("require_dept_head_approval", False)
+    out.setdefault("pro_in_file", None)
+    out.setdefault("notes", "")
     return out
 
 
@@ -2001,8 +2031,14 @@ def _public_booking(doc: dict) -> dict:
 async def create_vehicle_booking(payload: VehicleBookingCreate, user: dict = Depends(get_current_user)):
     if payload.start_date > payload.end_date:
         raise HTTPException(status_code=400, detail="End date must be on or after start date")
+    if f"{payload.end_date}T{payload.end_time}" <= f"{payload.start_date}T{payload.start_time}":
+        raise HTTPException(status_code=400, detail="Return date/time must be after departure date/time")
     if payload.booking_type == "single_trip" and payload.start_date != payload.end_date:
         raise HTTPException(status_code=400, detail="Single-trip bookings must be on a single day")
+    if payload.service_type == "luar_kota" and (payload.distance_km is None or payload.distance_km < 1):
+        raise HTTPException(status_code=400, detail="Distance is required for out-of-town vehicle bookings")
+    if payload.service_type == "luar_kota" and payload.distance_km is not None and payload.distance_km >= 60 and not payload.pro_in_file:
+        raise HTTPException(status_code=400, detail="Pro-In document is required for out-of-town bookings 60 KM or more")
     booking_id = str(uuid.uuid4())
     doc = {
         "id": booking_id,
@@ -2011,13 +2047,23 @@ async def create_vehicle_booking(payload: VehicleBookingCreate, user: dict = Dep
         "employee_name": payload.employee_name.strip(),
         "job_title": payload.job_title.strip(),
         "department": payload.department.strip(),
+        "division": payload.division.strip(),
+        "cost_center": payload.cost_center.strip(),
         "booking_type": payload.booking_type,
+        "service_type": payload.service_type,
         "with_driver": payload.with_driver,
         "pickup_location": payload.pickup_location.strip(),
         "destination": payload.destination.strip(),
         "usage_area": payload.usage_area.strip(),
         "purpose": payload.purpose.strip(),
+        "activity_code": payload.activity_code.strip(),
         "passengers": payload.passengers,
+        "passenger_list": payload.passenger_list,
+        "distance_km": payload.distance_km,
+        "require_pro_in": payload.require_pro_in,
+        "require_dept_head_approval": payload.require_dept_head_approval,
+        "pro_in_file": payload.pro_in_file,
+        "notes": payload.notes.strip(),
         "start_date": payload.start_date,
         "start_time": payload.start_time,
         "end_date": payload.end_date,

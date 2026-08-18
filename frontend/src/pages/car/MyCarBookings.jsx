@@ -4,6 +4,7 @@ import { api, formatApiError } from "../../api";
 import { VBStatusPill } from "../../components/VehicleStatus";
 import { Plus, BookMarked } from "lucide-react";
 import { formatDate } from "../../utils/dates";
+import { vehicleServiceLabel } from "../../utils/carBookingRules";
 
 export default function MyCarBookings() {
   const [items, setItems] = useState([]);
@@ -96,7 +97,7 @@ export default function MyCarBookings() {
                 <tr key={b.id} className="border-t border-slate-200 hover:bg-slate-50" data-testid={`mcb-row-${b.id}`}>
                   <td className="px-6 py-4 font-medium text-slate-900">{b.purpose}</td>
                   <td className="px-6 py-4 text-slate-700">
-                    {b.booking_type === "single_trip" ? "Single trip" : "Multi-day"}
+                    {vehicleServiceLabel(b)}
                     {b.with_driver ? " · with driver" : " · self-drive"}
                   </td>
                   <td className="px-6 py-4 text-slate-700">

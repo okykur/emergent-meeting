@@ -4,6 +4,7 @@ import { api, formatApiError } from "../../api";
 import { Car as CarIcon, AlertCircle, Wrench, CheckCircle2, Clock, Users as UsersIcon, ArrowRight } from "lucide-react";
 import { VBStatusPill } from "../../components/VehicleStatus";
 import { formatDate } from "../../utils/dates";
+import { vehicleServiceLabel } from "../../utils/carBookingRules";
 
 function Metric({ label, value, accent, icon: Icon, testid }) {
   return (
@@ -111,7 +112,7 @@ export default function AdminCarsDashboard() {
                   </td>
                   <td className="px-6 py-4 text-slate-700">{b.purpose}</td>
                   <td className="px-6 py-4 text-slate-700">
-                    {b.booking_type === "single_trip" ? "Single trip" : "Multi-day"}
+                    {vehicleServiceLabel(b)}
                     {b.with_driver ? " · w/ driver" : " · self"}
                   </td>
                   <td className="px-6 py-4 text-slate-700">

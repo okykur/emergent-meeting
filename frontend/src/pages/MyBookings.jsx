@@ -13,6 +13,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { formatDate, toYMD } from "../utils/dates";
+import { vehicleServiceLabel } from "../utils/carBookingRules";
 
 function fmtTime(iso) {
   if (!iso) return null;
@@ -402,7 +403,7 @@ export default function MyBookings() {
                         <div className="text-xs text-slate-500">
                           {b.vehicle_name
                             ? `${b.vehicle_name} · ${b.vehicle_plate}${b.driver_name ? ` · ${b.driver_name}` : ""}`
-                            : `${b.booking_type === "single_trip" ? "Single trip" : "Multi-day"} · ${
+                            : `${vehicleServiceLabel(b)} · ${
                                 b.with_driver ? "with driver" : "self-drive"
                               }`}
                         </div>
@@ -567,7 +568,7 @@ export default function MyBookings() {
                   <div className="text-sm text-slate-500">
                     {b.vehicle_name
                       ? `${b.vehicle_name} · ${b.vehicle_plate}${b.driver_name ? ` · ${b.driver_name}` : ""}`
-                      : `${b.booking_type === "single_trip" ? "Single trip" : "Multi-day"} · ${
+                      : `${vehicleServiceLabel(b)} · ${
                           b.with_driver ? "with driver" : "self-drive"
                         }`}
                   </div>
