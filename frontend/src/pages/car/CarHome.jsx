@@ -109,8 +109,8 @@ export default function CarHome() {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-sm border border-slate-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-sm border border-slate-200 bg-white">
+          <table className="min-w-[900px] w-full text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
               <tr>
                 <th className="px-6 py-3 text-left">Purpose</th>

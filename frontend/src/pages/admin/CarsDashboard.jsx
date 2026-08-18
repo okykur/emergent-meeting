@@ -90,8 +90,8 @@ export default function AdminCarsDashboard() {
           No pending requests. Everything's caught up.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-sm border border-slate-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-sm border border-slate-200 bg-white">
+          <table className="min-w-[1000px] w-full text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
               <tr>
                 <th className="px-6 py-3 text-left">Employee</th>

@@ -75,8 +75,8 @@ export default function AdminCarsBookings() {
 
       {error && <div className="mb-4 rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-      <div className="overflow-hidden rounded-sm border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-sm border border-slate-200 bg-white">
+        <table className="min-w-[1100px] w-full text-sm">
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
             <tr>
               <th className="px-6 py-3 text-left">Employee</th>

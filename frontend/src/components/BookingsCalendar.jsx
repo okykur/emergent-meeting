@@ -291,7 +291,8 @@ export default function BookingsCalendar({ scope = "mine", title = "Calendar" })
         </div>
       )}
 
-      <div className="overflow-hidden rounded-sm border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-sm border border-slate-200 bg-white">
+        <div className="min-w-[900px]">
         <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
             <div key={d} className="px-3 py-2">
@@ -360,6 +361,7 @@ export default function BookingsCalendar({ scope = "mine", title = "Calendar" })
               </button>
             );
           })}
+        </div>
         </div>
       </div>
 
