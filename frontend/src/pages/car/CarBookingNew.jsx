@@ -397,7 +397,7 @@ export default function CarBookingNew() {
             <div className="mt-4 space-y-3">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">Pilihan Driver</label>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="grid max-w-2xl grid-cols-1 gap-2 md:grid-cols-2">
                   {[
                     {
                       value: true,
@@ -417,14 +417,14 @@ export default function CarBookingNew() {
                         type="button"
                         onClick={() => set("with_driver", option.value)}
                         data-testid={`driver-option-${option.value ? "with-driver" : "without-driver"}`}
-                        className={`rounded-sm border-2 p-4 text-left transition-colors ${
+                        className={`rounded-sm border p-3 text-left transition-colors ${
                           selected ? "border-[#0055FF] bg-[#0055FF]/5" : "border-slate-200 hover:border-slate-300"
                         }`}
                       >
-                        <div className={`font-semibold ${selected ? "text-[#0055FF]" : "text-slate-900"}`}>
+                        <div className={`text-sm font-semibold ${selected ? "text-[#0055FF]" : "text-slate-900"}`}>
                           {option.title}
                         </div>
-                        <div className="text-xs text-slate-500">{option.description}</div>
+                        <div className="mt-0.5 text-[11px] leading-snug text-slate-500">{option.description}</div>
                       </button>
                     );
                   })}
