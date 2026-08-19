@@ -2039,6 +2039,10 @@ async def create_vehicle_booking(payload: VehicleBookingCreate, user: dict = Dep
         raise HTTPException(status_code=400, detail="Distance is required for out-of-town vehicle bookings")
     if payload.service_type == "luar_kota" and payload.distance_km is not None and payload.distance_km >= 60 and not payload.pro_in_file:
         raise HTTPException(status_code=400, detail="Pro-In document is required for out-of-town bookings 60 KM or more")
+    if payload.service_type == "luar_kota" and not payload.with_driver:
+        raise HTTPException(status_code=400, detail="Out-of-town vehicle bookings must use a driver")
+    if payload.service_type == "dalam_kota" and not payload.with_driver and not payload.pro_in_file:
+        raise HTTPException(status_code=400, detail="Pro-In document is required for in-city bookings without driver")
     booking_id = str(uuid.uuid4())
     doc = {
         "id": booking_id,

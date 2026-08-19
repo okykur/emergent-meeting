@@ -1,14 +1,15 @@
-export function getCarBookingFormRule({ serviceType, distanceKm, requesterType }) {
+export function getCarBookingFormRule({ serviceType, distanceKm, requesterType, withDriver = true }) {
   const isOutOfTown = serviceType === "luar_kota";
   const numericDistance = Number(distanceKm || 0);
+  const requiresCitySelfDriveProIn = serviceType === "dalam_kota" && !withDriver;
   const requiresGuestSelfDriveProIn = requesterType === "karyawan_tamu_lepas_kunci";
   const requiresLongDistanceProIn = isOutOfTown && numericDistance >= 60;
 
   return {
     showDistance: isOutOfTown,
     requireDistance: isOutOfTown,
-    showProIn: requiresLongDistanceProIn || requiresGuestSelfDriveProIn,
-    requireProIn: requiresLongDistanceProIn || requiresGuestSelfDriveProIn,
+    showProIn: requiresLongDistanceProIn || requiresCitySelfDriveProIn || requiresGuestSelfDriveProIn,
+    requireProIn: requiresLongDistanceProIn || requiresCitySelfDriveProIn || requiresGuestSelfDriveProIn,
     requireDeptHeadApproval: !requiresLongDistanceProIn,
   };
 }

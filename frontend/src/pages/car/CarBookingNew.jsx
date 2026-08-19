@@ -155,6 +155,7 @@ export default function CarBookingNew() {
     division: "",
     cost_center: "",
     service_type: "dalam_kota",
+    with_driver: true,
     distance_km: "",
     pickup_location: "",
     destination: "",
@@ -177,12 +178,23 @@ export default function CarBookingNew() {
     serviceType: form.service_type,
     distanceKm: form.distance_km,
     requesterType: "karyawan",
+    withDriver: form.with_driver,
   });
 
   const set = (key, value) => {
     setError("");
     setMessage("");
     setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const selectServiceType = (serviceType) => {
+    setError("");
+    setMessage("");
+    setForm((current) => ({
+      ...current,
+      service_type: serviceType,
+      with_driver: serviceType === "luar_kota" ? true : current.with_driver,
+    }));
   };
 
   const validateForm = () => {
@@ -212,13 +224,13 @@ export default function CarBookingNew() {
     ...form,
     job_title: form.job_title || user?.job_title || "-",
     booking_type: form.start_date === form.end_date ? "single_trip" : "multi_day",
-    with_driver: true,
+    with_driver: form.with_driver,
     passengers: passengers.length,
     passenger_list: passengers,
     distance_km: rules.showDistance ? Number(form.distance_km) : null,
     require_pro_in: rules.requireProIn,
     require_dept_head_approval: rules.requireDeptHeadApproval,
-    pro_in_file: proInFile,
+    pro_in_file: rules.showProIn ? proInFile : null,
   });
 
   const submit = async (event) => {
@@ -363,7 +375,7 @@ export default function CarBookingNew() {
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => set("service_type", option.value)}
+                  onClick={() => selectServiceType(option.value)}
                   data-testid={`service-type-${option.value}`}
                   className={`flex items-start gap-3 rounded-sm border-2 p-4 text-left transition-colors ${
                     selected ? "border-[#0055FF] bg-[#0055FF]/5" : "border-slate-200 hover:border-slate-300"
@@ -382,8 +394,51 @@ export default function CarBookingNew() {
           </div>
 
           {form.service_type === "dalam_kota" && (
-            <div className="mt-4 rounded-sm border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-700">
-              Kendaraan dan driver akan disiapkan oleh Transportation.
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Pilihan Driver</label>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {[
+                    {
+                      value: true,
+                      title: "Dengan Driver",
+                      description: "Default. Kendaraan dan driver disiapkan oleh Transportation.",
+                    },
+                    {
+                      value: false,
+                      title: "Tanpa Driver",
+                      description: "Wajib upload dokumen Pro-In.",
+                    },
+                  ].map((option) => {
+                    const selected = form.with_driver === option.value;
+                    return (
+                      <button
+                        key={option.title}
+                        type="button"
+                        onClick={() => set("with_driver", option.value)}
+                        data-testid={`driver-option-${option.value ? "with-driver" : "without-driver"}`}
+                        className={`rounded-sm border-2 p-4 text-left transition-colors ${
+                          selected ? "border-[#0055FF] bg-[#0055FF]/5" : "border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className={`font-semibold ${selected ? "text-[#0055FF]" : "text-slate-900"}`}>
+                          {option.title}
+                        </div>
+                        <div className="text-xs text-slate-500">{option.description}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {form.with_driver ? (
+                <div className="rounded-sm border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+                  Kendaraan dan driver akan disiapkan oleh Transportation.
+                </div>
+              ) : (
+                <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                  Tanpa driver membutuhkan Upload Pro-In sebelum booking dapat dikirim.
+                </div>
+              )}
             </div>
           )}
 
@@ -599,6 +654,11 @@ export default function CarBookingNew() {
         {rules.showProIn && (
           <Section title="Supporting Document">
             <Field label="Upload Pro-In *">
+              <p className="mb-3 text-sm text-slate-500">
+                {form.service_type === "dalam_kota" && !form.with_driver
+                  ? "Pro-In wajib untuk pengajuan Dalam Kota tanpa driver."
+                  : "Pro-In wajib untuk perjalanan luar kota 60 KM atau lebih."}
+              </p>
               <div
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
