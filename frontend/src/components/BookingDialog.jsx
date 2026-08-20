@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X, Loader2, CalendarClock } from "lucide-react";
 import { api, formatApiError } from "../api";
 import { getRoomOperatingHours, isWithinOperatingHours, roomOperatingHoursLabel, toYMD, nowTime } from "../utils/dates";
+import TimeSelect from "./TimeSelect";
 
 const LAYOUT_OPTIONS = ["U-Shape", "Classroom", "Round", "Theater", "Lainnya"];
 const ADDITIONAL_FACILITY_OPTIONS = ["LCD", "Pointer", "Laptop", "Zoom"];
@@ -508,26 +509,24 @@ export default function BookingDialog({ room, onClose, onBooked }) {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Start</label>
-              <input
-                type="time"
+              <TimeSelect
                 required
                 min={effectiveMinStartTime}
                 max={operatingHours.end}
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={setStartTime}
                 data-testid="booking-start-input"
                 className="w-full rounded-sm border border-slate-300 px-2 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
               />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">End</label>
-              <input
-                type="time"
+              <TimeSelect
                 required
-                min={operatingHours.start}
+                min={startTime < operatingHours.end ? addMinutesToTime(startTime, 15) : operatingHours.end}
                 max={operatingHours.end}
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                onChange={setEndTime}
                 data-testid="booking-end-input"
                 className="w-full rounded-sm border border-slate-300 px-2 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
               />

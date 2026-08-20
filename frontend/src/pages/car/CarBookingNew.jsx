@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Loader2, Car, Map, Plus, UploadCloud, X } from "lucide-react";
 import { toYMD } from "../../utils/dates";
 import { getCarBookingFormRule } from "../../utils/carBookingRules";
+import TimeSelect from "../../components/TimeSelect";
 
 const ACTIVITY_CODES = [
   { value: "ACT-001", label: "ACT-001 - Meeting" },
@@ -487,11 +488,10 @@ export default function CarBookingNew() {
               />
             </Field>
             <Field label="Waktu Berangkat *">
-              <input
-                type="time"
+              <TimeSelect
                 required
                 value={form.start_time}
-                onChange={(event) => set("start_time", event.target.value)}
+                onChange={(value) => set("start_time", value)}
                 className={inputClass()}
               />
             </Field>
@@ -506,11 +506,10 @@ export default function CarBookingNew() {
               />
             </Field>
             <Field label="Waktu Kembali *">
-              <input
-                type="time"
+              <TimeSelect
                 required
                 value={form.end_time}
-                onChange={(event) => set("end_time", event.target.value)}
+                onChange={(value) => set("end_time", value)}
                 className={inputClass()}
               />
             </Field>
