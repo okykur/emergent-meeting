@@ -50,7 +50,7 @@ function PhaseMedia({ info, scope }) {
                 href={url}
                 target="_blank"
                 rel="noreferrer"
-                className="block h-16 w-16 overflow-hidden rounded-sm border border-slate-200 hover:border-[#0055FF]"
+                className="block h-16 w-16 overflow-hidden rounded-sm border border-slate-200 hover:border-[#0B7A4B]"
                 data-testid={`${scope}-photo-${idx}`}
               >
                 {/* eslint-disable-next-line */}
@@ -168,7 +168,7 @@ function HandoverDialog({ booking, scope, onClose, onSaved }) {
                 data-testid={`hd-odo-${isReturn ? "end" : "start"}`}
                 value={isReturn ? form.odometer_end : form.odometer_start}
                 onChange={(e) => set(isReturn ? "odometer_end" : "odometer_start", e.target.value)}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
             <div>
@@ -179,7 +179,7 @@ function HandoverDialog({ booking, scope, onClose, onSaved }) {
                 data-testid={`hd-fuel-${isReturn ? "end" : "start"}`}
                 value={isReturn ? form.fuel_level_end : form.fuel_level_start}
                 onChange={(e) => set(isReturn ? "fuel_level_end" : "fuel_level_start", e.target.value)}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               >
                 {FUEL_LEVELS.map((f) => <option key={f}>{f}</option>)}
               </select>
@@ -195,7 +195,7 @@ function HandoverDialog({ booking, scope, onClose, onSaved }) {
               value={isReturn ? form.condition_after : form.condition_before}
               onChange={(e) => set(isReturn ? "condition_after" : "condition_before", e.target.value)}
               placeholder={isReturn ? "Cleanliness, scratches, dents…" : "Visual inspection notes…"}
-              className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
             />
           </div>
           {isReturn && (
@@ -207,7 +207,7 @@ function HandoverDialog({ booking, scope, onClose, onSaved }) {
                 value={form.damage_notes}
                 onChange={(e) => set("damage_notes", e.target.value)}
                 placeholder="Leave blank if no damage"
-                className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
           )}
@@ -241,7 +241,7 @@ function HandoverDialog({ booking, scope, onClose, onSaved }) {
               value={form.signature_name}
               onChange={(e) => set("signature_name", e.target.value)}
               placeholder="Type your full name as acknowledgment"
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
             />
           </div>
           {error && (
@@ -255,7 +255,7 @@ function HandoverDialog({ booking, scope, onClose, onSaved }) {
               type="submit"
               disabled={loading}
               data-testid="hd-submit"
-              className="flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60"
+              className="flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {isReturn ? "Confirm return" : "Confirm handover"}
@@ -338,7 +338,7 @@ export default function CarBookingDetail() {
             <button
               onClick={() => setDlg("handover")}
               data-testid="user-handover-btn"
-              className="inline-flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]"
+              className="inline-flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]"
             >
               <LogIn className="h-4 w-4" /> Confirm Handover
             </button>
@@ -377,7 +377,7 @@ export default function CarBookingDetail() {
         {/* Booking info */}
         <div className="rounded-sm border border-slate-200 bg-white p-5">
           <div className="mb-4 flex items-center gap-2 font-display text-base font-semibold text-slate-900">
-            <UserIcon className="h-4 w-4 text-[#0055FF]" /> Booking Details
+            <UserIcon className="h-4 w-4 text-[#0B7A4B]" /> Booking Details
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Employee">{b.employee_name}</Field>
@@ -428,7 +428,7 @@ export default function CarBookingDetail() {
         {/* Assignment */}
         <div className="rounded-sm border border-slate-200 bg-white p-5">
           <div className="mb-4 flex items-center gap-2 font-display text-base font-semibold text-slate-900">
-            <Car className="h-4 w-4 text-[#0055FF]" /> Vehicle Assignment
+            <Car className="h-4 w-4 text-[#0B7A4B]" /> Vehicle Assignment
           </div>
           {b.vehicle_id ? (
             <div className="grid grid-cols-2 gap-4">

@@ -11,7 +11,7 @@ const TILES = [
       "See every booking you've made — meeting rooms and vehicles. Each row shows its own next step (check-in, handover, etc.).",
     to: "/my-bookings",
     icon: BookMarked,
-    accent: "#0055FF",
+    accent: "#0B7A4B",
     status: "active",
     testid: "hub-tile-my-bookings",
   },

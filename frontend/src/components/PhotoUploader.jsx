@@ -115,7 +115,7 @@ export default function PhotoUploader({
             disabled={busy}
             onClick={() => inputRef.current?.click()}
             data-testid={`${dataTestId}-add`}
-            className="flex h-20 w-20 flex-shrink-0 flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-slate-300 bg-white text-xs font-medium text-slate-500 hover:border-[#0055FF] hover:bg-blue-50 hover:text-[#0055FF] disabled:opacity-50"
+            className="flex h-20 w-20 flex-shrink-0 flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-slate-300 bg-white text-xs font-medium text-slate-500 hover:border-[#0B7A4B] hover:bg-emerald-50 hover:text-[#0B7A4B] disabled:opacity-50"
           >
             {busy ? (
               <Loader2 className="h-5 w-5 animate-spin" />

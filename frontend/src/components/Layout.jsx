@@ -67,7 +67,7 @@ export default function Layout() {
   const nav = navFull.filter((n) => n.show);
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa]">
+    <div className="min-h-screen bg-[#F7FAF8]">
       <header
         className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur-xl"
         data-testid="app-header"
@@ -85,7 +85,7 @@ export default function Layout() {
                   className={({ isActive }) =>
                     `flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-sm px-3 py-2 text-sm font-medium transition-colors ${
                       isActive
-                        ? "bg-slate-900 text-white"
+                        ? "bg-[#064E3B] text-white"
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                     }`
                   }
@@ -112,7 +112,7 @@ export default function Layout() {
                   }
                 </div>
               </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold uppercase text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#064E3B] text-sm font-semibold uppercase text-white">
                 {user?.name?.[0] || "U"}
               </div>
               <button
@@ -144,7 +144,7 @@ export default function Layout() {
                   onClick={() => setMobileOpen(false)}
                   className={({ isActive }) =>
                     `flex items-center gap-2 rounded-sm px-3 py-3 text-sm font-medium ${
-                      isActive ? "bg-slate-900 text-white" : "text-slate-700"
+                      isActive ? "bg-[#064E3B] text-white" : "text-slate-700"
                     }`
                   }
                 >

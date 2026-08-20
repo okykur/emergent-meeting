@@ -6,7 +6,7 @@ import { Plus, ListChecks, Car as CarIcon, ArrowRight, Loader2 } from "lucide-re
 import { formatDate } from "../../utils/dates";
 import { vehicleServiceLabel } from "../../utils/carBookingRules";
 
-function StatCard({ label, value, accent = "#0055FF" }) {
+function StatCard({ label, value, accent = "#0B7A4B" }) {
   return (
     <div
       className="rounded-sm border border-slate-200 bg-white p-5 shadow-sm"
@@ -64,7 +64,7 @@ export default function CarHome() {
           <Link
             to="/car/new"
             data-testid="new-car-booking-btn"
-            className="inline-flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]"
+            className="inline-flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]"
           >
             <Plus className="h-4 w-4" />
             New Booking
@@ -91,7 +91,7 @@ export default function CarHome() {
         <h2 className="font-display text-xl font-semibold tracking-tight text-slate-900">
           Upcoming
         </h2>
-        <Link to="/my-bookings" className="text-sm font-semibold text-[#0055FF] hover:underline">
+        <Link to="/my-bookings" className="text-sm font-semibold text-[#0B7A4B] hover:underline">
           View all <ArrowRight className="inline h-3 w-3" />
         </Link>
       </div>
@@ -142,7 +142,7 @@ export default function CarHome() {
                     <Link
                       to={`/car/bookings/${b.id}`}
                       data-testid={`car-detail-${b.id}`}
-                      className="text-sm font-semibold text-[#0055FF] hover:underline"
+                      className="text-sm font-semibold text-[#0B7A4B] hover:underline"
                     >
                       Open →
                     </Link>

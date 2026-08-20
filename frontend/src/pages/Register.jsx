@@ -53,7 +53,7 @@ export default function Register() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f8f9fa] px-6 py-12" data-testid="register-pending-page">
+      <div className="flex min-h-screen items-center justify-center bg-[#F7FAF8] px-6 py-12" data-testid="register-pending-page">
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center gap-2">
             <img
@@ -76,7 +76,7 @@ export default function Register() {
           </div>
           <Link
             to="/login"
-            className="mt-6 inline-flex w-full items-center justify-center rounded-sm bg-[#0055FF] px-4 py-2.5 font-medium text-white transition-colors hover:bg-[#0044CC]"
+            className="mt-6 inline-flex w-full items-center justify-center rounded-sm bg-[#0B7A4B] px-4 py-2.5 font-medium text-white transition-colors hover:bg-[#064E3B]"
             data-testid="register-pending-login-link"
           >
             Go to sign in
@@ -87,7 +87,7 @@ export default function Register() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f8f9fa] px-6 py-12" data-testid="register-page">
+    <div className="flex min-h-screen items-center justify-center bg-[#F7FAF8] px-6 py-12" data-testid="register-page">
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center gap-2">
           <img
@@ -106,7 +106,7 @@ export default function Register() {
           Already have an account?{" "}
           <Link
             to="/login"
-            className="font-medium text-[#0055FF] hover:underline"
+            className="font-medium text-[#0B7A4B] hover:underline"
             data-testid="go-login-link"
           >
             Sign in
@@ -121,7 +121,7 @@ export default function Register() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               placeholder="Alex Rivera"
             />
           </div>
@@ -132,7 +132,7 @@ export default function Register() {
               required
               value={company}
               onChange={(e) => setCompany(e.target.value)}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               placeholder="Acme Corp."
             />
           </div>
@@ -143,7 +143,7 @@ export default function Register() {
               required
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               placeholder="Manager"
             />
           </div>
@@ -154,7 +154,7 @@ export default function Register() {
               required
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               placeholder="Operations"
             />
           </div>
@@ -165,7 +165,7 @@ export default function Register() {
               required
               value={officeAddress}
               onChange={(e) => setOfficeAddress(e.target.value)}
-              className="min-h-20 w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              className="min-h-20 w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               placeholder="KCSI office address"
             />
           </div>
@@ -177,7 +177,7 @@ export default function Register() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               placeholder="alex@company.com"
             />
           </div>
@@ -190,7 +190,7 @@ export default function Register() {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               placeholder="At least 6 characters"
             />
           </div>
@@ -206,7 +206,7 @@ export default function Register() {
             type="submit"
             disabled={loading}
             data-testid="register-submit-btn"
-            className="flex w-full items-center justify-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2.5 font-medium text-white transition-colors hover:bg-[#0044CC] disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2.5 font-medium text-white transition-colors hover:bg-[#064E3B] disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Create account

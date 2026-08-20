@@ -20,7 +20,7 @@ function RoleTag({ role }) {
     super_admin: {
       label: "Super Admin",
       icon: Shield,
-      cls: "border-[#0055FF]/30 bg-[#0055FF]/10 text-[#0055FF]",
+      cls: "border-[#0B7A4B]/30 bg-[#0B7A4B]/10 text-[#0B7A4B]",
     },
     meeting_admin: {
       label: "Meeting Admin",
@@ -180,7 +180,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
                   data-testid="user-email-input"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                  className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
                 />
               </div>
               <div>
@@ -194,7 +194,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
                   data-testid="user-password-input"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                  className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
                 />
               </div>
             </>
@@ -206,7 +206,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               data-testid="user-name-input"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
             />
           </div>
           <div>
@@ -215,7 +215,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               data-testid="user-company-input"
               value={form.company_name}
               onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
             />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -225,7 +225,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
                 data-testid="user-job-title-input"
                 value={form.job_title}
                 onChange={(e) => setForm({ ...form, job_title: e.target.value })}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
             <div>
@@ -234,7 +234,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
                 data-testid="user-department-input"
                 value={form.department}
                 onChange={(e) => setForm({ ...form, department: e.target.value })}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
           </div>
@@ -244,7 +244,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               data-testid="user-office-address-input"
               value={form.office_address}
               onChange={(e) => setForm({ ...form, office_address: e.target.value })}
-              className="min-h-20 w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              className="min-h-20 w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
             />
           </div>
           <div>
@@ -253,7 +253,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               data-testid="user-role-select"
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
             >
               <option value="user">User</option>
               <option value="meeting_admin">Meeting Admin — approve meeting-room bookings</option>
@@ -273,7 +273,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
                 value={form.meeting_buildings}
                 onChange={(e) => setForm({ ...form, meeting_buildings: e.target.value })}
                 placeholder="Head Office, Annex"
-                className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
               <p className="mt-1 text-xs text-slate-500">
                 Satu meeting admin bisa menangani beberapa gedung. Pisahkan dengan koma.
@@ -288,7 +288,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
                 value={form.fnb_locations}
                 onChange={(e) => setForm({ ...form, fnb_locations: e.target.value })}
                 placeholder="Kudus, Pulogadung"
-                className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
               <p className="mt-1 text-xs text-slate-500">
                 Satu manager bisa menangani approval meeting room dan F&amp;B untuk beberapa lokasi. Pisahkan dengan koma.
@@ -327,7 +327,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               type="submit"
               disabled={loading}
               data-testid="user-submit-btn"
-              className="flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60"
+              className="flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {initial ? "Save changes" : "Create user"}
@@ -401,7 +401,7 @@ function PasswordDialog({ user, onClose, onSaved }) {
               data-testid="new-password-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               autoFocus
             />
           </div>
@@ -414,7 +414,7 @@ function PasswordDialog({ user, onClose, onSaved }) {
               data-testid="confirm-password-input"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
             />
           </div>
           <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
@@ -437,7 +437,7 @@ function PasswordDialog({ user, onClose, onSaved }) {
               type="submit"
               disabled={loading}
               data-testid="password-submit-btn"
-              className="flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60"
+              className="flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Reset password
@@ -517,7 +517,7 @@ export default function AdminUsers() {
         <button
           onClick={() => setEditing("new")}
           data-testid="add-user-btn"
-          className="inline-flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]"
+          className="inline-flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]"
         >
           <UserPlus className="h-4 w-4" />
           Add User
@@ -538,14 +538,14 @@ export default function AdminUsers() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search by name, email, or company…"
-            className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+            className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
           />
         </div>
         <select
           data-testid="users-role-filter"
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
         >
           <option value="">All roles</option>
           <option value="user">Users</option>
@@ -558,7 +558,7 @@ export default function AdminUsers() {
           data-testid="users-approval-filter"
           value={approval}
           onChange={(e) => setApproval(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
         >
           <option value="">All approvals</option>
           <option value="pending">Pending approval</option>
@@ -614,14 +614,14 @@ export default function AdminUsers() {
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold uppercase text-white">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#064E3B] text-xs font-semibold uppercase text-white">
                         {u.name?.[0] || "U"}
                       </div>
                       <div>
                         <div className="font-medium text-slate-900">
                           {u.name}
                           {me?.id === u.id && (
-                            <span className="ml-2 text-[11px] font-normal text-[#0055FF]">(you)</span>
+                            <span className="ml-2 text-[11px] font-normal text-[#0B7A4B]">(you)</span>
                           )}
                         </div>
                       </div>

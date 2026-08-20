@@ -466,7 +466,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
             <p className="mt-1 text-xs font-medium text-slate-500">
               Operational hours: {roomOperatingHoursLabel(room)}
             </p>
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#0055FF]">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#0B7A4B]">
               {room.building || "Unassigned"}
             </p>
             <p className="text-xs text-slate-500">
@@ -490,7 +490,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               onChange={(e) => setTitle(e.target.value)}
               data-testid="booking-title-input"
               placeholder="Q2 Strategy Review"
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
             />
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -504,7 +504,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 data-testid="booking-date-input"
-                className="w-full rounded-sm border border-slate-300 px-2 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                className="w-full rounded-sm border border-slate-300 px-2 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               />
             </div>
             <div>
@@ -516,7 +516,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                 value={startTime}
                 onChange={setStartTime}
                 data-testid="booking-start-input"
-                className="w-full rounded-sm border border-slate-300 px-2 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                className="w-full rounded-sm border border-slate-300 px-2 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               />
             </div>
             <div>
@@ -528,7 +528,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                 value={endTime}
                 onChange={setEndTime}
                 data-testid="booking-end-input"
-                className="w-full rounded-sm border border-slate-300 px-2 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                className="w-full rounded-sm border border-slate-300 px-2 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               />
             </div>
           </div>
@@ -591,7 +591,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               value={participants}
               onChange={(e) => setParticipants(e.target.value)}
               data-testid="booking-participants-input"
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
             />
           </div>
           {canChooseLayout ? (
@@ -606,7 +606,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                     if (e.target.value !== "Lainnya") setLayoutOther("");
                   }}
                   data-testid="booking-layout-select"
-                  className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                  className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
                 >
                   <option value="">Select layout</option>
                   {LAYOUT_OPTIONS.map((layout) => (
@@ -625,7 +625,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                     onChange={(e) => setLayoutOther(e.target.value)}
                     data-testid="booking-layout-other-input"
                     placeholder="Contoh: boardroom custom, cluster, standing discussion"
-                    className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                    className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
                   />
                 </div>
               )}
@@ -643,7 +643,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               onChange={(e) => setPhoneNumber(e.target.value)}
               data-testid="booking-phone-input"
               placeholder="0812 3456 7890"
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
             />
           </div>
           <div className="space-y-3 rounded-sm border border-slate-200 bg-slate-50 p-3">
@@ -691,23 +691,23 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-medium text-slate-700">Departement</label>
-                    <input value={fnbDetails.department} onChange={(e) => setFnbDetail("department", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+                    <input value={fnbDetails.department} onChange={(e) => setFnbDetail("department", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-slate-700">Divisi</label>
-                    <input value={fnbDetails.division} onChange={(e) => setFnbDetail("division", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+                    <input value={fnbDetails.division} onChange={(e) => setFnbDetail("division", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-slate-700">Cost Center</label>
-                    <input value={fnbDetails.costCenter} onChange={(e) => setFnbDetail("costCenter", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+                    <input value={fnbDetails.costCenter} onChange={(e) => setFnbDetail("costCenter", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-slate-700">Activity Code</label>
-                    <input value={fnbDetails.activityCode} onChange={(e) => setFnbDetail("activityCode", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+                    <input value={fnbDetails.activityCode} onChange={(e) => setFnbDetail("activityCode", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
                   </div>
                   <div className="sm:col-span-2">
                     <label className="mb-1 block text-xs font-medium text-slate-700">Activity Name</label>
-                    <input value={fnbDetails.activityName} onChange={(e) => setFnbDetail("activityName", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+                    <input value={fnbDetails.activityName} onChange={(e) => setFnbDetail("activityName", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
                   </div>
                 </div>
                 <div>
@@ -768,7 +768,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                         value={fnbDetails.snackType}
                         onChange={(e) => setFnbDetail("snackType", e.target.value)}
                         placeholder="Contoh: morning snack"
-                        className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                        className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
                       />
                     </div>
                     <div>
@@ -779,7 +779,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                         value={fnbDetails.snackTimes}
                         onChange={(e) => setFnbDetail("snackTimes", e.target.value)}
                         placeholder="1"
-                        className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                        className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
                       />
                     </div>
                     <div>
@@ -790,7 +790,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                         value={fnbDetails.snackPax}
                         onChange={(e) => setFnbDetail("snackPax", e.target.value)}
                         placeholder="10"
-                        className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                        className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
                       />
                     </div>
                   </div>
@@ -822,7 +822,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                       value={fnbDetails.mealPax}
                       onChange={(e) => setFnbDetail("mealPax", e.target.value)}
                       placeholder="10"
-                      className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                      className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
                     />
                   </div>
                   <div>
@@ -848,7 +848,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                 data-testid="booking-food-beverages-input"
                 rows={2}
                 placeholder="Catatan optional: morning snack, evening snack, kopi"
-                className="w-full resize-none rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                className="w-full resize-none rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               />
             </div>
           ) : (
@@ -864,7 +864,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               data-testid="booking-notes-input"
               rows={3}
               placeholder="AV setup, catering, etc."
-              className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+              className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
             />
           </div>
           {error && (
@@ -894,7 +894,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                 isTodayPastOperatingHours
               }
               data-testid="booking-submit-btn"
-              className="flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60"
+              className="flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />}
               Submit request

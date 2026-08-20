@@ -63,7 +63,7 @@ export default function AdminCarsDashboard() {
       )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <Metric label="Vehicles" value={stats?.total_vehicles ?? "—"} accent="#0055FF" icon={CarIcon} testid="va-total" />
+        <Metric label="Vehicles" value={stats?.total_vehicles ?? "—"} accent="#0B7A4B" icon={CarIcon} testid="va-total" />
         <Metric label="Available" value={stats?.available_vehicles ?? "—"} accent="#10B981" icon={CheckCircle2} testid="va-available" />
         <Metric label="In Use" value={stats?.in_use_vehicles ?? "—"} accent="#0EA5E9" icon={Clock} testid="va-inuse" />
         <Metric label="Maintenance" value={stats?.maintenance_vehicles ?? "—"} accent="#F59E0B" icon={Wrench} testid="va-maintenance" />
@@ -81,7 +81,7 @@ export default function AdminCarsDashboard() {
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Approval Queue</div>
           <h2 className="font-display text-2xl font-semibold tracking-tight text-slate-900">Pending booking requests</h2>
         </div>
-        <Link to="/admin/cars/bookings" className="text-sm font-semibold text-[#0055FF] hover:underline">
+        <Link to="/admin/cars/bookings" className="text-sm font-semibold text-[#0B7A4B] hover:underline">
           View all <ArrowRight className="inline h-3 w-3" />
         </Link>
       </div>
@@ -121,7 +121,7 @@ export default function AdminCarsDashboard() {
                   </td>
                   <td className="px-6 py-4"><VBStatusPill status={b.status} /></td>
                   <td className="px-6 py-4 text-right">
-                    <Link to={`/admin/cars/bookings/${b.id}`} className="text-sm font-semibold text-[#0055FF] hover:underline">
+                    <Link to={`/admin/cars/bookings/${b.id}`} className="text-sm font-semibold text-[#0B7A4B] hover:underline">
                       Review →
                     </Link>
                   </td>

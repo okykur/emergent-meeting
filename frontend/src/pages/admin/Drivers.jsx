@@ -37,32 +37,32 @@ function DriverDialog({ initial, onClose, onSaved }) {
         <form onSubmit={submit} className="space-y-3 p-5" data-testid="driver-form">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Name *</label>
-            <input required data-testid="dr-name" value={form.name} onChange={(e) => set("name", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+            <input required data-testid="dr-name" value={form.name} onChange={(e) => set("name", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Phone</label>
-              <input data-testid="dr-phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+              <input data-testid="dr-phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">License #</label>
-              <input data-testid="dr-license" value={form.license_number} onChange={(e) => set("license_number", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+              <input data-testid="dr-license" value={form.license_number} onChange={(e) => set("license_number", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
             </div>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Status</label>
-            <select data-testid="dr-status" value={form.status} onChange={(e) => set("status", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]">
+            <select data-testid="dr-status" value={form.status} onChange={(e) => set("status", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]">
               {STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
             </select>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Notes</label>
-            <textarea rows={2} data-testid="dr-notes" value={form.notes} onChange={(e) => set("notes", e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+            <textarea rows={2} data-testid="dr-notes" value={form.notes} onChange={(e) => set("notes", e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
           </div>
           {error && <div className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-sm border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-            <button type="submit" disabled={loading} data-testid="dr-submit" className="flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60">
+            <button type="submit" disabled={loading} data-testid="dr-submit" className="flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60">
               {loading && <Loader2 className="h-4 w-4 animate-spin" />} {initial ? "Save" : "Create"}
             </button>
           </div>
@@ -96,7 +96,7 @@ export default function AdminDrivers() {
           <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">Car Drivers</h1>
           <p className="mt-2 text-sm text-slate-500">Manage driver roster and assignment availability.</p>
         </div>
-        <button onClick={() => setEditing("new")} data-testid="add-driver-btn" className="inline-flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]">
+        <button onClick={() => setEditing("new")} data-testid="add-driver-btn" className="inline-flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]">
           <Plus className="h-4 w-4" /> Add Driver
         </button>
       </div>
@@ -107,7 +107,7 @@ export default function AdminDrivers() {
           <div key={d.id} data-testid={`driver-card-${d.id}`} className="rounded-sm border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold uppercase text-white">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#064E3B] text-sm font-semibold uppercase text-white">
                   {d.name?.[0] || "D"}
                 </div>
                 <div>

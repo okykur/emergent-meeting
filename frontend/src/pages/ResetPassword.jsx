@@ -40,7 +40,7 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f8f9fa] lg:flex-row" data-testid="reset-password-page">
+    <div className="flex min-h-screen flex-col bg-[#F7FAF8] lg:flex-row" data-testid="reset-password-page">
       <div className="relative hidden border-r border-slate-200 bg-white lg:flex lg:w-1/2 lg:flex-col lg:justify-between lg:overflow-hidden lg:p-12">
         <div className="flex items-center gap-2">
           <img
@@ -50,7 +50,7 @@ export default function ResetPassword() {
           />
         </div>
         <div>
-          <div className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#0055FF]">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#0B7A4B]">
             New Password
           </div>
           <h1 className="font-display text-5xl font-bold leading-tight text-slate-900">
@@ -86,7 +86,7 @@ export default function ResetPassword() {
           </h2>
           <p className="mt-2 text-sm text-slate-500">
             Need a new link?{" "}
-            <Link to="/forgot-password" className="font-medium text-[#0055FF] hover:underline">
+            <Link to="/forgot-password" className="font-medium text-[#0B7A4B] hover:underline">
               Request again
             </Link>
           </p>
@@ -101,7 +101,7 @@ export default function ResetPassword() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
                 placeholder="At least 6 characters"
               />
             </div>
@@ -114,7 +114,7 @@ export default function ResetPassword() {
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
                 placeholder="Repeat new password"
               />
             </div>
@@ -133,7 +133,7 @@ export default function ResetPassword() {
               type="submit"
               disabled={loading || Boolean(message)}
               data-testid="reset-password-submit-btn"
-              className="flex w-full items-center justify-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2.5 font-medium text-white transition-colors hover:bg-[#0044CC] disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2.5 font-medium text-white transition-colors hover:bg-[#064E3B] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Update password

@@ -244,7 +244,7 @@ export default function BookingsCalendar({ scope = "mine", title = "Calendar" })
                 onClick={() => setFilter(t.k)}
                 data-testid={`cal-filter-${t.k}`}
                 className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
-                  active ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-900"
+                  active ? "bg-[#064E3B] text-white" : "text-slate-500 hover:text-slate-900"
                 }`}
               >
                 {Icon && <Icon className="h-3.5 w-3.5" />} {t.label}
@@ -313,13 +313,13 @@ export default function BookingsCalendar({ scope = "mine", title = "Calendar" })
                 data-testid={`cal-day-${ymd}`}
                 className={`flex min-h-[96px] flex-col items-start gap-1 border-b border-r border-slate-200 p-2 text-left transition-colors last:border-r-0 ${
                   cell.outside ? "bg-slate-50/50 text-slate-400" : "text-slate-900 hover:bg-slate-50"
-                } ${isSelected ? "ring-2 ring-inset ring-[#0055FF]" : ""}`}
+                } ${isSelected ? "ring-2 ring-inset ring-[#0B7A4B]" : ""}`}
               >
                 <div className="flex w-full items-center justify-between">
                   <span
                     className={`text-sm font-semibold ${
                       isToday
-                        ? "flex h-6 w-6 items-center justify-center rounded-full bg-[#0055FF] text-white"
+                        ? "flex h-6 w-6 items-center justify-center rounded-full bg-[#0B7A4B] text-white"
                         : ""
                     }`}
                   >
@@ -371,7 +371,7 @@ export default function BookingsCalendar({ scope = "mine", title = "Calendar" })
           data-testid="cal-day-detail"
         >
           <div className="mb-4 flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-[#0055FF]" />
+            <CalendarDays className="h-4 w-4 text-[#0B7A4B]" />
             <h3 className="font-display text-lg font-semibold text-slate-900">
               {formatDate(selected)}
             </h3>

@@ -266,28 +266,28 @@ function ManagerMeetingTab() {
       <form onSubmit={(event) => { event.preventDefault(); load(); }} className="mb-6 grid grid-cols-1 gap-3 rounded-sm border border-slate-200 bg-white p-4 md:grid-cols-6">
         <div className="relative md:col-span-2">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input value={userQ} onChange={(event) => setUserQ(event.target.value)} placeholder="Search user, email, title, or F&B..." className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15" />
+          <input value={userQ} onChange={(event) => setUserQ(event.target.value)} placeholder="Search user, email, title, or F&B..." className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15" />
         </div>
-        <select value={bookingStatus} onChange={(event) => setBookingStatus(event.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]">
+        <select value={bookingStatus} onChange={(event) => setBookingStatus(event.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]">
           <option value="">All meeting statuses</option>
           <option value="pending">Waiting room approval</option>
           <option value="confirmed">Room approved</option>
           <option value="cancelled">Cancelled</option>
           <option value="completed">Completed</option>
         </select>
-        <select value={fnbStatus} onChange={(event) => setFnbStatus(event.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]">
+        <select value={fnbStatus} onChange={(event) => setFnbStatus(event.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]">
           <option value="">All F&amp;B statuses</option>
           <option value="pending">F&amp;B pending</option>
           <option value="approved">F&amp;B approved</option>
           <option value="rejected">F&amp;B rejected</option>
           <option value="not_required">No F&amp;B</option>
         </select>
-        <select value={building} onChange={(event) => setBuilding(event.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]">
+        <select value={building} onChange={(event) => setBuilding(event.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]">
           <option value="">All locations</option>
           {buildings.map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
         <div className="flex gap-2">
-          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="min-w-0 flex-1 rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="min-w-0 flex-1 rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
           <button type="submit" className="inline-flex items-center gap-2 rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             <Filter className="h-4 w-4" /> Filter
           </button>
@@ -330,7 +330,7 @@ function ManagerMeetingTab() {
                   </td>
                   <td className="px-6 py-4 text-slate-700">
                     <div>{booking.room_name}</div>
-                    <div className="text-xs font-semibold uppercase tracking-wider text-[#0055FF]">{booking.room_building || "Unassigned"}</div>
+                    <div className="text-xs font-semibold uppercase tracking-wider text-[#0B7A4B]">{booking.room_building || "Unassigned"}</div>
                   </td>
                   <td className="px-6 py-4 text-slate-700">
                     <div className="font-medium text-slate-900">{booking.title}</div>
@@ -418,15 +418,15 @@ function ManagerCarTab() {
       <form onSubmit={(event) => { event.preventDefault(); load(); }} className="mb-6 grid grid-cols-1 gap-3 rounded-sm border border-slate-200 bg-white p-4 md:grid-cols-[1fr_auto_auto_auto]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input value={userQ} onChange={(event) => setUserQ(event.target.value)} placeholder="Search employee, email, or job title..." className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0055FF]" />
+          <input value={userQ} onChange={(event) => setUserQ(event.target.value)} placeholder="Search employee, email, or job title..." className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0B7A4B]" />
         </div>
-        <select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]">
+        <select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]">
           <option value="">All car statuses</option>
           {["pending", "approved", "assigned", "in_use", "completed", "cancelled", "rejected"].map((item) => (
             <option key={item} value={item}>{item.replace("_", " ")}</option>
           ))}
         </select>
-        <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+        <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
         <button type="submit" className="inline-flex items-center gap-2 rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
           <Filter className="h-4 w-4" /> Filter
         </button>
@@ -464,7 +464,7 @@ function ManagerCarTab() {
                 <td className="px-6 py-4 text-slate-700">{booking.vehicle_name ? `${booking.vehicle_name} - ${booking.vehicle_plate}` : "-"}</td>
                 <td className="px-6 py-4"><VBStatusPill status={booking.status} /></td>
                 <td className="px-6 py-4 text-right">
-                  <Link to={`/admin/cars/bookings/${booking.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-[#0055FF] hover:underline">
+                  <Link to={`/admin/cars/bookings/${booking.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-[#0B7A4B] hover:underline">
                     <Eye className="h-4 w-4" /> Detail
                   </Link>
                 </td>
@@ -494,14 +494,14 @@ export default function AdminFnbApprovals() {
         <button
           type="button"
           onClick={() => setTab("meeting")}
-          className={`border-b-2 px-4 py-3 text-sm font-semibold ${tab === "meeting" ? "border-[#0055FF] text-[#0055FF]" : "border-transparent text-slate-500 hover:text-slate-900"}`}
+          className={`border-b-2 px-4 py-3 text-sm font-semibold ${tab === "meeting" ? "border-[#0B7A4B] text-[#0B7A4B]" : "border-transparent text-slate-500 hover:text-slate-900"}`}
         >
           Meeting Room
         </button>
         <button
           type="button"
           onClick={() => setTab("car")}
-          className={`border-b-2 px-4 py-3 text-sm font-semibold ${tab === "car" ? "border-[#0055FF] text-[#0055FF]" : "border-transparent text-slate-500 hover:text-slate-900"}`}
+          className={`border-b-2 px-4 py-3 text-sm font-semibold ${tab === "car" ? "border-[#0B7A4B] text-[#0B7A4B]" : "border-transparent text-slate-500 hover:text-slate-900"}`}
         >
           Car Booking
         </button>

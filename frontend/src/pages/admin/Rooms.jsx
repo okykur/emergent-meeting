@@ -102,7 +102,7 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
                 data-testid="room-name-input"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
               />
             </div>
             <div>
@@ -113,7 +113,7 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
                 value={form.building || ""}
                 onChange={(e) => setForm({ ...form, building: e.target.value })}
                 placeholder="Head Office"
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
             <div>
@@ -123,7 +123,7 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
                 data-testid="room-location-input"
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
             <div>
@@ -135,7 +135,7 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
                 data-testid="room-capacity-input"
                 value={form.capacity}
                 onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
             <div className="col-span-2">
@@ -145,7 +145,7 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
                 value={form.facilities}
                 onChange={(e) => setForm({ ...form, facilities: e.target.value })}
                 placeholder="Projector, Whiteboard, Video Conference"
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
             <div>
@@ -156,7 +156,7 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
                 data-testid="room-operating-start-input"
                 value={form.operating_start_time || "08:00"}
                 onChange={(e) => setForm({ ...form, operating_start_time: e.target.value })}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
             <div>
@@ -167,7 +167,7 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
                 data-testid="room-operating-end-input"
                 value={form.operating_end_time || "17:30"}
                 onChange={(e) => setForm({ ...form, operating_end_time: e.target.value })}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
             <label className="col-span-2 flex items-start gap-3 rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
@@ -213,7 +213,7 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
                 value={form.image_url || ""}
                 onChange={(e) => setForm({ ...form, image_url: e.target.value })}
                 placeholder="https://…"
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
             <div className="col-span-2">
@@ -223,7 +223,7 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
                 data-testid="room-description-input"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
             <label className="col-span-2 flex items-center gap-2 text-sm text-slate-700">
@@ -253,7 +253,7 @@ function RoomFormDialog({ initial, currentUser, onClose, onSaved }) {
               type="submit"
               disabled={loading}
               data-testid="room-submit-btn"
-              className="flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60"
+              className="flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {initial ? "Save changes" : "Create room"}
@@ -326,7 +326,7 @@ export default function AdminRooms() {
           onClick={() => setEditing("new")}
           disabled={!canCreateRoom}
           data-testid="add-room-btn"
-          className="inline-flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+          className="inline-flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
           title={!canCreateRoom ? "Assign at least one meeting building to this admin first" : "Add Room"}
         >
           <Plus className="h-4 w-4" />
@@ -360,7 +360,7 @@ export default function AdminRooms() {
                   <Users className="h-3 w-3" /> {r.capacity}
                 </div>
               </div>
-              <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-[#0055FF]">
+              <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-[#0B7A4B]">
                 {r.building || "Unassigned"}
               </div>
               <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">

@@ -39,7 +39,7 @@ function Field({ label, children }) {
 }
 
 function inputClass(readOnly = false) {
-  return `w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] ${
+  return `w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] ${
     readOnly ? "bg-slate-50 text-slate-500" : ""
   }`;
 }
@@ -118,7 +118,7 @@ function PassengerDialog({ initial, onClose, onSave }) {
           <button
             type="button"
             onClick={save}
-            className="rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]"
+            className="rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]"
           >
             Save
           </button>
@@ -379,12 +379,12 @@ export default function CarBookingNew() {
                   onClick={() => selectServiceType(option.value)}
                   data-testid={`service-type-${option.value}`}
                   className={`flex items-start gap-3 rounded-sm border-2 p-4 text-left transition-colors ${
-                    selected ? "border-[#0055FF] bg-[#0055FF]/5" : "border-slate-200 hover:border-slate-300"
+                    selected ? "border-[#0B7A4B] bg-[#0B7A4B]/5" : "border-slate-200 hover:border-slate-300"
                   }`}
                 >
-                  <Icon className={`mt-0.5 h-5 w-5 ${selected ? "text-[#0055FF]" : "text-slate-500"}`} />
+                  <Icon className={`mt-0.5 h-5 w-5 ${selected ? "text-[#0B7A4B]" : "text-slate-500"}`} />
                   <div>
-                    <div className={`font-semibold ${selected ? "text-[#0055FF]" : "text-slate-900"}`}>
+                    <div className={`font-semibold ${selected ? "text-[#0B7A4B]" : "text-slate-900"}`}>
                       {option.title}
                     </div>
                     <div className="text-xs text-slate-500">{option.description}</div>
@@ -419,10 +419,10 @@ export default function CarBookingNew() {
                         onClick={() => set("with_driver", option.value)}
                         data-testid={`driver-option-${option.value ? "with-driver" : "without-driver"}`}
                         className={`rounded-sm border p-3 text-left transition-colors ${
-                          selected ? "border-[#0055FF] bg-[#0055FF]/5" : "border-slate-200 hover:border-slate-300"
+                          selected ? "border-[#0B7A4B] bg-[#0B7A4B]/5" : "border-slate-200 hover:border-slate-300"
                         }`}
                       >
-                        <div className={`text-sm font-semibold ${selected ? "text-[#0055FF]" : "text-slate-900"}`}>
+                        <div className={`text-sm font-semibold ${selected ? "text-[#0B7A4B]" : "text-slate-900"}`}>
                           {option.title}
                         </div>
                         <div className="mt-0.5 text-[11px] leading-snug text-slate-500">{option.description}</div>
@@ -603,7 +603,7 @@ export default function CarBookingNew() {
                       <button
                         type="button"
                         onClick={() => setPassengerDialog({ index, initial: passenger })}
-                        className="mr-3 text-sm font-semibold text-[#0055FF] hover:underline"
+                        className="mr-3 text-sm font-semibold text-[#0B7A4B] hover:underline"
                       >
                         Edit
                       </button>
@@ -632,7 +632,7 @@ export default function CarBookingNew() {
                   <button
                     type="button"
                     onClick={() => setPassengerDialog({ index, initial: passenger })}
-                    className="text-sm font-semibold text-[#0055FF]"
+                    className="text-sm font-semibold text-[#0B7A4B]"
                   >
                     Edit
                   </button>
@@ -693,7 +693,7 @@ export default function CarBookingNew() {
                   <div className="text-xs text-slate-500">{formatBytes(proInFile.size)}</div>
                 </div>
                 <div className="flex gap-3">
-                  <a href={proInFile.data_url} target="_blank" rel="noreferrer" className="font-semibold text-[#0055FF]">
+                  <a href={proInFile.data_url} target="_blank" rel="noreferrer" className="font-semibold text-[#0B7A4B]">
                     View
                   </a>
                   <button type="button" onClick={() => setProInFile(null)} className="font-semibold text-red-600">
@@ -728,7 +728,7 @@ export default function CarBookingNew() {
           </div>
         )}
 
-        <div className="sticky bottom-0 z-20 flex flex-col justify-end gap-2 border-t border-slate-200 bg-[#f8f9fa]/95 py-4 backdrop-blur sm:flex-row">
+        <div className="sticky bottom-0 z-20 flex flex-col justify-end gap-2 border-t border-slate-200 bg-[#F7FAF8]/95 py-4 backdrop-blur sm:flex-row">
           <button
             type="button"
             onClick={() => navigate("/hub")}
@@ -747,7 +747,7 @@ export default function CarBookingNew() {
             type="submit"
             disabled={loading}
             data-testid="cf-submit-btn"
-            className="flex items-center justify-center gap-2 rounded-sm bg-[#0055FF] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60"
+            className="flex items-center justify-center gap-2 rounded-sm bg-[#0B7A4B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Submit Booking

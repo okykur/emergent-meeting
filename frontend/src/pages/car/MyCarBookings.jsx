@@ -43,7 +43,7 @@ export default function MyCarBookings() {
         </div>
         <Link
           to="/car/new"
-          className="inline-flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]"
+          className="inline-flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]"
         >
           <Plus className="h-4 w-4" /> New Booking
         </Link>
@@ -56,7 +56,7 @@ export default function MyCarBookings() {
             onClick={() => setFilter(s)}
             data-testid={`mcb-filter-${s}`}
             className={`rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
-              filter === s ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-900"
+              filter === s ? "bg-[#064E3B] text-white" : "text-slate-500 hover:text-slate-900"
             }`}
           >
             {s.replace("_", " ")}
@@ -119,7 +119,7 @@ export default function MyCarBookings() {
                     <Link
                       to={`/car/bookings/${b.id}`}
                       data-testid={`mcb-detail-${b.id}`}
-                      className="text-sm font-semibold text-[#0055FF] hover:underline"
+                      className="text-sm font-semibold text-[#0B7A4B] hover:underline"
                     >
                       Open →
                     </Link>

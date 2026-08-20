@@ -14,7 +14,7 @@ import {
 import { StatusPill } from "../../components/Status";
 import { formatDate } from "../../utils/dates";
 
-function Metric({ icon: Icon, label, value, accent = "#0055FF", testid }) {
+function Metric({ icon: Icon, label, value, accent = "#0B7A4B", testid }) {
   return (
     <div
       className="rounded-sm border border-slate-200 bg-white p-5 shadow-sm"
@@ -92,7 +92,7 @@ export default function AdminDashboard() {
       )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-        <Metric icon={DoorOpen} label="Total Rooms" value={stats?.total_rooms ?? "—"} accent="#0055FF" testid="stat-total-rooms" />
+        <Metric icon={DoorOpen} label="Total Rooms" value={stats?.total_rooms ?? "—"} accent="#0B7A4B" testid="stat-total-rooms" />
         <Metric icon={CheckCircle2} label="Active Rooms" value={stats?.active_rooms ?? "—"} accent="#10B981" testid="stat-active-rooms" />
         <Metric icon={AlertCircle} label="Pending" value={stats?.pending_bookings ?? "—"} accent="#F59E0B" testid="stat-pending" />
         <Metric icon={CalendarCheck2} label="Confirmed" value={stats?.confirmed_bookings ?? "—"} accent="#3B82F6" testid="stat-confirmed" />
@@ -112,7 +112,7 @@ export default function AdminDashboard() {
           </div>
           <Link
             to="/admin/bookings"
-            className="text-sm font-semibold text-[#0055FF] hover:underline"
+            className="text-sm font-semibold text-[#0B7A4B] hover:underline"
             data-testid="view-all-bookings-link"
           >
             View all →
@@ -152,7 +152,7 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4 text-slate-700">
                       <div>{b.room_name}</div>
-                      <div className="text-xs font-semibold uppercase tracking-wider text-[#0055FF]">
+                      <div className="text-xs font-semibold uppercase tracking-wider text-[#0B7A4B]">
                         {b.room_building || "Unassigned"}
                       </div>
                     </td>

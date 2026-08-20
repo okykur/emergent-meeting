@@ -54,45 +54,45 @@ function VehicleDialog({ initial, onClose, onSaved }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Plate number *</label>
-              <input required data-testid="vh-plate" value={form.plate_number} onChange={(e) => set("plate_number", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+              <input required data-testid="vh-plate" value={form.plate_number} onChange={(e) => set("plate_number", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Name / Model *</label>
-              <input required data-testid="vh-name" value={form.name} onChange={(e) => set("name", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+              <input required data-testid="vh-name" value={form.name} onChange={(e) => set("name", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Type</label>
-              <select data-testid="vh-type" value={form.type} onChange={(e) => set("type", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]">
+              <select data-testid="vh-type" value={form.type} onChange={(e) => set("type", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]">
                 {TYPES.map((t) => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Capacity *</label>
-              <input type="number" min={1} required data-testid="vh-capacity" value={form.capacity} onChange={(e) => set("capacity", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+              <input type="number" min={1} required data-testid="vh-capacity" value={form.capacity} onChange={(e) => set("capacity", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Year</label>
-              <input type="number" min={1990} max={2050} data-testid="vh-year" value={form.year || ""} onChange={(e) => set("year", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+              <input type="number" min={1990} max={2050} data-testid="vh-year" value={form.year || ""} onChange={(e) => set("year", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Status</label>
-              <select data-testid="vh-status" value={form.status} onChange={(e) => set("status", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]">
+              <select data-testid="vh-status" value={form.status} onChange={(e) => set("status", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]">
                 {STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
               </select>
             </div>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Image URL</label>
-            <input data-testid="vh-image" value={form.image_url || ""} onChange={(e) => set("image_url", e.target.value)} placeholder="https://…" className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+            <input data-testid="vh-image" value={form.image_url || ""} onChange={(e) => set("image_url", e.target.value)} placeholder="https://…" className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Notes</label>
-            <textarea rows={2} data-testid="vh-notes" value={form.notes} onChange={(e) => set("notes", e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+            <textarea rows={2} data-testid="vh-notes" value={form.notes} onChange={(e) => set("notes", e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
           </div>
           {error && <div className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-sm border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-            <button type="submit" disabled={loading} data-testid="vh-submit" className="flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60">
+            <button type="submit" disabled={loading} data-testid="vh-submit" className="flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60">
               {loading && <Loader2 className="h-4 w-4 animate-spin" />} {initial ? "Save" : "Create"}
             </button>
           </div>
@@ -126,7 +126,7 @@ export default function AdminVehicles() {
           <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">Car Vehicles</h1>
           <p className="mt-2 text-sm text-slate-500">Vehicles available for booking, with status & maintenance flags.</p>
         </div>
-        <button onClick={() => setEditing("new")} data-testid="add-vehicle-btn" className="inline-flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]">
+        <button onClick={() => setEditing("new")} data-testid="add-vehicle-btn" className="inline-flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]">
           <Plus className="h-4 w-4" /> Add Vehicle
         </button>
       </div>
@@ -149,7 +149,7 @@ export default function AdminVehicles() {
                   <UsersIcon className="mr-1 inline h-3 w-3" />{v.capacity}
                 </div>
               </div>
-              <div className="mt-2 inline-block rounded-sm bg-slate-900 px-2 py-1 text-xs font-mono font-semibold uppercase tracking-wider text-white">
+              <div className="mt-2 inline-block rounded-sm bg-[#064E3B] px-2 py-1 text-xs font-mono font-semibold uppercase tracking-wider text-white">
                 {v.plate_number}
               </div>
               <p className="mt-3 line-clamp-2 text-xs text-slate-500">{v.notes}</p>

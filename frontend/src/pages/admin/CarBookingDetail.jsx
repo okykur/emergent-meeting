@@ -44,7 +44,7 @@ function PhaseMedia({ info, scope }) {
                 href={url}
                 target="_blank"
                 rel="noreferrer"
-                className="block h-16 w-16 overflow-hidden rounded-sm border border-slate-200 hover:border-[#0055FF]"
+                className="block h-16 w-16 overflow-hidden rounded-sm border border-slate-200 hover:border-[#0B7A4B]"
                 data-testid={`admin-${scope}-photo-${idx}`}
               >
                 {/* eslint-disable-next-line */}
@@ -127,7 +127,7 @@ function AssignDialog({ booking, onClose, onSaved }) {
         <form onSubmit={submit} className="space-y-3 p-5" data-testid="assign-form">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Vehicle *</label>
-            <select required data-testid="assign-vehicle-select" value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]">
+            <select required data-testid="assign-vehicle-select" value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]">
               <option value="">— Select vehicle —</option>
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id} disabled={v.status === "maintenance"}>
@@ -139,7 +139,7 @@ function AssignDialog({ booking, onClose, onSaved }) {
           {booking.with_driver && (
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Driver</label>
-              <select data-testid="assign-driver-select" value={driverId} onChange={(e) => setDriverId(e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]">
+              <select data-testid="assign-driver-select" value={driverId} onChange={(e) => setDriverId(e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]">
                 <option value="">— Select driver —</option>
                 {drivers.map((d) => (
                   <option key={d.id} value={d.id}>{d.name} ({d.status})</option>
@@ -149,16 +149,16 @@ function AssignDialog({ booking, onClose, onSaved }) {
           )}
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Pickup schedule</label>
-            <input data-testid="assign-pickup" value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder="e.g. 2026-04-25 07:30 at HQ lobby" className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+            <input data-testid="assign-pickup" value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder="e.g. 2026-04-25 07:30 at HQ lobby" className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Internal remarks</label>
-            <textarea rows={2} data-testid="assign-notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+            <textarea rows={2} data-testid="assign-notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
           </div>
           {error && <div className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-sm border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-            <button type="submit" disabled={loading} data-testid="assign-submit" className="flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60">
+            <button type="submit" disabled={loading} data-testid="assign-submit" className="flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60">
               {loading && <Loader2 className="h-4 w-4 animate-spin" />} Assign
             </button>
           </div>
@@ -191,7 +191,7 @@ function RejectDialog({ booking, onClose, onSaved }) {
         <form onSubmit={submit} className="space-y-3 p-5" data-testid="reject-form">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Rejection reason *</label>
-            <textarea required rows={3} data-testid="reject-notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+            <textarea required rows={3} data-testid="reject-notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
           </div>
           {error && <div className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
@@ -272,7 +272,7 @@ function AdminConfirmDialog({ booking, scope, onClose, onSaved }) {
                 min={0}
                 value={isReturn ? form.odometer_end : form.odometer_start}
                 onChange={(e) => set(isReturn ? "odometer_end" : "odometer_start", e.target.value)}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               />
             </div>
             <div>
@@ -280,7 +280,7 @@ function AdminConfirmDialog({ booking, scope, onClose, onSaved }) {
               <select
                 value={isReturn ? form.fuel_level_end : form.fuel_level_start}
                 onChange={(e) => set(isReturn ? "fuel_level_end" : "fuel_level_start", e.target.value)}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
               >
                 {FUEL_LEVELS.map((f) => <option key={f}>{f}</option>)}
               </select>
@@ -288,12 +288,12 @@ function AdminConfirmDialog({ booking, scope, onClose, onSaved }) {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Condition</label>
-            <textarea rows={2} value={isReturn ? form.condition_after : form.condition_before} onChange={(e) => set(isReturn ? "condition_after" : "condition_before", e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+            <textarea rows={2} value={isReturn ? form.condition_after : form.condition_before} onChange={(e) => set(isReturn ? "condition_after" : "condition_before", e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
           </div>
           {isReturn && (
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Damage / inspection notes</label>
-              <textarea rows={2} value={form.damage_notes} onChange={(e) => set("damage_notes", e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+              <textarea rows={2} value={form.damage_notes} onChange={(e) => set("damage_notes", e.target.value)} className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
             </div>
           )}
           <div>
@@ -306,12 +306,12 @@ function AdminConfirmDialog({ booking, scope, onClose, onSaved }) {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Full name (printed) *</label>
-            <input required value={form.signature_name} onChange={(e) => set("signature_name", e.target.value)} placeholder="Type your full name" data-testid="admin-hd-signature" className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]" />
+            <input required value={form.signature_name} onChange={(e) => set("signature_name", e.target.value)} placeholder="Type your full name" data-testid="admin-hd-signature" className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
           </div>
           {error && <div className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-sm border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-            <button type="submit" disabled={loading} className="flex items-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60">
+            <button type="submit" disabled={loading} className="flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60">
               {loading && <Loader2 className="h-4 w-4 animate-spin" />} Confirm
             </button>
           </div>
@@ -383,7 +383,7 @@ export default function AdminCarBookingDetail() {
             </button>
           )}
           {canAssign && (
-            <button onClick={() => setDlg("assign")} data-testid="admin-assign-btn" className="inline-flex items-center gap-1 rounded-sm bg-[#0055FF] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]">
+            <button onClick={() => setDlg("assign")} data-testid="admin-assign-btn" className="inline-flex items-center gap-1 rounded-sm bg-[#0B7A4B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]">
               <CarIcon className="h-4 w-4" /> {b.vehicle_id ? "Re-assign" : "Assign vehicle"}
             </button>
           )}
@@ -393,7 +393,7 @@ export default function AdminCarBookingDetail() {
             </button>
           )}
           {canReturn && b.return_info?.user_confirmed_at && (
-            <button onClick={() => setDlg("return")} data-testid="admin-return-btn" className="inline-flex items-center gap-1 rounded-sm bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+            <button onClick={() => setDlg("return")} data-testid="admin-return-btn" className="inline-flex items-center gap-1 rounded-sm bg-[#0B7A4B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]">
               <LogOut className="h-4 w-4" /> Confirm return → Completed
             </button>
           )}

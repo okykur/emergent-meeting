@@ -28,7 +28,7 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f8f9fa] lg:flex-row" data-testid="forgot-password-page">
+    <div className="flex min-h-screen flex-col bg-[#F7FAF8] lg:flex-row" data-testid="forgot-password-page">
       <div className="relative hidden border-r border-slate-200 bg-white lg:flex lg:w-1/2 lg:flex-col lg:justify-between lg:overflow-hidden lg:p-12">
         <div className="flex items-center gap-2">
           <img
@@ -38,7 +38,7 @@ export default function ForgotPassword() {
           />
         </div>
         <div>
-          <div className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#0055FF]">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#0B7A4B]">
             Account Recovery
           </div>
           <h1 className="font-display text-5xl font-bold leading-tight text-slate-900">
@@ -74,7 +74,7 @@ export default function ForgotPassword() {
           </h2>
           <p className="mt-2 text-sm text-slate-500">
             Remember your password?{" "}
-            <Link to="/login" className="font-medium text-[#0055FF] hover:underline">
+            <Link to="/login" className="font-medium text-[#0B7A4B] hover:underline">
               Sign in
             </Link>
           </p>
@@ -93,7 +93,7 @@ export default function ForgotPassword() {
                   </div>
                   <Link
                     to={resetUrl.replace(window.location.origin, "")}
-                    className="break-all font-medium text-[#0055FF] hover:underline"
+                    className="break-all font-medium text-[#0B7A4B] hover:underline"
                     data-testid="local-reset-link"
                   >
                     {resetUrl}
@@ -111,7 +111,7 @@ export default function ForgotPassword() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+                  className="w-full rounded-sm border border-slate-300 px-3 py-2.5 text-base outline-none transition-all focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
                   placeholder="you@company.com"
                 />
               </div>
@@ -124,7 +124,7 @@ export default function ForgotPassword() {
                 type="submit"
                 disabled={loading}
                 data-testid="forgot-password-submit-btn"
-                className="flex w-full items-center justify-center gap-2 rounded-sm bg-[#0055FF] px-4 py-2.5 font-medium text-white transition-colors hover:bg-[#0044CC] disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2.5 font-medium text-white transition-colors hover:bg-[#064E3B] disabled:opacity-60"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 Send reset instructions

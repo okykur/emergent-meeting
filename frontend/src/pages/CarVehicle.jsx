@@ -56,7 +56,7 @@ export default function CarVehicle() {
           </Link>
           <Link
             to="/rooms"
-            className="rounded-sm bg-[#0055FF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]"
+            className="rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]"
             data-testid="go-meeting-room-btn"
           >
             Book a Meeting Room instead

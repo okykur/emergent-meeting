@@ -12,7 +12,7 @@
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#0055FF",
-  "background_color": "#F8F9FA",
+  "theme_color": "#0B7A4B",
+  "background_color": "#F7FAF8",
   "scope": "/"
 }

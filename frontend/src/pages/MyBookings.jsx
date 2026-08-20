@@ -227,7 +227,7 @@ export default function MyBookings() {
               onClick={() => setScope(t.k)}
               data-testid={`scope-tab-${t.k}`}
               className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
-                active ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-900"
+                active ? "bg-[#064E3B] text-white" : "text-slate-500 hover:text-slate-900"
               }`}
             >
               <Icon className="h-3.5 w-3.5" /> {t.label}
@@ -426,7 +426,7 @@ export default function MyBookings() {
                           <Link
                             to={`/car/bookings/${b.id}`}
                             data-testid={`mb-vehicle-open-${b.id}`}
-                            className="inline-flex items-center gap-1 rounded-sm bg-[#0055FF] px-2 py-1 text-xs font-semibold text-white hover:bg-[#0044CC]"
+                            className="inline-flex items-center gap-1 rounded-sm bg-[#0B7A4B] px-2 py-1 text-xs font-semibold text-white hover:bg-[#064E3B]"
                           >
                             {actionLabel}
                             <ArrowRight className="h-3 w-3" />
@@ -508,7 +508,7 @@ export default function MyBookings() {
                           onClick={() => checkOutMeeting(b.id)}
                           disabled={actingId === b.id}
                           data-testid={`mb-mobile-check-out-${b.id}`}
-                          className="flex-1 inline-flex items-center justify-center gap-1 rounded-sm bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                          className="flex-1 inline-flex items-center justify-center gap-1 rounded-sm bg-[#0B7A4B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-50"
                         >
                           <LogOut className="h-4 w-4" /> Check out
                         </button>
@@ -581,7 +581,7 @@ export default function MyBookings() {
                     <Link
                       to={`/car/bookings/${b.id}`}
                       data-testid={`mb-mobile-vehicle-open-${b.id}`}
-                      className="flex-1 inline-flex items-center justify-center gap-1 rounded-sm bg-[#0055FF] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0044CC]"
+                      className="flex-1 inline-flex items-center justify-center gap-1 rounded-sm bg-[#0B7A4B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]"
                     >
                       {actionLabel}
                       <ArrowRight className="h-4 w-4" />

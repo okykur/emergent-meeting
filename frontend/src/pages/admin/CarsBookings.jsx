@@ -51,14 +51,14 @@ export default function AdminCarsBookings() {
             onChange={(e) => setUserQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && load()}
             placeholder="Search by employee name, email, or job title…"
-            className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0055FF]"
+            className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0B7A4B]"
           />
         </div>
         <select
           data-testid="acb-status"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
         >
           <option value="">All statuses</option>
           {["pending", "approved", "assigned", "in_use", "completed", "cancelled", "rejected"].map((s) => (
@@ -70,7 +70,7 @@ export default function AdminCarsBookings() {
           data-testid="acb-date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
         />
       </div>
 
@@ -117,7 +117,7 @@ export default function AdminCarsBookings() {
                 </td>
                 <td className="px-6 py-4"><VBStatusPill status={b.status} /></td>
                 <td className="px-6 py-4 text-right">
-                  <Link to={`/admin/cars/bookings/${b.id}`} data-testid={`acb-open-${b.id}`} className="text-sm font-semibold text-[#0055FF] hover:underline">
+                  <Link to={`/admin/cars/bookings/${b.id}`} data-testid={`acb-open-${b.id}`} className="text-sm font-semibold text-[#0B7A4B] hover:underline">
                     Open →
                   </Link>
                 </td>

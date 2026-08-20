@@ -178,7 +178,7 @@ export default function Rooms() {
               value={startInput}
               onChange={(e) => setStartInput(e.target.value)}
               data-testid="range-start-input"
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15 md:w-44"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15 md:w-44"
             />
           </div>
           <div>
@@ -190,14 +190,14 @@ export default function Rooms() {
               value={endInput}
               onChange={(e) => setEndInput(e.target.value)}
               data-testid="range-end-input"
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15 md:w-44"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15 md:w-44"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
             data-testid="range-search-btn"
-            className="inline-flex h-[38px] items-center justify-center gap-2 rounded-sm bg-[#0055FF] px-5 text-sm font-semibold text-white hover:bg-[#0044CC] disabled:opacity-60"
+            className="inline-flex h-[38px] items-center justify-center gap-2 rounded-sm bg-[#0B7A4B] px-5 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Search
@@ -248,7 +248,7 @@ export default function Rooms() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filter rooms by name, location, facilities…"
-            className="w-full rounded-sm border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+            className="w-full rounded-sm border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
           />
         </div>
         <div className="flex items-center gap-1 rounded-sm border border-slate-300 bg-white p-1">
@@ -263,7 +263,7 @@ export default function Rooms() {
               data-testid={`filter-${o.v}`}
               className={`rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
                 filter === o.v
-                  ? "bg-slate-900 text-white"
+                  ? "bg-[#064E3B] text-white"
                   : "text-slate-500 hover:text-slate-900"
               }`}
             >
@@ -311,7 +311,7 @@ export default function Rooms() {
             <article
               key={r.id}
               data-testid={`room-card-${r.id}`}
-              className="group flex flex-col overflow-hidden rounded-sm border border-slate-200 bg-white shadow-sm transition-all hover:border-[#0055FF] hover:shadow-md"
+              className="group flex flex-col overflow-hidden rounded-sm border border-slate-200 bg-white shadow-sm transition-all hover:border-[#0B7A4B] hover:shadow-md"
             >
               <div className="relative h-40 w-full overflow-hidden bg-slate-100">
                 {r.image_url && (
@@ -332,7 +332,7 @@ export default function Rooms() {
                     <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
                       <MapPin className="h-3 w-3" /> {r.location}
                     </div>
-                    <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-[#0055FF]">
+                    <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-[#0B7A4B]">
                       {r.building || "Unassigned"}
                     </div>
                     <div className="mt-1 text-xs font-medium text-slate-500">
@@ -369,7 +369,7 @@ export default function Rooms() {
                     disabled={!r.is_active}
                     onClick={() => setBookingRoom(r)}
                     data-testid={`book-btn-${r.id}`}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-sm bg-[#0055FF] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0044CC] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-sm bg-[#0B7A4B] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#064E3B] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                   >
                     <CalendarClock className="h-4 w-4" />
                     Book Room

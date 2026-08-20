@@ -73,14 +73,14 @@ export default function AdminBookings() {
             onChange={(e) => setUserQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && load()}
             placeholder="Search by user name or email…"
-            className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0055FF] focus:ring-2 focus:ring-[#0055FF]/15"
+            className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
           />
         </div>
         <select
           data-testid="admin-bookings-status-filter"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
         >
           <option value="">All statuses</option>
           <option value="pending">Pending</option>
@@ -92,7 +92,7 @@ export default function AdminBookings() {
           data-testid="admin-bookings-building-filter"
           value={building}
           onChange={(e) => setBuilding(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
         >
           <option value="">All buildings</option>
           {buildings.map((b) => (
@@ -105,7 +105,7 @@ export default function AdminBookings() {
           data-testid="admin-bookings-room-filter"
           value={roomId}
           onChange={(e) => setRoomId(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
         >
           <option value="">All rooms</option>
           {visibleRooms.map((r) => (
@@ -119,7 +119,7 @@ export default function AdminBookings() {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0055FF]"
+          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
         />
       </div>
 
@@ -166,7 +166,7 @@ export default function AdminBookings() {
                 </td>
                 <td className="px-6 py-4 text-slate-700">
                   <div>{b.room_name}</div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-[#0055FF]">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-[#0B7A4B]">
                     {b.room_building || "Unassigned"}
                   </div>
                 </td>
