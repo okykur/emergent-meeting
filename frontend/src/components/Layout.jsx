@@ -21,13 +21,17 @@ function BrandMark() {
       to="/"
       className="flex items-center gap-2"
       data-testid="brand-link"
-      aria-label="KCSI — Meeting Room Booking"
+      aria-label="GASS - General Affair Services System"
     >
       <img
         src="/brand-logo.png"
         alt="KCSI Consulting-Shared Services"
-        className="h-14 w-auto object-contain"
+        className="h-12 w-auto object-contain"
       />
+      <span className="hidden border-l border-slate-200 pl-3 sm:block">
+        <span className="font-brand block text-lg font-bold tracking-[-0.06em] text-[#064E3B]">GASS</span>
+        <span className="block text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-400">General Affair Services</span>
+      </span>
     </Link>
   );
 }

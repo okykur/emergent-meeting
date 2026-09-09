@@ -1,7 +1,7 @@
 {
-  "short_name": "KCSI Booking",
-  "name": "KCSI Booking System",
-  "description": "KCSI Booking System",
+  "short_name": "GASS",
+  "name": "GASS - General Affair Services System",
+  "description": "GASS - General Affair Services System",
   "icons": [
     {
       "src": "/favicon.ico",

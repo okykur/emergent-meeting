@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap");
 
 body {
     margin: 0;
@@ -26,8 +26,12 @@ h4,
 h5,
 h6,
 .font-display {
-    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    font-family: "Sora", "Plus Jakarta Sans", system-ui, sans-serif;
     letter-spacing: -0.01em;
+}
+
+.font-brand {
+    font-family: "Sora", "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
 @layer base {
