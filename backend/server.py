@@ -679,10 +679,11 @@ def _send_resend_email(to_email: str, subject: str, text_body: str, html_body: O
     request = UrlRequest(
         "https://api.resend.com/emails",
         data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {RESEND_API_KEY}",
-            "Content-Type": "application/json",
-        },
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+                "User-Agent": "GASS/1.0",
+            },
         method="POST",
     )
     try:
