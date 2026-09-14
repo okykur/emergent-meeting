@@ -53,7 +53,7 @@ SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
 SUPERVISOR_EMAIL_PROVIDER = os.environ.get("SUPERVISOR_EMAIL_PROVIDER", "smtp").strip().lower()
 PASSWORD_RESET_EMAIL_PROVIDER = os.environ.get("PASSWORD_RESET_EMAIL_PROVIDER", SUPERVISOR_EMAIL_PROVIDER).strip().lower()
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-RESEND_FROM = os.environ.get("RESEND_FROM", "GASS <no-reply-booking@kcsi-id.com>")
+RESEND_FROM = os.environ.get("RESEND_FROM", "GASS <no-reply-booking@kcsi.id>")
 try:
     APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jakarta"))
 except ZoneInfoNotFoundError:
