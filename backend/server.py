@@ -10,14 +10,19 @@ import logging
 import bcrypt
 import jwt
 import hashlib
+import json
 import secrets
 import smtplib
+import html
 from datetime import datetime, timezone, timedelta
 from email.message import EmailMessage
 from typing import List, Optional, Literal
+from urllib.error import HTTPError, URLError
+from urllib.request import Request as UrlRequest, urlopen
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query
+from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -38,12 +43,17 @@ UVICORN_RELOAD = os.environ.get("UVICORN_RELOAD", "true").lower() == "true"
 APP_PUBLIC_URL = os.environ.get("APP_PUBLIC_URL", "http://localhost:3001").rstrip("/")
 PASSWORD_RESET_MINUTES = int(os.environ.get("PASSWORD_RESET_MINUTES", "30"))
 PASSWORD_RESET_DEV_MODE = os.environ.get("PASSWORD_RESET_DEV_MODE", "false").lower() == "true"
+SUPERVISOR_APPROVAL_DAYS = int(os.environ.get("SUPERVISOR_APPROVAL_DAYS", "7"))
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USERNAME or ADMIN_EMAIL)
 SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
+SUPERVISOR_EMAIL_PROVIDER = os.environ.get("SUPERVISOR_EMAIL_PROVIDER", "smtp").strip().lower()
+PASSWORD_RESET_EMAIL_PROVIDER = os.environ.get("PASSWORD_RESET_EMAIL_PROVIDER", SUPERVISOR_EMAIL_PROVIDER).strip().lower()
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+RESEND_FROM = os.environ.get("RESEND_FROM", "GASS <no-reply-booking@kcsi-id.com>")
 try:
     APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jakarta"))
 except ZoneInfoNotFoundError:
@@ -157,6 +167,8 @@ class UserPublic(BaseModel):
     job_title: str = ""
     department: str = ""
     office_address: str = ""
+    supervisor_name: str = ""
+    supervisor_email: str = ""
     meeting_buildings: List[str] = []
     fnb_locations: List[str] = []
     role: Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"]
@@ -276,6 +288,17 @@ class BookingStatusUpdate(BaseModel):
     status: Literal["pending", "confirmed", "cancelled", "completed"]
 
 
+class BookingRoomReassign(BaseModel):
+    room_id: str
+    layout_type: Optional[str] = None
+    layout_other: Optional[str] = None
+
+
+class BookingCancellationRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+    cancel_fnb: bool = False
+
+
 class FnbStatusUpdate(BaseModel):
     status: Literal["pending", "approved", "rejected"]
 
@@ -319,6 +342,20 @@ class Booking(BaseModel):
     created_at: str
     checked_in_at: Optional[str] = None
     checked_out_at: Optional[str] = None
+    room_reassigned_from_name: Optional[str] = None
+    room_reassigned_at: Optional[str] = None
+    room_reassigned_by: Optional[str] = None
+    cancellation_reason: Optional[str] = None
+    cancelled_at: Optional[str] = None
+    cancelled_by: Optional[str] = None
+    fnb_cancelled_at: Optional[str] = None
+    fnb_cancelled_by: Optional[str] = None
+    supervisor_name: str = ""
+    supervisor_email: str = ""
+    supervisor_approval_status: str = "approved"
+    supervisor_approval_requested_at: Optional[str] = None
+    supervisor_approved_at: Optional[str] = None
+    supervisor_approved_by: Optional[str] = None
 
 
 # ---------- Util ----------
@@ -521,6 +558,8 @@ def _normalize_user_public(user: dict) -> dict:
     user.setdefault("job_title", "")
     user.setdefault("department", "")
     user.setdefault("office_address", "")
+    user.setdefault("supervisor_name", "")
+    user.setdefault("supervisor_email", "")
     user["meeting_buildings"] = _normalize_building_list(user.get("meeting_buildings") or [])
     user["fnb_locations"] = _normalize_building_list(user.get("fnb_locations") or [])
     user.setdefault("is_approved", True)
@@ -534,6 +573,20 @@ async def _normalize_booking_public(booking: dict) -> dict:
         room = await db.rooms.find_one({"id": booking.get("room_id")}, {"_id": 0, "building": 1})
         booking["room_building"] = _normalize_building(room.get("building") if room else None)
     booking.setdefault("phone_number", "")
+    booking.setdefault("room_reassigned_from_name", None)
+    booking.setdefault("room_reassigned_at", None)
+    booking.setdefault("room_reassigned_by", None)
+    booking.setdefault("cancellation_reason", None)
+    booking.setdefault("cancelled_at", None)
+    booking.setdefault("cancelled_by", None)
+    booking.setdefault("fnb_cancelled_at", None)
+    booking.setdefault("fnb_cancelled_by", None)
+    booking.setdefault("supervisor_name", "")
+    booking.setdefault("supervisor_email", "")
+    booking.setdefault("supervisor_approval_status", "approved")
+    booking.setdefault("supervisor_approval_requested_at", None)
+    booking.setdefault("supervisor_approved_at", None)
+    booking.setdefault("supervisor_approved_by", None)
     booking.setdefault("additional_facilities", [])
     booking.setdefault("food_beverages", "")
     booking.setdefault("fnb_department", "")
@@ -566,6 +619,20 @@ async def _normalize_bookings_public(bookings: List[dict]) -> List[dict]:
             booking.get("room_building") or room_buildings.get(booking.get("room_id"))
         )
         booking.setdefault("phone_number", "")
+        booking.setdefault("room_reassigned_from_name", None)
+        booking.setdefault("room_reassigned_at", None)
+        booking.setdefault("room_reassigned_by", None)
+        booking.setdefault("cancellation_reason", None)
+        booking.setdefault("cancelled_at", None)
+        booking.setdefault("cancelled_by", None)
+        booking.setdefault("fnb_cancelled_at", None)
+        booking.setdefault("fnb_cancelled_by", None)
+        booking.setdefault("supervisor_name", "")
+        booking.setdefault("supervisor_email", "")
+        booking.setdefault("supervisor_approval_status", "approved")
+        booking.setdefault("supervisor_approval_requested_at", None)
+        booking.setdefault("supervisor_approved_at", None)
+        booking.setdefault("supervisor_approved_by", None)
         booking.setdefault("additional_facilities", [])
         booking.setdefault("food_beverages", "")
         booking.setdefault("fnb_department", "")
@@ -597,27 +664,82 @@ def _reset_url(token: str) -> str:
     return f"{APP_PUBLIC_URL}/reset-password?token={token}"
 
 
+def _send_resend_email(to_email: str, subject: str, text_body: str, html_body: Optional[str] = None) -> bool:
+    if not RESEND_API_KEY:
+        return False
+
+    payload = {
+        "from": RESEND_FROM,
+        "to": [to_email],
+        "subject": subject,
+        "text": text_body,
+    }
+    if html_body:
+        payload["html"] = html_body
+    request = UrlRequest(
+        "https://api.resend.com/emails",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            if not 200 <= response.status < 300:
+                logger.error("Resend returned status %s while sending email", response.status)
+                return False
+        return True
+    except HTTPError as error:
+        logger.error("Resend rejected email request with status %s", error.code)
+    except URLError:
+        logger.exception("Unable to reach Resend while sending email")
+    except Exception:
+        logger.exception("Failed to send email through Resend")
+    return False
+
+
 def _send_password_reset_email(email: str, reset_url: str) -> bool:
+    text_body = "\n".join(
+        [
+            "We received a request to reset your GASS password.",
+            "",
+            "Open this link to set a new password:",
+            reset_url,
+            "",
+            f"This link expires in {PASSWORD_RESET_MINUTES} minutes.",
+            "If you did not request this, you can ignore this email.",
+        ]
+    )
+    subject = "GASS Password Reset"
+    html_body = f"""
+    <html><body style='margin:0;padding:24px;background:#f2f7f4;font-family:Arial,sans-serif;color:#0f172a'>
+      <div style='max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dbe7e0;border-radius:16px;overflow:hidden'>
+        <div style='padding:28px 32px;background:#064e3b;color:#ffffff'>
+          <div style='font-size:28px;font-weight:800;letter-spacing:-1px'>GASS</div>
+          <div style='margin-top:5px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#a6e5c4'>General Affair Services System</div>
+        </div>
+        <div style='padding:30px 32px'>
+          <h1 style='margin:0 0 12px;font-size:24px'>Reset your password</h1>
+          <p style='margin:0 0 22px;color:#475569;line-height:1.6'>We received a request to reset your GASS password. Select the button below to create a new password.</p>
+          <a href='{html.escape(reset_url, quote=True)}' style='display:inline-block;padding:12px 20px;border-radius:8px;background:#0b7a4b;color:#ffffff;text-decoration:none;font-weight:700'>Reset password</a>
+          <p style='margin:24px 0 0;color:#64748b;font-size:13px;line-height:1.6'>This link expires in {PASSWORD_RESET_MINUTES} minutes. If you did not request a reset, you can safely ignore this email.</p>
+        </div>
+      </div>
+    </body></html>
+    """
+    if PASSWORD_RESET_EMAIL_PROVIDER == "resend":
+        return _send_resend_email(email, subject, text_body, html_body)
     if not SMTP_HOST:
         return False
 
     message = EmailMessage()
-    message["Subject"] = "KCSI Booking System Password Reset"
+    message["Subject"] = subject
     message["From"] = SMTP_FROM
     message["To"] = email
-    message.set_content(
-        "\n".join(
-            [
-                "We received a request to reset your KCSI Booking System password.",
-                "",
-                "Open this link to set a new password:",
-                reset_url,
-                "",
-                f"This link expires in {PASSWORD_RESET_MINUTES} minutes.",
-                "If you did not request this, you can ignore this email.",
-            ]
-        )
-    )
+    message.set_content(text_body)
+    message.add_alternative(html_body, subtype="html")
 
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
@@ -630,6 +752,192 @@ def _send_password_reset_email(email: str, reset_url: str) -> bool:
     except Exception:
         logger.exception("Failed to send password reset email")
         return False
+
+
+def _supervisor_approval_url(token: str, decision: str) -> str:
+    return f"{APP_PUBLIC_URL}/api/meeting-approvals/{token}?decision={decision}"
+
+
+def _meeting_accommodation_summary(booking: dict) -> str:
+    items = []
+    if (booking.get("food_beverages") or "").strip():
+        items.append(f"F&B: {booking['food_beverages']}")
+    if booking.get("additional_facilities"):
+        items.append(f"Additional facilities: {', '.join(booking['additional_facilities'])}")
+    return "; ".join(items) if items else "No accommodation or additional facility requested"
+
+
+def _supervisor_email_is_configured() -> bool:
+    if SUPERVISOR_EMAIL_PROVIDER == "resend":
+        return bool(RESEND_API_KEY)
+    return bool(SMTP_HOST)
+
+
+def _send_supervisor_approval_email(booking: dict, token: str) -> bool:
+    if not _supervisor_email_is_configured():
+        return False
+
+    approve_url = _supervisor_approval_url(token, "approved")
+    reject_url = _supervisor_approval_url(token, "rejected")
+    requester = booking["user_name"]
+    title = booking["title"]
+    detail_rows = [
+        ("Requestor", requester),
+        ("Meeting", title),
+        ("Participants", f"{booking['participants']} pax"),
+        ("Date", booking["date"]),
+        ("Time", f"{booking['start_time']}-{booking['end_time']}"),
+        ("Venue", f"{booking['room_name']} - {booking['room_building']}"),
+        ("Accommodation", _meeting_accommodation_summary(booking)),
+    ]
+    table_rows = "".join(
+        f"<tr><td style='padding:8px 12px;color:#64748b;font-size:13px;width:130px'>{html.escape(label)}</td>"
+        f"<td style='padding:8px 12px;color:#0f172a;font-size:14px;font-weight:600'>{html.escape(value)}</td></tr>"
+        for label, value in detail_rows
+    )
+    subject = f"GASS approval required: {title}"
+    plain = "\n".join(
+        [
+            f"Hello {booking['supervisor_name']},",
+            "",
+            f"{requester} requests your approval for a meeting booking.",
+            f"Meeting: {title}",
+            f"Participants: {booking['participants']} pax",
+            f"Date and time: {booking['date']} {booking['start_time']}-{booking['end_time']}",
+            f"Venue: {booking['room_name']} - {booking['room_building']}",
+            f"Accommodation: {_meeting_accommodation_summary(booking)}",
+            "",
+            f"Approve: {approve_url}",
+            f"Reject: {reject_url}",
+        ]
+    )
+    body = f"""
+    <html><body style='margin:0;padding:24px;background:#f2f7f4;font-family:Arial,sans-serif;color:#0f172a'>
+      <div style='max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #dbe7e0;border-radius:16px;overflow:hidden'>
+        <div style='padding:28px 32px;background:#064e3b;color:#ffffff'>
+          <div style='font-size:28px;font-weight:800;letter-spacing:-1px'>GASS</div>
+          <div style='margin-top:5px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#a6e5c4'>General Affair Services System</div>
+        </div>
+        <div style='padding:30px 32px'>
+          <p style='margin:0 0 10px;font-size:16px'>Hello {html.escape(booking['supervisor_name'])},</p>
+          <h1 style='margin:0 0 10px;font-size:24px;line-height:1.3'>Meeting approval required</h1>
+          <p style='margin:0 0 22px;color:#475569;line-height:1.6'>{html.escape(requester)} has submitted a meeting booking request that needs your approval.</p>
+          <table style='width:100%;border-collapse:collapse;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px'>{table_rows}</table>
+          <p style='margin:24px 0 12px;color:#475569;font-size:14px'>Please choose one action below. Your decision is recorded directly in GASS.</p>
+          <a href='{html.escape(approve_url, quote=True)}' style='display:inline-block;margin-right:8px;padding:12px 20px;border-radius:8px;background:#0b7a4b;color:#ffffff;text-decoration:none;font-weight:700'>Approve meeting</a>
+          <a href='{html.escape(reject_url, quote=True)}' style='display:inline-block;padding:12px 20px;border-radius:8px;background:#fff1f2;color:#b91c1c;text-decoration:none;font-weight:700;border:1px solid #fecdd3'>Reject meeting</a>
+          <p style='margin:24px 0 0;color:#94a3b8;font-size:12px;line-height:1.5'>This approval link can be used once and expires before the meeting begins. If you did not expect this request, you may ignore this email.</p>
+        </div>
+      </div>
+    </body></html>
+    """
+    if SUPERVISOR_EMAIL_PROVIDER == "resend":
+        return _send_resend_email(booking["supervisor_email"], subject, plain, body)
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = SMTP_FROM
+    message["To"] = booking["supervisor_email"]
+    message.set_content(plain)
+    message.add_alternative(body, subtype="html")
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+            if SMTP_USE_TLS:
+                smtp.starttls()
+            if SMTP_USERNAME:
+                smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+            smtp.send_message(message)
+        return True
+    except Exception:
+        logger.exception("Failed to send supervisor approval email")
+        return False
+
+
+def _approval_result_page(title: str, message: str, success: bool) -> str:
+    accent = "#0b7a4b" if success else "#b91c1c"
+    return f"""<!doctype html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'></head>
+    <body style='margin:0;min-height:100vh;display:grid;place-items:center;background:#f2f7f4;font-family:Arial,sans-serif;color:#0f172a'>
+      <main style='max-width:520px;margin:24px;padding:36px;background:#fff;border:1px solid #dbe7e0;border-radius:16px;text-align:center;box-shadow:0 16px 40px rgba(6,78,59,.1)'>
+        <div style='font-size:28px;font-weight:800;letter-spacing:-1px;color:#064e3b'>GASS</div>
+        <h1 style='margin:24px 0 12px;font-size:24px;color:{accent}'>{html.escape(title)}</h1>
+        <p style='margin:0;color:#475569;line-height:1.6'>{html.escape(message)}</p>
+      </main>
+    </body></html>"""
+
+
+@api.get("/meeting-approvals/{token}", response_class=HTMLResponse)
+async def decide_meeting_supervisor_approval(
+    token: str,
+    decision: Literal["approved", "rejected"] = Query(...),
+):
+    approval = await db.supervisor_meeting_approvals.find_one(
+        {"token_hash": _hash_reset_token(token), "used_at": None},
+        {"_id": 0},
+    )
+    if not approval:
+        return HTMLResponse(
+            _approval_result_page("Link unavailable", "This approval link is invalid or has already been used.", False),
+            status_code=400,
+        )
+    expires_at = approval.get("expires_at")
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if not expires_at or (expires_at.tzinfo is None and expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc)) or (
+        expires_at.tzinfo is not None and expires_at < datetime.now(timezone.utc)
+    ):
+        return HTMLResponse(
+            _approval_result_page("Link expired", "This approval link has expired. Please contact the requestor or GASS administrator.", False),
+            status_code=400,
+        )
+
+    booking = await db.bookings.find_one({"id": approval["booking_id"]}, {"_id": 0})
+    if not booking or booking.get("status") != "pending":
+        return HTMLResponse(
+            _approval_result_page("Request unavailable", "This meeting request is no longer awaiting supervisor approval.", False),
+            status_code=400,
+        )
+    action_at = _now_iso()
+    token_use = await db.supervisor_meeting_approvals.update_one(
+        {"id": approval["id"], "used_at": None},
+        {"$set": {"used_at": action_at, "decision": decision}},
+    )
+    if token_use.modified_count != 1:
+        return HTMLResponse(
+            _approval_result_page("Link unavailable", "This approval link has already been used.", False),
+            status_code=400,
+        )
+
+    booking_updates = {
+        "supervisor_approval_status": decision,
+        "supervisor_approved_at": action_at,
+        "supervisor_approved_by": approval["supervisor_email"],
+    }
+    if decision == "rejected":
+        booking_updates.update(
+            {
+                "status": "cancelled",
+                "cancellation_reason": "Rejected by supervisor",
+                "cancelled_at": action_at,
+                "cancelled_by": approval["supervisor_email"],
+            }
+        )
+        if (booking.get("food_beverages") or "").strip():
+            booking_updates.update(
+                {
+                    "fnb_status": "cancelled",
+                    "fnb_cancelled_at": action_at,
+                    "fnb_cancelled_by": approval["supervisor_email"],
+                }
+            )
+    await db.bookings.update_one({"id": booking["id"]}, {"$set": booking_updates})
+
+    if decision == "approved":
+        return HTMLResponse(
+            _approval_result_page("Meeting approved", "Your approval has been recorded. The Meeting Admin will continue the room booking process.", True)
+        )
+    return HTMLResponse(
+        _approval_result_page("Meeting rejected", "Your rejection has been recorded and the meeting room request has been cancelled.", True)
+    )
 
 
 @api.post("/auth/register", response_model=RegisterResponse)
@@ -697,7 +1005,7 @@ async def forgot_password(payload: ForgotPasswordRequest):
         reset_url = _reset_url(token)
         email_sent = _send_password_reset_email(email, reset_url)
         if not email_sent and not PASSWORD_RESET_DEV_MODE:
-            logger.warning("Password reset requested but SMTP is not configured or failed")
+            logger.warning("Password reset requested but the configured email provider is unavailable or failed")
 
     return ForgotPasswordResponse(
         message=message,
@@ -991,6 +1299,18 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
             raise HTTPException(status_code=400, detail="Meal pax must be at least 1")
         if payload.meal_packaging not in ("Prasmanan", "Dus"):
             raise HTTPException(status_code=400, detail="Meal packaging must be Prasmanan or Dus")
+    supervisor_name = (user.get("supervisor_name") or "").strip()
+    supervisor_email = (user.get("supervisor_email") or "").strip().lower()
+    if not supervisor_name or not supervisor_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Supervisor name and email must be set by an administrator before requesting a meeting room",
+        )
+    if not _supervisor_email_is_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="Supervisor approval email is not configured. Please contact the administrator.",
+        )
     booking_id = str(uuid.uuid4())
     doc = {
         "id": booking_id,
@@ -1000,6 +1320,12 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         "user_id": user["id"],
         "user_name": user["name"],
         "user_email": user["email"],
+        "supervisor_name": supervisor_name,
+        "supervisor_email": supervisor_email,
+        "supervisor_approval_status": "pending",
+        "supervisor_approval_requested_at": _now_iso(),
+        "supervisor_approved_at": None,
+        "supervisor_approved_by": None,
         "title": payload.title,
         "date": payload.date,
         "start_time": payload.start_time,
@@ -1030,7 +1356,30 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         "status": "pending",
         "created_at": _now_iso(),
     }
+    approval_token = secrets.token_urlsafe(48)
+    supervisor_approval_expires_at = min(
+        datetime.now(timezone.utc) + timedelta(days=SUPERVISOR_APPROVAL_DAYS),
+        booking_dt.replace(tzinfo=APP_TIMEZONE).astimezone(timezone.utc),
+    )
+    approval_doc = {
+        "id": str(uuid.uuid4()),
+        "booking_id": booking_id,
+        "supervisor_email": supervisor_email,
+        "token_hash": _hash_reset_token(approval_token),
+        "created_at": _now_iso(),
+        "expires_at": supervisor_approval_expires_at,
+        "used_at": None,
+        "decision": None,
+    }
     await db.bookings.insert_one(doc)
+    await db.supervisor_meeting_approvals.insert_one(approval_doc)
+    if not _send_supervisor_approval_email(doc, approval_token):
+        await db.supervisor_meeting_approvals.delete_one({"id": approval_doc["id"]})
+        await db.bookings.delete_one({"id": booking_id})
+        raise HTTPException(
+            status_code=503,
+            detail="Supervisor approval email could not be sent. Please try again or contact the administrator.",
+        )
     return Booking(**{k: v for k, v in doc.items() if k != "_id"})
 
 
@@ -1083,6 +1432,8 @@ async def update_booking_status(
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     if not bk:
         raise HTTPException(status_code=404, detail="Booking not found")
+    if payload.status == "confirmed" and bk.get("supervisor_approval_status", "approved") != "approved":
+        raise HTTPException(status_code=400, detail="Supervisor approval is required before confirming this meeting")
     room = await db.rooms.find_one({"id": bk["room_id"]}, {"_id": 0})
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -1096,10 +1447,96 @@ async def update_booking_status(
     return Booking(**bk)
 
 
+@api.patch("/bookings/{booking_id}/room", response_model=Booking)
+async def reassign_booking_room(
+    booking_id: str,
+    payload: BookingRoomReassign,
+    admin: dict = Depends(require_admin),
+):
+    bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if bk.get("status") not in ("pending", "confirmed"):
+        raise HTTPException(status_code=400, detail="Only pending or confirmed bookings can be reassigned")
+    if bk.get("supervisor_approval_status", "approved") != "approved":
+        raise HTTPException(status_code=400, detail="Supervisor approval is required before reassigning this meeting")
+    if bk.get("checked_in_at"):
+        raise HTTPException(status_code=400, detail="A checked-in booking cannot be reassigned")
+    try:
+        booking_start, _booking_end = _booking_window(bk)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid booking date/time")
+    if _app_now_naive() >= booking_start:
+        raise HTTPException(status_code=400, detail="A booking cannot be reassigned after its start time")
+
+    current_room = await db.rooms.find_one({"id": bk["room_id"]}, {"_id": 0})
+    if not current_room:
+        raise HTTPException(status_code=404, detail="Current room not found")
+    _assert_can_manage_room(admin, current_room)
+
+    target_room = await db.rooms.find_one({"id": payload.room_id}, {"_id": 0})
+    if not target_room:
+        raise HTTPException(status_code=404, detail="Target room not found")
+    _normalize_room(target_room)
+    _assert_can_manage_room(admin, target_room)
+    if payload.room_id == bk["room_id"]:
+        raise HTTPException(status_code=400, detail="Please choose a different room")
+    if not target_room.get("is_active"):
+        raise HTTPException(status_code=400, detail="Target room is not active")
+    if bk["participants"] > target_room["capacity"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Participants exceed target room capacity ({target_room['capacity']})",
+        )
+
+    hours_error = _operating_hours_error(target_room, bk["start_time"], bk["end_time"])
+    if hours_error:
+        raise HTTPException(status_code=400, detail=hours_error)
+    conflicts = await _find_overlaps(
+        payload.room_id,
+        bk["date"],
+        bk["start_time"],
+        bk["end_time"],
+        exclude_id=booking_id,
+    )
+    if conflicts:
+        conflict = conflicts[0]
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Target room is already booked for this time slot. "
+                f"Existing booking: {conflict['start_time']}-{conflict['end_time']}."
+            ),
+        )
+
+    layout_type = bk.get("layout_type", "") if payload.layout_type is None else payload.layout_type
+    layout_other = bk.get("layout_other", "") if payload.layout_other is None else payload.layout_other
+    layout_type, layout_other = _validate_booking_layout(target_room, layout_type, layout_other)
+    current_room = _normalize_room(current_room)
+    updates = {
+        "room_id": target_room["id"],
+        "room_name": target_room["name"],
+        "room_building": target_room["building"],
+        "layout_type": layout_type,
+        "layout_other": layout_other,
+        "room_reassigned_from_name": current_room["name"],
+        "room_reassigned_at": _now_iso(),
+        "room_reassigned_by": admin["id"],
+    }
+    # A cross-building reassignment changes the manager responsible for F&B.
+    if bk.get("food_beverages") and current_room["building"] != target_room["building"]:
+        updates.update({"fnb_status": "pending", "fnb_reviewed_at": None, "fnb_reviewed_by": None})
+
+    await db.bookings.update_one({"id": booking_id}, {"$set": updates})
+    reassigned = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    await _normalize_booking_public(reassigned)
+    return Booking(**reassigned)
+
+
 @api.get("/fnb/bookings", response_model=List[Booking])
 async def list_fnb_bookings(
     manager: dict = Depends(require_fnb_manager),
-    fnb_status: Optional[Literal["pending", "approved", "rejected", "not_required"]] = None,
+    fnb_status: Optional[Literal["pending", "approved", "rejected", "cancelled", "not_required"]] = None,
     booking_status: Optional[Literal["pending", "confirmed", "cancelled", "completed"]] = None,
     building: Optional[str] = None,
     date: Optional[str] = None,
@@ -1208,6 +1645,8 @@ async def update_manager_meeting_status(
         raise HTTPException(status_code=404, detail="Booking not found")
     if bk.get("status") != "pending":
         raise HTTPException(status_code=400, detail="Only pending meeting-room bookings can be approved or rejected")
+    if payload.status == "confirmed" and bk.get("supervisor_approval_status", "approved") != "approved":
+        raise HTTPException(status_code=400, detail="Supervisor approval is required before confirming this meeting")
     room = await db.rooms.find_one({"id": bk["room_id"]}, {"_id": 0})
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -1222,32 +1661,65 @@ async def update_manager_meeting_status(
 
 
 @api.post("/bookings/{booking_id}/cancel", response_model=Booking)
-async def cancel_booking(booking_id: str, user: dict = Depends(get_current_user)):
+async def cancel_booking(
+    booking_id: str,
+    payload: BookingCancellationRequest,
+    user: dict = Depends(get_current_user),
+):
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     if not bk:
         raise HTTPException(status_code=404, detail="Booking not found")
-    if user["role"] not in ADMIN_ROLES and bk["user_id"] != user["id"]:
+    is_owner = bk["user_id"] == user["id"]
+    if user["role"] not in ADMIN_ROLES and not is_owner:
         raise HTTPException(status_code=403, detail="Not authorized to cancel this booking")
-    if user["role"] == "meeting_admin" and bk["user_id"] != user["id"]:
+    if user["role"] == "meeting_admin" and not is_owner:
         room = await db.rooms.find_one({"id": bk["room_id"]}, {"_id": 0})
         if not room:
             raise HTTPException(status_code=404, detail="Room not found")
         _assert_can_manage_room(user, room)
     if bk["status"] in ("cancelled", "completed"):
         raise HTTPException(status_code=400, detail=f"Cannot cancel a {bk['status']} booking")
-    if user["role"] == "user":
+    try:
+        booking_start, _booking_end = _booking_window(bk)
+        meeting_date = booking_start.date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid booking date/time")
+    if is_owner:
         if bk.get("checked_in_at") and not bk.get("checked_out_at"):
             raise HTTPException(status_code=400, detail="You must check out to release this room after check-in")
-        if (bk.get("food_beverages") or "").strip():
-            try:
-                meeting_date = datetime.fromisoformat(f"{bk['date']}T00:00:00").date()
-            except Exception:
-                raise HTTPException(status_code=400, detail="Invalid booking date")
-            if (meeting_date - _app_today()).days < 1:
-                raise HTTPException(status_code=400, detail="F&B bookings can be cancelled only at least 1 day before the meeting date")
-    await db.bookings.update_one({"id": booking_id}, {"$set": {"status": "cancelled"}})
-    bk["status"] = "cancelled"
-    return Booking(**bk)
+        if _app_now_naive() >= booking_start:
+            raise HTTPException(status_code=400, detail="Meeting rooms can be cancelled only before the scheduled start time")
+    if payload.cancel_fnb and meeting_date <= _app_today():
+        raise HTTPException(
+            status_code=400,
+            detail="F&B accommodation cannot be cancelled on the meeting day; only the meeting room will be cancelled",
+        )
+    if payload.cancel_fnb and not (bk.get("food_beverages") or "").strip():
+        raise HTTPException(status_code=400, detail="This booking has no F&B accommodation to cancel")
+
+    cancellation_reason = payload.reason.strip()
+    if not cancellation_reason:
+        raise HTTPException(status_code=400, detail="Cancellation reason is required")
+
+    cancelled_at = _now_iso()
+    updates = {
+        "status": "cancelled",
+        "cancellation_reason": cancellation_reason,
+        "cancelled_at": cancelled_at,
+        "cancelled_by": user["id"],
+    }
+    if payload.cancel_fnb:
+        updates.update(
+            {
+                "fnb_status": "cancelled",
+                "fnb_cancelled_at": cancelled_at,
+                "fnb_cancelled_by": user["id"],
+            }
+        )
+    await db.bookings.update_one({"id": booking_id}, {"$set": updates})
+    cancelled = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    await _normalize_booking_public(cancelled)
+    return Booking(**cancelled)
 
 
 # ---------- Check-in / Check-out (user) ----------
@@ -1321,6 +1793,8 @@ class AdminUserUpdate(BaseModel):
     job_title: Optional[str] = Field(default=None, max_length=120)
     department: Optional[str] = Field(default=None, max_length=120)
     office_address: Optional[str] = Field(default=None, max_length=240)
+    supervisor_name: Optional[str] = Field(default=None, max_length=120)
+    supervisor_email: Optional[str] = Field(default=None, max_length=254)
     meeting_buildings: Optional[List[str]] = None
     fnb_locations: Optional[List[str]] = None
     role: Optional[Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"]] = None
@@ -1339,6 +1813,8 @@ class AdminUserCreate(BaseModel):
     job_title: str = ""
     department: str = ""
     office_address: str = ""
+    supervisor_name: str = ""
+    supervisor_email: str = ""
     meeting_buildings: List[str] = []
     fnb_locations: List[str] = []
     role: Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"] = "user"
@@ -1367,6 +1843,8 @@ async def list_users(
             {"job_title": {"$regex": q, "$options": "i"}},
             {"department": {"$regex": q, "$options": "i"}},
             {"office_address": {"$regex": q, "$options": "i"}},
+            {"supervisor_name": {"$regex": q, "$options": "i"}},
+            {"supervisor_email": {"$regex": q, "$options": "i"}},
             {"meeting_buildings": {"$regex": q, "$options": "i"}},
             {"fnb_locations": {"$regex": q, "$options": "i"}},
         ]
@@ -1391,6 +1869,8 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
         "job_title": payload.job_title.strip(),
         "department": payload.department.strip(),
         "office_address": payload.office_address.strip(),
+        "supervisor_name": payload.supervisor_name.strip(),
+        "supervisor_email": payload.supervisor_email.strip(),
         "meeting_buildings": meeting_buildings,
         "fnb_locations": fnb_locations,
         "password_hash": hash_password(payload.password),
@@ -1651,6 +2131,21 @@ async def migrate_legacy_roles():
     )
     if res.modified_count:
         logger.info(f"Initialized F&B not-required status for {res.modified_count} bookings")
+    res = await db.bookings.update_many(
+        {"supervisor_approval_status": {"$exists": False}},
+        {
+            "$set": {
+                "supervisor_name": "",
+                "supervisor_email": "",
+                "supervisor_approval_status": "approved",
+                "supervisor_approval_requested_at": None,
+                "supervisor_approved_at": None,
+                "supervisor_approved_by": "legacy",
+            }
+        },
+    )
+    if res.modified_count:
+        logger.info(f"Marked {res.modified_count} legacy meeting bookings as supervisor-approved")
     res = await db.rooms.update_many(
         {"$or": [{"building": {"$exists": False}}, {"building": ""}, {"building": None}]},
         {"$set": {"building": DEFAULT_ROOM_BUILDING}},
@@ -2440,6 +2935,8 @@ async def on_startup():
     await db.vehicle_bookings.create_index("user_id")
     await db.password_resets.create_index("token_hash", unique=True)
     await db.password_resets.create_index("expires_at", expireAfterSeconds=0)
+    await db.supervisor_meeting_approvals.create_index("token_hash", unique=True)
+    await db.supervisor_meeting_approvals.create_index("expires_at", expireAfterSeconds=0)
     await seed_admin()
     await migrate_legacy_roles()
     await seed_rooms()

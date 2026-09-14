@@ -13,6 +13,7 @@ function FnbStatusPill({ status }) {
     pending: { label: "Pending", cls: "bg-amber-100 text-amber-700" },
     approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700" },
     rejected: { label: "Rejected", cls: "bg-red-100 text-red-700" },
+    cancelled: { label: "Cancelled", cls: "bg-slate-200 text-slate-700" },
     not_required: { label: "No F&B", cls: "bg-slate-100 text-slate-600" },
   };
   const config = map[status] || { label: status || "No F&B", cls: "bg-slate-100 text-slate-600" };
@@ -74,7 +75,7 @@ function MeetingDetailDialog({ booking, onClose, onUpdateFnb, onUpdateMeeting })
   if (!booking) return null;
   const hasFnb = Boolean((booking.food_beverages || "").trim());
   const fnbRuleValid = hasValidFnbRule(booking);
-  const canApproveMeeting = booking.status === "pending";
+  const canApproveMeeting = booking.status === "pending" && booking.supervisor_approval_status === "approved";
   const canApproveFnb = booking.status === "confirmed" && hasFnb && fnbRuleValid && booking.fnb_status === "pending";
   const waitingForRoomApproval = booking.status === "pending" && hasFnb && booking.fnb_status === "pending";
   const layout = booking.layout_type
@@ -280,6 +281,7 @@ function ManagerMeetingTab() {
           <option value="pending">F&amp;B pending</option>
           <option value="approved">F&amp;B approved</option>
           <option value="rejected">F&amp;B rejected</option>
+          <option value="cancelled">F&amp;B cancelled</option>
           <option value="not_required">No F&amp;B</option>
         </select>
         <select value={building} onChange={(event) => setBuilding(event.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]">
@@ -318,7 +320,7 @@ function ManagerMeetingTab() {
             ) : bookings.map((booking) => {
               const hasFnb = Boolean((booking.food_beverages || "").trim());
               const fnbRuleValid = hasValidFnbRule(booking);
-              const canApproveMeeting = booking.status === "pending";
+              const canApproveMeeting = booking.status === "pending" && booking.supervisor_approval_status === "approved";
               const canApproveFnb = booking.status === "confirmed" && hasFnb && fnbRuleValid && booking.fnb_status === "pending";
               const waitingForRoomApproval = booking.status === "pending" && hasFnb && booking.fnb_status === "pending";
               return (

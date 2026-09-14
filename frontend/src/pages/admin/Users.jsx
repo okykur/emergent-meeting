@@ -91,6 +91,8 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           job_title: initial.job_title || "",
           department: initial.department || "",
           office_address: initial.office_address || "",
+          supervisor_name: initial.supervisor_name || "",
+          supervisor_email: initial.supervisor_email || "",
           meeting_buildings: buildingsToInput(initial.meeting_buildings || []),
           fnb_locations: buildingsToInput(initial.fnb_locations || []),
           role: initial.role || "user",
@@ -104,6 +106,8 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           job_title: "",
           department: "",
           office_address: "",
+          supervisor_name: "",
+          supervisor_email: "",
           meeting_buildings: "",
           fnb_locations: "",
           role: "user",
@@ -130,6 +134,8 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           job_title: payload.job_title,
           department: payload.department,
           office_address: payload.office_address,
+          supervisor_name: payload.supervisor_name,
+          supervisor_email: payload.supervisor_email,
           meeting_buildings: payload.meeting_buildings,
           fnb_locations: payload.fnb_locations,
           role: payload.role,
@@ -246,6 +252,32 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               onChange={(e) => setForm({ ...form, office_address: e.target.value })}
               className="min-h-20 w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
             />
+          </div>
+          <div className="rounded-sm border border-emerald-100 bg-emerald-50/50 p-3">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#087045]">Atasan</div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Nama</label>
+                <input
+                  data-testid="user-supervisor-name-input"
+                  value={form.supervisor_name}
+                  onChange={(e) => setForm({ ...form, supervisor_name: e.target.value })}
+                  placeholder="Nama atasan"
+                  className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
+                <input
+                  type="email"
+                  data-testid="user-supervisor-email-input"
+                  value={form.supervisor_email}
+                  onChange={(e) => setForm({ ...form, supervisor_email: e.target.value })}
+                  placeholder="atasan@company.com"
+                  className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+                />
+              </div>
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Role</label>

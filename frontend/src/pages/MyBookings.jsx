@@ -45,10 +45,107 @@ function meetingCancelState(b, now = new Date()) {
     return { canCancel: false, reason: "Check out to release this room" };
   }
   if (b.checked_in_at) return { canCancel: false, reason: null };
-  if ((b.food_beverages || "").trim() && b.date <= toYMD(now)) {
-    return { canCancel: false, reason: "F&B booking can be cancelled until D-1" };
-  }
+  const start = new Date(`${b.date}T${b.start_time}`);
+  if (now >= start) return { canCancel: false, reason: "Meeting has already started" };
   return { canCancel: true, reason: null };
+}
+
+function CancelMeetingDialog({ booking, onClose, onSubmit }) {
+  const [reason, setReason] = useState("");
+  const [cancelFnb, setCancelFnb] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const hasFnb = Boolean((booking.food_beverages || "").trim()) && booking.fnb_status !== "cancelled";
+  const fnbCanBeCancelled = hasFnb && booking.date > toYMD(new Date());
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setError("");
+    if (!reason.trim()) {
+      setError("Please provide a cancellation reason.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSubmit({ reason: reason.trim(), cancel_fnb: fnbCanBeCancelled && cancelFnb });
+    } catch (err) {
+      setError(formatApiError(err));
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" onClick={onClose}>
+      <form
+        onSubmit={submit}
+        onClick={(event) => event.stopPropagation()}
+        className="w-full max-w-lg rounded-xl border border-slate-200 bg-white shadow-xl"
+        data-testid="cancel-meeting-dialog"
+      >
+        <div className="flex items-start justify-between border-b border-slate-200 p-5">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-600">Cancel booking</div>
+            <h3 className="mt-1 font-display text-xl font-semibold text-slate-900">Cancel meeting room</h3>
+            <p className="mt-1 text-sm text-slate-500">{booking.room_name} - {formatDate(booking.date)}, {booking.start_time}-{booking.end_time}</p>
+          </div>
+          <button type="button" onClick={onClose} className="p-1 text-slate-400 hover:text-slate-900" aria-label="Close">
+            <CalendarX2 className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Cancellation reason</label>
+            <textarea
+              required
+              rows={4}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              data-testid="cancel-meeting-reason-input"
+              placeholder="Explain why this meeting is being cancelled"
+              className="w-full resize-none rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+            />
+          </div>
+
+          {hasFnb && fnbCanBeCancelled && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={cancelFnb}
+                onChange={(event) => setCancelFnb(event.target.checked)}
+                data-testid="cancel-meeting-fnb-checkbox"
+                className="mt-1 h-4 w-4 accent-[#0B7A4B]"
+              />
+              <span>
+                <span className="block font-semibold text-slate-900">Cancel F&amp;B accommodation as well</span>
+                <span className="mt-1 block text-xs text-slate-600">Leave unchecked to cancel only the meeting room and keep the F&amp;B request active.</span>
+              </span>
+            </label>
+          )}
+
+          {hasFnb && !fnbCanBeCancelled && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" data-testid="cancel-meeting-fnb-day-of-note">
+              This booking is on the meeting day. F&amp;B accommodation cannot be cancelled; only the meeting room will be cancelled.
+            </div>
+          )}
+
+          {error && <div className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-slate-200 p-4">
+          <button type="button" onClick={onClose} disabled={saving} className="rounded-sm border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Keep booking</button>
+          <button
+            type="submit"
+            disabled={saving}
+            data-testid="cancel-meeting-submit-btn"
+            className="inline-flex items-center gap-2 rounded-sm bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+          >
+            <CalendarX2 className="h-4 w-4" /> {saving ? "Cancelling..." : "Cancel meeting room"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 // Normalise both booking shapes into a single timeline row
@@ -89,6 +186,7 @@ export default function MyBookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actingId, setActingId] = useState(null);
+  const [cancellingMeeting, setCancellingMeeting] = useState(null);
   const [now, setNow] = useState(new Date());
   const [scope, setScope] = useState("all"); // all | meeting | vehicle
 
@@ -115,14 +213,14 @@ export default function MyBookings() {
   }, []);
 
   // Inline actions for meeting room
-  const cancelMeeting = async (id) => {
-    if (!window.confirm("Cancel this meeting-room booking?")) return;
-    setActingId(id);
+  const cancelMeeting = async (booking, payload) => {
+    setActingId(booking.id);
     try {
-      await api.post(`/bookings/${id}/cancel`);
+      await api.post(`/bookings/${booking.id}/cancel`, payload);
+      setCancellingMeeting(null);
       await load();
     } catch (e) {
-      alert(formatApiError(e));
+      throw e;
     } finally {
       setActingId(null);
     }
@@ -181,6 +279,13 @@ export default function MyBookings() {
 
   return (
     <div data-testid="my-bookings-page">
+      {cancellingMeeting && (
+        <CancelMeetingDialog
+          booking={cancellingMeeting}
+          onClose={() => setCancellingMeeting(null)}
+          onSubmit={(payload) => cancelMeeting(cancellingMeeting, payload)}
+        />
+      )}
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
@@ -351,7 +456,7 @@ export default function MyBookings() {
                             )}
                             {canCancel && (
                               <button
-                                onClick={() => cancelMeeting(b.id)}
+                                onClick={() => setCancellingMeeting(b)}
                                 disabled={actingId === b.id}
                                 data-testid={`mb-cancel-meeting-${b.id}`}
                                 className="inline-flex items-center gap-1 rounded-sm border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:border-red-300 hover:text-red-600 disabled:opacity-50"
@@ -515,7 +620,7 @@ export default function MyBookings() {
                       )}
                       {canCancel && (
                         <button
-                          onClick={() => cancelMeeting(b.id)}
+                          onClick={() => setCancellingMeeting(b)}
                           disabled={actingId === b.id}
                           data-testid={`mb-mobile-cancel-meeting-${b.id}`}
                           className="flex-1 inline-flex items-center justify-center gap-1 rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-red-300 hover:text-red-600 disabled:opacity-50"
