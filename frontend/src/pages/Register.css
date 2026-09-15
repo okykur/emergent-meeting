@@ -1,0 +1,72 @@
+.gass-register {
+  --register-green: #1e7c4f;
+  --register-ink: #272c29;
+  min-height: 100vh;
+  min-height: 100svh;
+  background: #f5f7f5;
+  color: var(--register-ink);
+}
+
+.gass-register__header { min-height: 64px; padding: 16px clamp(24px, 4.5vw, 64px); display: flex; align-items: center; justify-content: space-between; gap: 24px; background: #103d2b; color: white; }
+.gass-register__header a { font-size: 12px; font-weight: 700; }
+.gass-register__header > a:last-child:hover { text-decoration: underline; }
+.gass-register__brand { display: flex; align-items: center; gap: 10px; }
+.gass-register__brand img { width: 46px; height: 28px; padding: 2px; object-fit: contain; background: #fff; }
+.gass-register__brand span { letter-spacing: .02em; }
+.gass-register__content { padding: 60px 24px 100px; }
+.gass-register__intro { text-align: center; }
+.gass-register__intro h1 { font-size: clamp(24px, 2.4vw, 30px); font-weight: 800; line-height: 1.35; letter-spacing: -.035em; }
+.gass-register__intro p { margin: 12px auto 0; max-width: 850px; color: #737a74; font-size: 14px; line-height: 1.7; }
+.gass-register__card { width: 100%; max-width: 720px; margin: 38px auto 0; padding: 34px; border: 1px solid #dee4df; border-radius: 16px; background: white; box-shadow: 0 8px 22px rgba(25, 51, 36, .025); }
+.gass-register__card h2 { margin: 0 0 30px; font-size: 18px; font-weight: 700; letter-spacing: -.025em; }
+.gass-register__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; min-width: 0; }
+.gass-register__field { min-width: 0; }
+.gass-register__field label { display: block; margin-bottom: 7px; font-size: 11px; font-weight: 700; }
+.gass-register__field label > span { color: #c74943; }
+.gass-register__field input, .gass-register__field textarea { display: block; width: 100%; min-width: 0; height: 40px; padding: 9px 13px; border: 1px solid #e0e5e1; border-radius: 9px; background-color: #fff; color: var(--register-ink); font: inherit; font-size: 12px; }
+.gass-register__field input::placeholder, .gass-register__field textarea::placeholder { color: #7d867e; opacity: 1; }
+.gass-register__field input:focus, .gass-register__field textarea:focus { outline: none; border-color: var(--register-green); box-shadow: 0 0 0 3px rgba(30, 124, 79, .1); }
+.gass-register__field textarea { min-height: 72px; resize: vertical; }
+.gass-register__supervisor { grid-column: 1 / -1; padding: 18px; border: 1px solid #d7eadd; border-radius: 10px; background: #f4faf6; }
+.gass-register__supervisor h3 { margin: 0 0 16px; color: #1e7c4f; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.gass-register__actions { display: flex; align-items: center; gap: 20px; margin-top: 28px; }
+.gass-register__consent { display: flex; align-items: flex-start; flex: 1; gap: 8px; color: #7b827c; font-size: 11px; line-height: 1.5; cursor: pointer; }
+.gass-register__consent input { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; accent-color: var(--register-green); }
+.gass-register__actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 12px 22px; border-radius: 8px; background: var(--register-green); color: white; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.gass-register__actions button:hover { background: #155d3c; }
+.gass-register__actions button:disabled { opacity: .65; cursor: wait; }
+.gass-register button:focus-visible, .gass-register a:focus-visible, .gass-register__consent input:focus-visible { outline: 2px solid #26865d; outline-offset: 4px; }
+.gass-register__error { margin-top: 20px; padding: 12px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-size: 13px; overflow-wrap: anywhere; }
+.gass-register__content--confirmation { padding-top: 64px; }
+.gass-register__pending { width: 100%; max-width: 720px; margin: 38px auto 0; padding: 28px; border: 1px solid #f0d88d; border-radius: 16px; background: #fff; box-shadow: 0 12px 30px rgba(25, 51, 36, .035); }
+.gass-register__confirmation-heading { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; padding-bottom: 22px; border-bottom: 1px solid #e5e8e6; }
+.gass-register__confirmation-heading > div:nth-child(2) { min-width: 0; }
+.gass-register__confirmation-icon { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 50%; background: #e7f5ed; color: #1e7c4f; }
+.gass-register__confirmation-heading h2 { margin: 0 0 3px; font-size: 18px; font-weight: 800; line-height: 1.3; letter-spacing: -.025em; }
+.gass-register__confirmation-heading span { display: block; color: #788079; font-size: 11px; }
+.gass-register__status-badge { padding: 7px 12px; border-radius: 999px; background: #fff0c7; color: #d47a00; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.gass-register__pending [role="status"] { margin: 24px 0 22px; color: #333a35; font-size: 13px; line-height: 1.7; }
+.gass-register__confirmation-help { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 9px; background: #f4f6f4; color: #717872; font-size: 11px; line-height: 1.5; }
+.gass-register__confirmation-help svg { flex: 0 0 auto; color: #637069; }
+
+@media (max-width: 600px) {
+  .gass-register__header { padding: 14px 20px; gap: 16px; }
+  .gass-register__header > a:last-child { max-width: 150px; font-size: 10px; text-align: right; }
+  .gass-register__content { padding: 32px 16px 48px; }
+  .gass-register__intro h1 { font-size: 23px; }
+  .gass-register__intro p { font-size: 12px; }
+  .gass-register__card { margin-top: 26px; padding: 24px 20px; }
+  .gass-register__card h2 { font-size: 16px; margin-bottom: 24px; }
+  .gass-register__grid { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .gass-register__field label { font-size: 12px; }
+  .gass-register__field input, .gass-register__field textarea { height: 46px; font-size: 16px; }
+  .gass-register__supervisor { padding: 14px; }
+  .gass-register__actions { flex-direction: column; align-items: stretch; }
+  .gass-register__actions button { min-height: 46px; }
+  .gass-register__content--confirmation { padding-top: 34px; }
+  .gass-register__pending { margin-top: 26px; padding: 20px; }
+  .gass-register__confirmation-heading { grid-template-columns: auto 1fr; }
+  .gass-register__status-badge { grid-column: 1 / -1; width: max-content; margin-left: 60px; }
+  .gass-register__confirmation-heading h2 { font-size: 16px; }
+  .gass-register__confirmation-help { align-items: flex-start; }
+}

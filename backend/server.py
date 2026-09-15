@@ -180,12 +180,14 @@ class UserPublic(BaseModel):
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6)
+    password: str = Field(min_length=8)
     name: str = Field(min_length=1)
     company_name: str = Field(min_length=1, max_length=120)
     job_title: str = Field(min_length=1, max_length=120)
     department: str = Field(min_length=1, max_length=120)
     office_address: str = Field(min_length=1, max_length=240)
+    supervisor_name: str = Field(default="", max_length=120)
+    supervisor_email: Optional[EmailStr] = None
 
 
 class LoginRequest(BaseModel):
@@ -956,6 +958,8 @@ async def register(payload: RegisterRequest):
         "job_title": payload.job_title.strip(),
         "department": payload.department.strip(),
         "office_address": payload.office_address.strip(),
+        "supervisor_name": payload.supervisor_name.strip(),
+        "supervisor_email": str(payload.supervisor_email).strip().lower() if payload.supervisor_email else "",
         "meeting_buildings": [],
         "fnb_locations": [],
         "password_hash": hash_password(payload.password),
