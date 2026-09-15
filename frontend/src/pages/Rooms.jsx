@@ -1,73 +1,59 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, formatApiError } from "../api";
-import { ActiveTag } from "../components/Status";
 import { rangeDays, dayAvailability, toYMD, formatDate, roomOperatingHoursLabel } from "../utils/dates";
-import { Users, MapPin, Search, DoorOpen, CalendarClock, Loader2 } from "lucide-react";
+import { Users, MapPin, Search, DoorOpen, CalendarClock, Loader2, Clock3, LayoutGrid } from "lucide-react";
 import BookingDialog from "../components/BookingDialog";
 
 function HeatBar({ days, bookings, room }) {
-  // For up to 14 days show day abbreviations; beyond that show only start/end markers for clarity.
   const showLabels = days.length <= 14;
   return (
-    <div className="mt-3">
-      <div
-        className="heat-bar"
-        style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
-      >
-        {days.map((d) => {
-          const status = dayAvailability(bookings, d.ymd, room);
-          return (
-            <div
-              key={d.ymd}
-              className={`heat-cell ${status}`}
-              title={`${d.ymd}: ${status} (${roomOperatingHoursLabel(room)})`}
-            />
-          );
+    <div className="mt-4 border-t border-[#E7ECE8] pt-3">
+      <div className="mb-2 flex items-center justify-between gap-3 text-[9px] font-bold uppercase tracking-[0.08em] text-[#657169]">
+        <span>Jadwal pemakaian</span>
+        <span className="font-medium normal-case tracking-normal text-[#7B867F]">{roomOperatingHoursLabel(room)}</span>
+      </div>
+      <div className="heat-bar" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
+        {days.map((day) => {
+          const status = dayAvailability(bookings, day.ymd, room);
+          return <div key={day.ymd} className={`heat-cell ${status}`} title={`${day.ymd}: ${status} (${roomOperatingHoursLabel(room)})`} />;
         })}
       </div>
-      {showLabels ? (
-        <div className="mt-2 flex justify-between text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-          {days.map((d) => (
-            <span key={d.ymd}>{d.day}</span>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-2 flex justify-between text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-          <span>{formatDate(days[0].ymd)}</span>
-          <span>{formatDate(days[days.length - 1].ymd)}</span>
-        </div>
-      )}
+      <div className="mt-1.5 flex justify-between text-[9px] font-medium text-[#87928B]">
+        {showLabels ? days.map((day) => <span key={day.ymd}>{day.day}</span>) : <><span>{formatDate(days[0].ymd)}</span><span>{formatDate(days[days.length - 1].ymd)}</span></>}
+      </div>
     </div>
   );
+}
+
+function getRoomStatus(room, bookings, days) {
+  if (!room.is_active) return { label: "Tidak tersedia", className: "bg-[#EEF1EF] text-[#68736C]" };
+  const statuses = days.map((day) => dayAvailability(bookings, day.ymd, room));
+  if (statuses.length > 0 && statuses.every((status) => status === "full")) return { label: "Penuh", className: "bg-[#FDE8E7] text-[#C73D36]" };
+  if (statuses.some((status) => status === "partial" || status === "full")) return { label: "Sebagian terisi", className: "bg-[#FFF2D7] text-[#B66B08]" };
+  return { label: "Tersedia", className: "bg-[#E2F4E9] text-[#167849]" };
 }
 
 export default function Rooms() {
   const todayYMD = useMemo(() => toYMD(new Date()), []);
   const defaultEndYMD = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 6);
-    return toYMD(d);
+    const date = new Date();
+    date.setDate(date.getDate() + 6);
+    return toYMD(date);
   }, []);
-
-  // Draft inputs (what the user is typing)
   const [startInput, setStartInput] = useState(todayYMD);
   const [endInput, setEndInput] = useState(defaultEndYMD);
-  // Applied range (last searched)
   const [appliedRange, setAppliedRange] = useState({ start: todayYMD, end: defaultEndYMD });
-
   const [rooms, setRooms] = useState([]);
   const [bookingsByRoom, setBookingsByRoom] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [rangeError, setRangeError] = useState("");
   const [search, setSearch] = useState("");
+  const [minimumCapacity, setMinimumCapacity] = useState("");
+  const [building, setBuilding] = useState("all");
   const [filter, setFilter] = useState("all");
   const [bookingRoom, setBookingRoom] = useState(null);
-
-  const days = useMemo(
-    () => rangeDays(appliedRange.start, appliedRange.end, 31),
-    [appliedRange]
-  );
+  const days = useMemo(() => rangeDays(appliedRange.start, appliedRange.end, 31), [appliedRange]);
 
   const fetchData = async (start, end) => {
     setLoading(true);
@@ -76,17 +62,13 @@ export default function Rooms() {
       const { data } = await api.get("/rooms");
       setRooms(data);
       const map = {};
-      await Promise.all(
-        data.map(async (r) => {
-          const { data: avail } = await api.get(`/rooms/${r.id}/availability`, {
-            params: { start_date: start, end_date: end },
-          });
-          map[r.id] = avail.bookings || [];
-        })
-      );
+      await Promise.all(data.map(async (room) => {
+        const { data: availability } = await api.get(`/rooms/${room.id}/availability`, { params: { start_date: start, end_date: end } });
+        map[room.id] = availability.bookings || [];
+      }));
       setBookingsByRoom(map);
-    } catch (e) {
-      setError(formatApiError(e));
+    } catch (requestError) {
+      setError(formatApiError(requestError));
     } finally {
       setLoading(false);
     }
@@ -97,25 +79,14 @@ export default function Rooms() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onSearch = (e) => {
-    e?.preventDefault?.();
+  const onSearch = (event) => {
+    event?.preventDefault?.();
     setRangeError("");
-    if (!startInput || !endInput) {
-      setRangeError("Please select both a start and end date.");
-      return;
-    }
-    if (endInput < startInput) {
-      setRangeError("End date must be on or after the start date.");
-      return;
-    }
-    // Clamp range to 31 days
-    const start = new Date(startInput + "T00:00:00");
-    const end = new Date(endInput + "T00:00:00");
-    const diffDays = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
-    if (diffDays > 31) {
-      setRangeError("Please choose a range of 31 days or less.");
-      return;
-    }
+    if (!startInput || !endInput) return setRangeError("Pilih tanggal mulai dan tanggal selesai.");
+    if (endInput < startInput) return setRangeError("Tanggal selesai tidak boleh sebelum tanggal mulai.");
+    const start = new Date(`${startInput}T00:00:00`);
+    const end = new Date(`${endInput}T00:00:00`);
+    if (Math.floor((end - start) / 86400000) + 1 > 31) return setRangeError("Pilih rentang maksimal 31 hari.");
     setAppliedRange({ start: startInput, end: endInput });
     fetchData(startInput, endInput);
   };
@@ -124,273 +95,121 @@ export default function Rooms() {
     const start = new Date();
     const end = new Date();
     end.setDate(start.getDate() + daysCount - 1);
-    const s = toYMD(start);
-    const e = toYMD(end);
-    setStartInput(s);
-    setEndInput(e);
-    setAppliedRange({ start: s, end: e });
-    fetchData(s, e);
+    const startValue = toYMD(start);
+    const endValue = toYMD(end);
+    setStartInput(startValue);
+    setEndInput(endValue);
+    setAppliedRange({ start: startValue, end: endValue });
+    fetchData(startValue, endValue);
   };
 
-  const filtered = rooms.filter((r) => {
-    const q = search.trim().toLowerCase();
-    const matchesQ =
-      !q ||
-      r.name.toLowerCase().includes(q) ||
-      (r.building || "").toLowerCase().includes(q) ||
-      r.location.toLowerCase().includes(q) ||
-      r.facilities.some((f) => f.toLowerCase().includes(q));
-    if (!matchesQ) return false;
-    if (filter === "available") return r.is_active;
-    if (filter === "unavailable") return !r.is_active;
+  const buildings = [...new Set(rooms.map((room) => room.building).filter(Boolean))].sort();
+  const filtered = rooms.filter((room) => {
+    const query = search.trim().toLowerCase();
+    const matchesQuery = !query || room.name.toLowerCase().includes(query) || (room.building || "").toLowerCase().includes(query) || room.location.toLowerCase().includes(query) || room.facilities.some((facility) => facility.toLowerCase().includes(query));
+    if (!matchesQuery) return false;
+    if (minimumCapacity && Number(room.capacity) < Number(minimumCapacity)) return false;
+    if (building !== "all" && room.building !== building) return false;
+    if (filter === "available") return room.is_active;
+    if (filter === "unavailable") return !room.is_active;
     return true;
   });
 
   return (
-    <div data-testid="rooms-page">
-      <div className="mb-6">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
-          Meeting Rooms
-        </div>
-        <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-          Find your space
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-slate-500">
-          Pick a date range, then search to see live availability across all
-          rooms. Select a room to request a booking — admins will review and
-          confirm.
-        </p>
-      </div>
+    <div data-testid="rooms-page" className="pb-8">
+      <header className="mb-7">
+        <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[#657169]">Pilih fasilitas perusahaan</div>
+        <h1 className="font-display text-3xl font-extrabold tracking-[-0.04em] text-[#252A27] sm:text-4xl">Temukan Ruangan Anda</h1>
+        <p className="mt-2 max-w-2xl text-sm text-[#6E7972]">Pilih jadwal dan kapasitas untuk melihat ketersediaan ruang rapat secara langsung.</p>
+      </header>
 
-      {/* Date range search bar */}
-      <form
-        onSubmit={onSearch}
-        className="mb-6 rounded-sm border border-slate-200 bg-white p-4 shadow-sm"
-        data-testid="date-range-form"
-      >
-        <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[auto_auto_auto_1fr]">
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Start date
-            </label>
-            <input
-              type="date"
-              value={startInput}
-              onChange={(e) => setStartInput(e.target.value)}
-              data-testid="range-start-input"
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15 md:w-44"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-500">
-              End date
-            </label>
-            <input
-              type="date"
-              value={endInput}
-              onChange={(e) => setEndInput(e.target.value)}
-              data-testid="range-end-input"
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15 md:w-44"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            data-testid="range-search-btn"
-            className="inline-flex h-[38px] items-center justify-center gap-2 rounded-sm bg-[#0B7A4B] px-5 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            Search
+      <form onSubmit={onSearch} className="mb-7 overflow-hidden rounded-2xl border border-[#DDE4DF] bg-white shadow-[0_8px_24px_rgba(24,55,42,0.04)]" data-testid="date-range-form">
+        <div className="grid grid-cols-1 items-end gap-4 p-5 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto]">
+          <label className="block text-xs font-bold text-[#3F4943]">Tanggal Mulai
+            <input type="date" value={startInput} onChange={(event) => setStartInput(event.target.value)} data-testid="range-start-input" className="mt-2 h-11 w-full rounded-lg border border-[#DCE3DE] px-3 text-sm font-normal text-[#303732] outline-none focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/10" />
+          </label>
+          <label className="block text-xs font-bold text-[#3F4943]">Tanggal Selesai
+            <input type="date" value={endInput} onChange={(event) => setEndInput(event.target.value)} data-testid="range-end-input" className="mt-2 h-11 w-full rounded-lg border border-[#DCE3DE] px-3 text-sm font-normal text-[#303732] outline-none focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/10" />
+          </label>
+          <label className="block text-xs font-bold text-[#3F4943]">Kapasitas Minimum
+            <select value={minimumCapacity} onChange={(event) => setMinimumCapacity(event.target.value)} data-testid="minimum-capacity-filter" className="mt-2 h-11 w-full rounded-lg border border-[#DCE3DE] bg-white px-3 text-sm font-normal text-[#303732] outline-none focus:border-[#238B57]">
+              <option value="">Semua kapasitas</option>
+              {[2, 4, 6, 8, 10, 15, 20, 30].map((capacity) => <option key={capacity} value={capacity}>{capacity}+ orang</option>)}
+            </select>
+          </label>
+          <button type="submit" disabled={loading} data-testid="range-search-btn" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#238B57] px-6 text-sm font-bold text-white transition-colors hover:bg-[#176E43] disabled:opacity-60 md:col-span-2 xl:col-span-1">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Cari Ruangan
           </button>
-          <div className="flex flex-wrap items-center gap-2 md:justify-end">
-            <span className="text-xs uppercase tracking-wider text-slate-400">Quick:</span>
-            {[
-              { label: "Today", n: 1 },
-              { label: "7 days", n: 7 },
-              { label: "14 days", n: 14 },
-              { label: "30 days", n: 30 },
-            ].map((q) => (
-              <button
-                type="button"
-                key={q.label}
-                onClick={() => quickPick(q.n)}
-                data-testid={`range-quick-${q.n}`}
-                className="rounded-sm border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                {q.label}
-              </button>
-            ))}
+        </div>
+        <div className="flex flex-col gap-3 border-t border-[#E7ECE8] bg-[#FBFCFB] px-5 py-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-semibold text-[#657169]">Jadwal cepat:</span>
+            {[{ label: "Hari ini", n: 1 }, { label: "7 hari", n: 7 }, { label: "14 hari", n: 14 }].map((quick) => <button type="button" key={quick.label} onClick={() => quickPick(quick.n)} data-testid={`range-quick-${quick.n}`} className="rounded-full border border-[#DCE3DE] bg-white px-3 py-1.5 text-[11px] font-bold text-[#526058] hover:border-[#238B57] hover:text-[#176E43]">{quick.label}</button>)}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative min-w-0 sm:w-64">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#87928B]" />
+              <input data-testid="rooms-search-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama atau fasilitas..." className="h-9 w-full rounded-lg border border-[#E1E7E3] bg-white py-2 pl-9 pr-3 text-xs outline-none focus:border-[#238B57]" />
+            </div>
+            <select value={building} onChange={(event) => setBuilding(event.target.value)} data-testid="building-filter" className="h-9 rounded-lg border border-[#E1E7E3] bg-white px-3 text-xs font-semibold text-[#526058] outline-none focus:border-[#238B57]">
+              <option value="all">Semua lokasi</option>
+              {buildings.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
           </div>
         </div>
-        {rangeError && (
-          <div
-            className="mt-3 rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-            data-testid="range-error"
-          >
-            {rangeError}
-          </div>
-        )}
-        <div className="mt-3 text-xs text-slate-500" data-testid="applied-range-label">
-          Showing availability <span className="font-semibold text-slate-700">
-            {formatDate(appliedRange.start)}
-          </span>{" "}
-          → <span className="font-semibold text-slate-700">{formatDate(appliedRange.end)}</span>
-          {" "}({days.length} {days.length === 1 ? "day" : "days"})
-        </div>
+        {rangeError && <div className="mx-5 mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" data-testid="range-error">{rangeError}</div>}
+        <div className="sr-only" data-testid="applied-range-label">{formatDate(appliedRange.start)} - {formatDate(appliedRange.end)} ({days.length} days)</div>
       </form>
 
-      {/* Search & filter row */}
-      <div className="mb-6 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            data-testid="rooms-search-input"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter rooms by name, location, facilities…"
-            className="w-full rounded-sm border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
-          />
+      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#657169]">
+          <span className="font-bold text-[#3F4943]">Status periode:</span>
+          <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-[#19A66A]" /> Tersedia</span>
+          <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-[#E69422]" /> Sebagian terisi</span>
+          <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-[#D9463E]" /> Penuh</span>
+          <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-[#CBD2CD]" /> Tidak tersedia</span>
         </div>
-        <div className="flex items-center gap-1 rounded-sm border border-slate-300 bg-white p-1">
-          {[
-            { v: "all", label: "All" },
-            { v: "available", label: "Active" },
-            { v: "unavailable", label: "Inactive" },
-          ].map((o) => (
-            <button
-              key={o.v}
-              onClick={() => setFilter(o.v)}
-              data-testid={`filter-${o.v}`}
-              className={`rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
-                filter === o.v
-                  ? "bg-[#064E3B] text-white"
-                  : "text-slate-500 hover:text-slate-900"
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
+        <div className="flex w-fit items-center gap-1 rounded-lg border border-[#DCE3DE] bg-white p-1">
+          {[{ v: "all", label: "Semua" }, { v: "available", label: "Aktif" }, { v: "unavailable", label: "Nonaktif" }].map((option) => <button type="button" key={option.v} onClick={() => setFilter(option.v)} data-testid={`filter-${option.v}`} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition-colors ${filter === option.v ? "bg-[#0B4935] text-white" : "text-[#657169] hover:text-[#252A27]"}`}>{option.label}</button>)}
         </div>
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center gap-6 text-xs text-slate-500">
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-5 rounded-sm bg-emerald-500" /> Free
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-5 rounded-sm bg-amber-400" /> Pending / partially booked
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-5 rounded-sm bg-red-500" /> Fully booked (approved)
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-5 rounded-sm bg-slate-200" /> No data / closed
-        </div>
-      </div>
-
-      {error && (
-        <div className="mb-4 rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-72 animate-pulse rounded-sm border border-slate-200 bg-white" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-sm border border-dashed border-slate-300 bg-white p-12 text-center" data-testid="rooms-empty">
-          <DoorOpen className="mx-auto h-10 w-10 text-slate-300" />
-          <p className="mt-3 text-sm text-slate-500">No rooms match your filters.</p>
-        </div>
+      {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {loading ? <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">{[0, 1, 2, 3].map((index) => <div key={index} className="h-[420px] animate-pulse rounded-2xl border border-[#DDE4DF] bg-white" />)}</div> : filtered.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-[#CCD5CF] bg-white p-12 text-center" data-testid="rooms-empty"><DoorOpen className="mx-auto h-10 w-10 text-[#B8C1BB]" /><p className="mt-3 text-sm text-[#657169]">Tidak ada ruangan yang sesuai dengan filter.</p></div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((r) => (
-            <article
-              key={r.id}
-              data-testid={`room-card-${r.id}`}
-              className="group flex flex-col overflow-hidden rounded-sm border border-slate-200 bg-white shadow-sm transition-all hover:border-[#0B7A4B] hover:shadow-md"
-            >
-              <div className="relative h-40 w-full overflow-hidden bg-slate-100">
-                {r.image_url && (
-                  <img
-                    src={r.image_url}
-                    alt={r.name}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                )}
-                <div className="absolute right-3 top-3">
-                  <ActiveTag active={r.is_active} />
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {filtered.map((room) => {
+            const roomBookings = bookingsByRoom[room.id] || [];
+            const status = getRoomStatus(room, roomBookings, days);
+            return (
+              <article key={room.id} data-testid={`room-card-${room.id}`} className="group overflow-hidden rounded-2xl border border-[#DDE4DF] bg-white shadow-[0_8px_24px_rgba(24,55,42,0.05)] transition-all hover:-translate-y-0.5 hover:border-[#9FC6B2] hover:shadow-[0_14px_30px_rgba(24,55,42,0.1)]">
+                <div className="relative h-48 overflow-hidden bg-[#EEF2EF] sm:h-56">
+                  {room.image_url ? <img src={room.image_url} alt={room.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]" /> : <div className="flex h-full items-center justify-center"><DoorOpen className="h-12 w-12 text-[#B8C1BB]" /></div>}
+                  <span className="absolute left-4 top-4 rounded-full bg-[#0B4935] px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.06em] text-white shadow-sm">{room.building || "Belum ditentukan"}</span>
+                  <span className={`absolute right-4 top-4 rounded-full px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.05em] shadow-sm ${status.className}`}>{status.label}</span>
                 </div>
-              </div>
-              <div className="flex flex-1 flex-col p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-display text-lg font-semibold text-slate-900">{r.name}</h3>
-                    <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                      <MapPin className="h-3 w-3" /> {r.location}
-                    </div>
-                    <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-[#0B7A4B]">
-                      {r.building || "Unassigned"}
-                    </div>
-                    <div className="mt-1 text-xs font-medium text-slate-500">
-                      Operational: {roomOperatingHoursLabel(r)}
-                    </div>
-                    <div className="mt-1 text-xs font-medium text-slate-500">
-                      Layout: {r.layout_fixed !== false ? "Fixed" : "Flexible"}
-                    </div>
+                <div className="p-5">
+                  <h2 className="font-display text-xl font-extrabold tracking-[-0.03em] text-[#252A27]">{room.name}</h2>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-[11px] font-medium text-[#657169]">
+                    <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {room.capacity} orang</span>
+                    <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> {room.location}</span>
+                    <span className="flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" /> {roomOperatingHoursLabel(room)}</span>
+                    <span className="flex items-center gap-1.5"><LayoutGrid className="h-3.5 w-3.5" /> {room.layout_fixed !== false ? "Fixed" : "Fleksibel"}</span>
                   </div>
-                  <div className="flex items-center gap-1 rounded-sm bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-                    <Users className="h-3 w-3" /> {r.capacity}
-                  </div>
-                </div>
-                {r.facilities.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {r.facilities.slice(0, 4).map((f) => (
-                      <span
-                        key={f}
-                        className="rounded-sm bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600"
-                      >
-                        {f}
-                      </span>
-                    ))}
-                    {r.facilities.length > 4 && (
-                      <span className="rounded-sm bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
-                        +{r.facilities.length - 4}
-                      </span>
-                    )}
-                  </div>
-                )}
-                {days.length > 0 && <HeatBar days={days} bookings={bookingsByRoom[r.id] || []} room={r} />}
-                <div className="mt-5 flex gap-2">
-                  <button
-                    disabled={!r.is_active}
-                    onClick={() => setBookingRoom(r)}
-                    data-testid={`book-btn-${r.id}`}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-sm bg-[#0B7A4B] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#064E3B] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-                  >
-                    <CalendarClock className="h-4 w-4" />
-                    Book Room
+                  {room.facilities.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{room.facilities.slice(0, 5).map((facility) => <span key={facility} className="rounded-md border border-[#E1E7E3] bg-[#F8FAF8] px-2 py-1 text-[10px] font-medium text-[#647068]">{facility}</span>)}{room.facilities.length > 5 && <span className="rounded-md bg-[#EDF2EE] px-2 py-1 text-[10px] text-[#647068]">+{room.facilities.length - 5}</span>}</div>}
+                  {days.length > 0 && <HeatBar days={days} bookings={roomBookings} room={room} />}
+                  <button disabled={!room.is_active} onClick={() => setBookingRoom(room)} data-testid={`book-btn-${room.id}`} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-[#238B57] bg-[#238B57] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#176E43] disabled:cursor-not-allowed disabled:border-[#DCE3DE] disabled:bg-white disabled:text-[#87928B]">
+                    <CalendarClock className="h-4 w-4" /> {room.is_active ? "Pesan Ruangan Ini" : "Tidak Dapat Dipesan"}
                   </button>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
 
-      {bookingRoom && (
-        <BookingDialog
-          room={bookingRoom}
-          onClose={() => setBookingRoom(null)}
-          onBooked={async () => {
-            setBookingRoom(null);
-            await fetchData(appliedRange.start, appliedRange.end);
-          }}
-        />
-      )}
+      {bookingRoom && <BookingDialog room={bookingRoom} onClose={() => setBookingRoom(null)} onBooked={async () => { setBookingRoom(null); await fetchData(appliedRange.start, appliedRange.end); }} />}
     </div>
   );
 }

@@ -16,7 +16,7 @@ import smtplib
 import html
 from datetime import datetime, timezone, timedelta
 from email.message import EmailMessage
-from typing import List, Optional, Literal
+from typing import Dict, List, Optional, Literal
 from urllib.error import HTTPError, URLError
 from urllib.request import Request as UrlRequest, urlopen
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -276,6 +276,8 @@ class BookingCreate(BaseModel):
     fnb_activity_code: str = ""
     fnb_activity_name: str = ""
     guest_type: str = ""
+    guest_pic: str = ""
+    guest_counts: Dict[str, int] = Field(default_factory=dict)
     snack_type: str = ""
     snack_times: Optional[int] = None
     snack_pax: Optional[int] = None
@@ -329,6 +331,8 @@ class Booking(BaseModel):
     fnb_activity_code: str = ""
     fnb_activity_name: str = ""
     guest_type: str = ""
+    guest_pic: str = ""
+    guest_counts: Dict[str, int] = Field(default_factory=dict)
     snack_type: str = ""
     snack_times: Optional[int] = None
     snack_pax: Optional[int] = None
@@ -1347,6 +1351,8 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         "fnb_activity_code": payload.fnb_activity_code.strip(),
         "fnb_activity_name": payload.fnb_activity_name.strip(),
         "guest_type": payload.guest_type.strip(),
+        "guest_pic": payload.guest_pic.strip(),
+        "guest_counts": payload.guest_counts,
         "snack_type": payload.snack_type.strip(),
         "snack_times": payload.snack_times,
         "snack_pax": payload.snack_pax,
