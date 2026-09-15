@@ -3,70 +3,61 @@ import { api, formatApiError } from "../../api";
 import { useAuth } from "../../context/AuthContext";
 import {
   Search,
-  UserPlus,
+  Plus,
   Pencil,
   KeyRound,
   Trash2,
   X,
   Loader2,
-  Shield,
   User as UserIcon,
   CheckCircle2,
-  Clock3,
 } from "lucide-react";
 
 function RoleTag({ role }) {
   const config = {
     super_admin: {
       label: "Super Admin",
-      icon: Shield,
-      cls: "border-[#0B7A4B]/30 bg-[#0B7A4B]/10 text-[#0B7A4B]",
+      cls: "bg-[#0B4935] text-white",
     },
     meeting_admin: {
       label: "Meeting Admin",
-      icon: Shield,
-      cls: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      cls: "bg-[#238B57] text-white",
     },
     car_admin: {
       label: "Car Admin",
-      icon: Shield,
-      cls: "border-amber-200 bg-amber-50 text-amber-700",
+      cls: "bg-[#E88A00] text-white",
     },
     manager: {
       label: "Manager",
-      icon: Shield,
-      cls: "border-sky-200 bg-sky-50 text-sky-700",
+      cls: "bg-[#FFF0C7] text-[#C87400]",
     },
     user: {
       label: "User",
-      icon: UserIcon,
-      cls: "border-slate-200 bg-slate-100 text-slate-600",
+      cls: "bg-[#E9EEEB] text-[#68736C]",
     },
   };
   const c = config[role] || config.user;
-  const Icon = c.icon;
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${c.cls}`}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${c.cls}`}
       data-testid={`role-tag-${role}`}
     >
-      <Icon className="h-3 w-3" /> {c.label}
+      {c.label}
     </span>
   );
 }
 
 function ApprovalTag({ approved }) {
-  const Icon = approved ? CheckCircle2 : Clock3;
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${
+      className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold ${
         approved
-          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-          : "border-amber-200 bg-amber-50 text-amber-700"
+          ? "bg-[#E4F4EB] text-[#1E7C4F]"
+          : "bg-[#FFF0C7] text-[#C87400]"
       }`}
       data-testid={approved ? "approval-approved" : "approval-pending"}
     >
-      <Icon className="h-3 w-3" /> {approved ? "Approved" : "Pending"}
+      {approved ? "Disetujui" : "Ditunda"}
     </span>
   );
 }
@@ -81,6 +72,15 @@ function inputToBuildings(value = "") {
     .map((building) => building.trim())
     .filter(Boolean);
 }
+
+const userFieldClass = "h-11 w-full rounded-lg border border-[#DCE3DE] bg-white px-3.5 text-sm text-[#303732] outline-none placeholder:text-[#8A938D] focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/10";
+const userRoleOptions = [
+  { value: "super_admin", label: "Super Admin", description: "Kelola seluruh pengguna, role, dan akses sistem" },
+  { value: "manager", label: "Manager", description: "Melakukan review dan approval meeting room serta F&B" },
+  { value: "user", label: "User", description: "Mengajukan booking untuk diri sendiri" },
+  { value: "meeting_admin", label: "Meeting Admin", description: "Meninjau pengajuan dan mengelola ruang meeting" },
+  { value: "car_admin", label: "Car Admin", description: "Meninjau pengajuan dan mengelola kendaraan serta driver" },
+];
 
 function UserFormDialog({ initial, onClose, onSaved }) {
   const [form, setForm] = useState(() =>
@@ -154,44 +154,45 @@ function UserFormDialog({ initial, onClose, onSaved }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#10271F]/70 p-4 backdrop-blur-[1px]"
       onClick={onClose}
       data-testid="user-dialog"
     >
       <div
-        className="flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-sm border border-slate-200 bg-white shadow-xl"
+        className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#DCE3DE] bg-white shadow-[0_28px_80px_rgba(8,35,25,0.28)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 p-5">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              {initial ? "Edit User" : "New User"}
-            </div>
-            <h3 className="mt-1 font-display text-xl font-semibold text-slate-900">
-              {initial ? initial.email : "Add new user"}
+        <div className="flex shrink-0 items-center justify-between border-b border-[#E4E9E6] px-6 py-5 sm:px-8">
+          <div className="min-w-0">
+            <h3 className="font-display text-xl font-extrabold tracking-[-0.03em] text-[#252A27]">
+              {initial ? "Edit Pengguna" : "Tambah Pengguna Baru"}
             </h3>
+            {initial && <p className="mt-1 truncate text-xs text-[#79827C]">{initial.email}</p>}
           </div>
-          <button onClick={onClose} data-testid="user-dialog-close" className="p-1 text-slate-400 hover:text-slate-900">
+          <button type="button" onClick={onClose} data-testid="user-dialog-close" className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#69736D] hover:bg-[#EEF2EF] hover:text-[#253029]" aria-label="Tutup">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <form onSubmit={submit} className="min-h-0 space-y-4 overflow-y-auto p-5" data-testid="user-form">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col" data-testid="user-form">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 sm:px-8 sm:py-6">
+          <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2">
           {!initial && (
             <>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
+                <label className="mb-2 block text-xs font-bold text-[#343B36]">Email Perusahaan *</label>
                 <input
                   required
                   type="email"
                   data-testid="user-email-input"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+                  placeholder="nama.karyawan@kcsi.co.id"
+                  className={userFieldClass}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Initial password (min 6 chars)
+                <label className="mb-2 block text-xs font-bold text-[#343B36]">
+                  Password Internal *
                 </label>
                 <input
                   required
@@ -200,92 +201,100 @@ function UserFormDialog({ initial, onClose, onSaved }) {
                   data-testid="user-password-input"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+                  placeholder="Minimal 6 karakter"
+                  className={userFieldClass}
                 />
               </div>
             </>
           )}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Full name</label>
+            <label className="mb-2 block text-xs font-bold text-[#343B36]">Nama Lengkap *</label>
             <input
               required
               data-testid="user-name-input"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+              placeholder="Contoh: Bagus Prasetyo"
+              className={userFieldClass}
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Company</label>
+            <label className="mb-2 block text-xs font-bold text-[#343B36]">Perusahaan (Company)</label>
             <input
               data-testid="user-company-input"
               value={form.company_name}
               onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+              placeholder="Nama perusahaan"
+              className={userFieldClass}
             />
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="contents">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Jabatan</label>
+              <label className="mb-2 block text-xs font-bold text-[#343B36]">Jabatan</label>
               <input
                 data-testid="user-job-title-input"
                 value={form.job_title}
                 onChange={(e) => setForm({ ...form, job_title: e.target.value })}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+                placeholder="Jabatan pengguna"
+                className={userFieldClass}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Departemen</label>
+              <label className="mb-2 block text-xs font-bold text-[#343B36]">Departemen / Divisi</label>
               <input
                 data-testid="user-department-input"
                 value={form.department}
                 onChange={(e) => setForm({ ...form, department: e.target.value })}
-                className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+                placeholder="Departemen pengguna"
+                className={userFieldClass}
               />
             </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Alamat kantor</label>
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-xs font-bold text-[#343B36]">Alamat Kantor</label>
             <textarea
               data-testid="user-office-address-input"
               value={form.office_address}
               onChange={(e) => setForm({ ...form, office_address: e.target.value })}
-              className="min-h-20 w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+              placeholder="Alamat atau lokasi kantor"
+              className="min-h-20 w-full resize-y rounded-lg border border-[#DCE3DE] bg-white px-3.5 py-3 text-sm text-[#303732] outline-none placeholder:text-[#8A938D] focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/10"
             />
           </div>
-          <div className="rounded-sm border border-emerald-100 bg-emerald-50/50 p-3">
-            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#087045]">Atasan</div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-[#D7E9DE] bg-[#F6FAF7] p-4 md:col-span-2">
+            <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-[#238B57]">Informasi Atasan</div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Nama</label>
+                <label className="mb-2 block text-xs font-bold text-[#343B36]">Nama Atasan</label>
                 <input
                   data-testid="user-supervisor-name-input"
                   value={form.supervisor_name}
                   onChange={(e) => setForm({ ...form, supervisor_name: e.target.value })}
                   placeholder="Nama atasan"
-                  className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+                  className={userFieldClass}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
+                <label className="mb-2 block text-xs font-bold text-[#343B36]">Email Atasan</label>
                 <input
                   type="email"
                   data-testid="user-supervisor-email-input"
                   value={form.supervisor_email}
                   onChange={(e) => setForm({ ...form, supervisor_email: e.target.value })}
                   placeholder="atasan@company.com"
-                  className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+                  className={userFieldClass}
                 />
               </div>
             </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Role</label>
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-xs font-bold text-[#343B36]">Pilih Peran Sistem (Role) *</label>
             <select
               data-testid="user-role-select"
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
             >
               <option value="user">User</option>
               <option value="meeting_admin">Meeting Admin — approve meeting-room bookings</option>
@@ -293,76 +302,101 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               <option value="manager">Manager - approve meeting room &amp; F&amp;B</option>
               <option value="super_admin">Super Admin — full access</option>
             </select>
-            <p className="mt-1 text-xs text-slate-500">
+            <div className="space-y-2" role="radiogroup" aria-label="Pilih role pengguna">
+              {userRoleOptions.map((option) => {
+                const selected = form.role === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setForm({ ...form, role: option.value })}
+                    className={`flex w-full items-center gap-3 rounded-lg border px-3.5 py-2.5 text-left transition-colors ${
+                      selected ? "border-[#238B57] bg-[#F0F8F3] ring-1 ring-[#238B57]/20" : "border-[#DCE3DE] bg-white hover:bg-[#F8FAF8]"
+                    }`}
+                  >
+                    <span className={`h-3 w-3 flex-shrink-0 rounded-full border ${selected ? "border-[#238B57] bg-[#238B57] shadow-[inset_0_0_0_3px_#fff]" : "border-[#C8D0CB] bg-white"}`} />
+                    <span>
+                      <strong className="block text-xs font-bold text-[#303732]">{option.label}</strong>
+                      <small className="mt-0.5 block text-[10px] leading-4 text-[#79827C]">{option.description}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="sr-only">
               Each admin role only manages its own division. Super Admin has access to everything, including user management.
             </p>
           </div>
           {form.role === "meeting_admin" && (
-            <div className="rounded-sm border border-emerald-100 bg-emerald-50 p-3">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Gedung approval meeting</label>
+            <div className="rounded-xl border border-[#D7E9DE] bg-[#F6FAF7] p-4 md:col-span-2">
+              <label className="mb-2 block text-xs font-bold text-[#343B36]">Gedung Approval Meeting</label>
               <input
                 data-testid="user-meeting-buildings-input"
                 value={form.meeting_buildings}
                 onChange={(e) => setForm({ ...form, meeting_buildings: e.target.value })}
                 placeholder="Head Office, Annex"
-                className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+                className={userFieldClass}
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-2 text-[11px] text-[#747D77]">
                 Satu meeting admin bisa menangani beberapa gedung. Pisahkan dengan koma.
               </p>
             </div>
           )}
           {form.role === "manager" && (
-            <div className="rounded-sm border border-sky-100 bg-sky-50 p-3">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Lokasi approval meeting &amp; F&amp;B</label>
+            <div className="rounded-xl border border-[#D7E9DE] bg-[#F6FAF7] p-4 md:col-span-2">
+              <label className="mb-2 block text-xs font-bold text-[#343B36]">Lokasi Approval Meeting &amp; F&amp;B</label>
               <input
                 data-testid="user-fnb-locations-input"
                 value={form.fnb_locations}
                 onChange={(e) => setForm({ ...form, fnb_locations: e.target.value })}
                 placeholder="Kudus, Pulogadung"
-                className="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+                className={userFieldClass}
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-2 text-[11px] text-[#747D77]">
                 Satu manager bisa menangani approval meeting room dan F&amp;B untuk beberapa lokasi. Pisahkan dengan koma.
               </p>
             </div>
           )}
-          <label className="flex items-start gap-3 rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#DCE3DE] bg-[#FAFBFA] px-3.5 py-3 text-sm text-[#39413C] md:col-span-2">
             <input
               type="checkbox"
               checked={form.is_approved}
               onChange={(e) => setForm({ ...form, is_approved: e.target.checked })}
-              className="mt-1"
+              className="mt-0.5 h-4 w-4 rounded accent-[#238B57]"
               data-testid="user-approved-checkbox"
             />
             <span>
-              <span className="block font-medium text-slate-900">Approve account</span>
-              <span className="text-xs text-slate-500">
-                Pending users cannot sign in until this is checked and saved.
+              <span className="block text-xs font-bold text-[#303732]">Setujui akun langsung</span>
+              <span className="mt-0.5 block text-[10px] leading-4 text-[#79827C]">
+                Pengguna yang belum disetujui tidak dapat login sampai pilihan ini dicentang dan disimpan.
               </span>
             </span>
           </label>
+          </div>
           {error && (
-            <div className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </div>
           )}
-          <div className="flex items-center justify-end gap-2 pt-2">
+          </div>
+          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-[#E4E9E6] bg-white px-6 py-4 sm:px-8">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-sm border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="min-h-10 rounded-lg bg-[#EEF1EF] px-5 text-sm font-bold text-[#626C65] hover:bg-[#E2E8E4]"
             >
-              Cancel
+              Batal
             </button>
             <button
               type="submit"
               disabled={loading}
               data-testid="user-submit-btn"
-              className="flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-60"
+              className="flex min-h-10 items-center gap-2 rounded-lg bg-[#238B57] px-6 text-sm font-bold text-white hover:bg-[#176E43] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {initial ? "Save changes" : "Create user"}
+              {initial ? "Simpan Perubahan" : "Simpan Pengguna"}
             </button>
           </div>
         </form>
@@ -495,11 +529,7 @@ export default function AdminUsers() {
   const load = async () => {
     setLoading(true);
     try {
-      const params = {};
-      if (q) params.q = q;
-      if (role) params.role = role;
-      if (approval) params.approval = approval;
-      const { data } = await api.get("/users", { params });
+      const { data } = await api.get("/users");
       setUsers(data);
     } catch (e) {
       setError(formatApiError(e));
@@ -511,7 +541,29 @@ export default function AdminUsers() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, approval]);
+  }, []);
+
+  const query = q.trim().toLowerCase();
+  const visibleUsers = users.filter((user) => {
+    const searchable = [
+      user.name,
+      user.email,
+      user.company_name,
+      user.job_title,
+      user.department,
+      user.office_address,
+      user.supervisor_name,
+      user.supervisor_email,
+      ...(user.meeting_buildings || []),
+      ...(user.fnb_locations || []),
+    ].filter(Boolean).join(" ").toLowerCase();
+    if (query && !searchable.includes(query)) return false;
+    if (role && user.role !== role) return false;
+    if (approval === "approved" && !user.is_approved) return false;
+    if (approval === "pending" && user.is_approved) return false;
+    return true;
+  });
+  const pendingCount = users.filter((user) => !user.is_approved).length;
 
   const remove = async (u) => {
     if (!window.confirm(`Delete user "${u.email}"? Their past bookings will be kept for audit.`)) return;
@@ -534,76 +586,100 @@ export default function AdminUsers() {
 
   return (
     <div data-testid="admin-users-page">
-      <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+      <div className="mb-9 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
-            User Management
+          <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.06em] text-[#657169]">
+            Sistem Kontrol Akses
           </div>
-          <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-            Users
+          <h1 className="font-display text-3xl font-extrabold tracking-[-0.04em] text-[#252A27] sm:text-4xl">
+            Manajemen Pengguna
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Add users, update profiles, reset passwords, and promote admins.
-          </p>
         </div>
         <button
+          type="button"
           onClick={() => setEditing("new")}
           data-testid="add-user-btn"
-          className="inline-flex items-center gap-2 rounded-sm bg-[#0B7A4B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#238B57] px-6 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#176E43]"
         >
-          <UserPlus className="h-4 w-4" />
-          Add User
+          <Plus className="h-4 w-4" strokeWidth={2.5} />
+          Tambah Pengguna
+        </button>
+      </div>
+
+      <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Tampilan pengguna">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!approval}
+          onClick={() => setApproval("")}
+          className={`inline-flex min-h-10 flex-shrink-0 items-center gap-3 rounded-lg px-4 text-sm font-bold transition-colors ${
+            !approval ? "bg-[#0B4935] text-white" : "border border-[#DCE3DE] bg-white text-[#333A35] hover:bg-[#F3F6F4]"
+          }`}
+        >
+          Daftar Pengguna
+          <span className={`rounded px-2 py-0.5 text-[10px] ${!approval ? "bg-[#238B57] text-white" : "bg-[#EDF1EE] text-[#768079]"}`}>{users.length}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={approval === "pending"}
+          onClick={() => setApproval("pending")}
+          className={`inline-flex min-h-10 flex-shrink-0 items-center gap-3 rounded-lg px-4 text-sm font-bold transition-colors ${
+            approval === "pending" ? "bg-[#0B4935] text-white" : "border border-[#DCE3DE] bg-white text-[#333A35] hover:bg-[#F3F6F4]"
+          }`}
+        >
+          Approval Matrix
+          <span className={`rounded px-2 py-0.5 text-[10px] ${approval === "pending" ? "bg-[#238B57] text-white" : "bg-[#EDF1EE] text-[#768079]"}`}>{pendingCount}</span>
         </button>
       </div>
 
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          load();
-        }}
-        className="mb-6 grid grid-cols-1 gap-3 rounded-sm border border-slate-200 bg-white p-4 md:grid-cols-[1fr_auto_auto_auto]"
+        onSubmit={(e) => e.preventDefault()}
+        className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-[610px] lg:grid-cols-[150px_150px_1fr]"
       >
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <div className="relative sm:col-span-2 lg:order-3 lg:col-span-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#69736D]" />
           <input
             data-testid="users-search-input"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by name, email, or company…"
-            className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
+            placeholder="Cari nama atau email..."
+            className="h-10 w-full rounded-lg border border-[#DCE3DE] bg-white py-2 pl-10 pr-3 text-sm text-[#39413C] outline-none placeholder:text-[#7B847E] focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/10"
           />
         </div>
         <select
           data-testid="users-role-filter"
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+          className="h-10 rounded-lg border border-[#DCE3DE] bg-white px-3 text-sm text-[#39413C] outline-none focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/10 lg:order-1"
         >
-          <option value="">All roles</option>
-          <option value="user">Users</option>
-          <option value="meeting_admin">Meeting Admins</option>
-          <option value="car_admin">Car Admins</option>
-          <option value="manager">Managers</option>
-          <option value="super_admin">Super Admins</option>
+          <option value="">Semua Peran</option>
+          <option value="user">User</option>
+          <option value="meeting_admin">Meeting Admin</option>
+          <option value="car_admin">Car Admin</option>
+          <option value="manager">Manager</option>
+          <option value="super_admin">Super Admin</option>
         </select>
         <select
           data-testid="users-approval-filter"
           value={approval}
           onChange={(e) => setApproval(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+          className="h-10 rounded-lg border border-[#DCE3DE] bg-white px-3 text-sm text-[#39413C] outline-none focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/10 lg:order-2"
         >
-          <option value="">All approvals</option>
-          <option value="pending">Pending approval</option>
-          <option value="approved">Approved</option>
+          <option value="">Semua Status</option>
+          <option value="pending">Ditunda</option>
+          <option value="approved">Disetujui</option>
         </select>
         <button
           type="submit"
           data-testid="users-search-btn"
-          className="rounded-sm border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          className="sr-only"
         >
-          Search
+          Cari
         </button>
       </form>
+      </div>
 
       {error && (
         <div className="mb-4 rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -611,116 +687,127 @@ export default function AdminUsers() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-sm border border-slate-200 bg-white">
-        <table className="min-w-[1100px] w-full text-sm">
-          <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+      <div className="overflow-x-auto rounded-2xl border border-[#DDE4DF] bg-white shadow-[0_8px_24px_rgba(24,55,39,0.025)] [scrollbar-gutter:stable]">
+        <table className="w-full min-w-[1120px] text-sm">
+          <thead className="bg-[#FAFBFA] text-[10px] font-bold uppercase tracking-[0.04em] text-[#657169]">
             <tr>
-              <th className="px-6 py-3 text-left">Name</th>
+              <th className="px-6 py-4 text-left">Nama Pengguna</th>
               <th className="px-6 py-3 text-left">Email</th>
-              <th className="px-6 py-3 text-left">Profile</th>
+              <th className="px-6 py-3 text-left">Profil Institusi</th>
               <th className="px-6 py-3 text-left">Role</th>
               <th className="px-6 py-3 text-left">Approval</th>
-              <th className="px-6 py-3 text-left">Joined</th>
-              <th className="px-6 py-3 text-right">Actions</th>
+              <th className="px-6 py-3 text-left">Bergabung</th>
+              <th className="px-6 py-3 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
                 <td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">
-                  Loading users…
+                  Memuat pengguna...
                 </td>
               </tr>
-            ) : users.length === 0 ? (
+            ) : visibleUsers.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500" data-testid="users-empty">
-                  No users match your filters.
+                  Tidak ada pengguna yang sesuai dengan filter.
                 </td>
               </tr>
             ) : (
-              users.map((u) => (
+              visibleUsers.map((u) => (
                 <tr
                   key={u.id}
                   data-testid={`user-row-${u.id}`}
-                  className="border-t border-slate-200 hover:bg-slate-50"
+                  className="border-t border-[#E3E8E5] transition-colors hover:bg-[#F8FAF8]"
                 >
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-5">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#064E3B] text-xs font-semibold uppercase text-white">
-                        {u.name?.[0] || "U"}
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#EEF1EF] text-[#8A938D]">
+                        <UserIcon className="h-4 w-4" aria-hidden="true" />
                       </div>
                       <div>
-                        <div className="font-medium text-slate-900">
+                        <div className="font-bold text-[#2F3531]">
                           {u.name}
                           {me?.id === u.id && (
-                            <span className="ml-2 text-[11px] font-normal text-[#0B7A4B]">(you)</span>
+                            <span className="ml-2 text-[10px] font-medium text-[#238B57]">(Anda)</span>
                           )}
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-slate-700">{u.email}</td>
-                  <td className="px-6 py-4 text-slate-700">
-                    <div className="font-medium text-slate-900">{u.company_name || "—"}</div>
-                    <div className="text-xs text-slate-500">
+                  <td className="px-6 py-5 text-xs text-[#424A45]">{u.email}</td>
+                  <td className="px-6 py-5 text-[#424A45]">
+                    <div className="text-xs font-bold text-[#343B36]">{u.company_name || "—"}</div>
+                    <div className="mt-1 max-w-[260px] text-[11px] leading-4 text-[#747D77]">
                       {[u.job_title, u.department].filter(Boolean).join(" · ") || "—"}
                     </div>
                     {u.office_address && (
-                      <div className="mt-1 max-w-xs text-xs text-slate-500">{u.office_address}</div>
+                      <div className="mt-1 max-w-[260px] text-[11px] leading-4 text-[#747D77]">{u.office_address}</div>
                     )}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-5">
                     <RoleTag role={u.role} />
                     {u.role === "meeting_admin" && (
-                      <div className="mt-2 max-w-xs text-xs text-slate-500">
+                      <div className="mt-2 max-w-[180px] text-[10px] leading-4 text-[#747D77]">
                         Gedung: {(u.meeting_buildings || []).join(", ") || "Belum diset"}
                       </div>
                     )}
                     {u.role === "manager" && (
-                      <div className="mt-2 max-w-xs text-xs text-slate-500">
+                      <div className="mt-2 max-w-[180px] text-[10px] leading-4 text-[#747D77]">
                         F&amp;B lokasi: {(u.fnb_locations || []).join(", ") || "Belum diset"}
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-5">
                     <ApprovalTag approved={u.is_approved} />
                   </td>
-                  <td className="px-6 py-4 text-xs text-slate-500">
-                    {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
+                  <td className="whitespace-nowrap px-6 py-5 text-xs text-[#6B746E]">
+                    {u.created_at ? new Date(u.created_at).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-1">
+                  <td className="px-6 py-5">
+                    <div className="flex justify-end gap-1.5">
                       {!u.is_approved && (
                         <button
+                          type="button"
                           onClick={() => approve(u)}
                           data-testid={`approve-user-${u.id}`}
-                          className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#238B57] hover:bg-[#E4F4EB]"
+                          title="Setujui pengguna"
+                          aria-label={`Setujui ${u.name}`}
                         >
-                          <CheckCircle2 className="h-3 w-3" /> Approve
+                          <CheckCircle2 className="h-4 w-4" />
                         </button>
                       )}
                       <button
+                        type="button"
                         onClick={() => setEditing(u)}
                         data-testid={`edit-user-${u.id}`}
-                        className="inline-flex items-center gap-1 rounded-sm border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#637069] hover:bg-[#EDF1EE]"
+                        title="Edit pengguna"
+                        aria-label={`Edit ${u.name}`}
                       >
-                        <Pencil className="h-3 w-3" /> Edit
+                        <Pencil className="h-4 w-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => setPwTarget(u)}
                         data-testid={`reset-password-${u.id}`}
-                        className="inline-flex items-center gap-1 rounded-sm border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#637069] hover:bg-[#FFF4D8] hover:text-[#B56D00]"
+                        title="Reset password"
+                        aria-label={`Reset password ${u.name}`}
                       >
-                        <KeyRound className="h-3 w-3" /> Password
+                        <KeyRound className="h-4 w-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => remove(u)}
                         disabled={me?.id === u.id}
                         data-testid={`delete-user-${u.id}`}
-                        className="inline-flex items-center gap-1 rounded-sm border border-slate-300 px-2 py-1 text-xs font-medium text-red-600 hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-                        title={me?.id === u.id ? "You cannot delete your own account" : "Delete"}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#D24141] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30"
+                        title={me?.id === u.id ? "Akun sendiri tidak dapat dihapus" : "Hapus pengguna"}
+                        aria-label={`Hapus ${u.name}`}
                       >
-                        <Trash2 className="h-3 w-3" /> Delete
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </td>

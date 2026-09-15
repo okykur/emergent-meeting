@@ -11,6 +11,7 @@ import {
   DoorOpen,
   Car,
   ArrowRight,
+  Search,
 } from "lucide-react";
 import { formatDate, toYMD } from "../utils/dates";
 import { vehicleServiceLabel } from "../utils/carBookingRules";
@@ -189,6 +190,7 @@ export default function MyBookings() {
   const [cancellingMeeting, setCancellingMeeting] = useState(null);
   const [now, setNow] = useState(new Date());
   const [scope, setScope] = useState("all"); // all | meeting | vehicle
+  const [query, setQuery] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -265,10 +267,18 @@ export default function MyBookings() {
     ...vehicleItems.map((b) => normalise(b, "vehicle")),
   ].sort((a, b) => (a.sortKey < b.sortKey ? 1 : -1));
 
+  const normalisedQuery = query.trim().toLowerCase();
   const filtered = all.filter((row) => {
     if (scope === "meeting") return row._kind === "meeting";
     if (scope === "vehicle") return row._kind === "vehicle";
     return true;
+  }).filter((row) => {
+    if (!normalisedQuery) return true;
+    return [row.title, row.sub, row.status, row.dateStart, row.dateEnd, row._kind]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(normalisedQuery);
   });
 
   const counts = {
@@ -286,62 +296,73 @@ export default function MyBookings() {
           onSubmit={(payload) => cancelMeeting(cancellingMeeting, payload)}
         />
       )}
-      <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+      <div className="mb-9 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
-            My Activity
+          <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.06em] text-[#657169]">
+            Aktivitas Saya
           </div>
-          <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-            My Bookings
+          <h1 className="font-display text-3xl font-extrabold tracking-[-0.04em] text-[#252A27] sm:text-4xl">
+            Booking Saya
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            One place for every reservation — meeting rooms and vehicles. Each
-            booking shows its own next step.
-          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Link
             to="/rooms"
             data-testid="quick-book-room"
-            className="inline-flex items-center gap-2 rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#DCE3DE] bg-white px-6 py-3 text-sm font-bold text-[#303732] transition-colors hover:bg-[#F3F6F4]"
           >
-            <DoorOpen className="h-4 w-4" /> Book Room
+            <DoorOpen className="h-4 w-4" /> Pesan Ruang Rapat
           </Link>
           <Link
             to="/car/new"
             data-testid="quick-book-car"
-            className="inline-flex items-center gap-2 rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#238B57] px-6 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#176E43]"
           >
-            <Car className="h-4 w-4" /> Book Vehicle
+            <Car className="h-4 w-4" /> Pesan Kendaraan Dinas
           </Link>
         </div>
       </div>
 
       {/* Scope tabs */}
-      <div className="mb-4 inline-flex rounded-sm border border-slate-300 bg-white p-1">
+      <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filter booking">
         {[
-          { k: "all", label: "All", icon: BookMarked },
-          { k: "meeting", label: "Meeting Rooms", icon: DoorOpen },
-          { k: "vehicle", label: "Vehicles", icon: Car },
+          { k: "all", label: "Semua Booking", icon: BookMarked },
+          { k: "meeting", label: "Ruang Rapat", icon: DoorOpen },
+          { k: "vehicle", label: "Kendaraan", icon: Car },
         ].map((t) => {
           const Icon = t.icon;
           const active = scope === t.k;
           return (
             <button
               key={t.k}
+              type="button"
+              role="tab"
+              aria-selected={active}
               onClick={() => setScope(t.k)}
               data-testid={`scope-tab-${t.k}`}
-              className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
-                active ? "bg-[#064E3B] text-white" : "text-slate-500 hover:text-slate-900"
+              className={`inline-flex min-h-10 flex-shrink-0 items-center gap-3 rounded-lg px-4 text-sm font-bold transition-colors ${
+                active ? "bg-[#0B4935] text-white" : "border border-[#DCE3DE] bg-white text-[#333A35] hover:bg-[#F3F6F4]"
               }`}
             >
-              <Icon className="h-3.5 w-3.5" /> {t.label}
-              <span className={`rounded-sm px-1.5 ${active ? "bg-white/20" : "bg-slate-100 text-slate-500"}`}>
+              <Icon className="hidden h-3.5 w-3.5 sm:block" /> {t.label}
+              <span className={`rounded px-2 py-0.5 text-[10px] ${active ? "bg-[#238B57] text-white" : "bg-[#EDF1EE] text-[#768079]"}`}>
                 {counts[t.k]}
               </span>
             </button>
           );
         })}
+      </div>
+      <div className="relative w-full lg:w-[320px]">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#69736D]" />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          data-testid="bookings-search-input"
+          placeholder="Cari pengajuan..."
+          className="h-10 w-full rounded-lg border border-[#DCE3DE] bg-white py-2 pl-10 pr-3 text-sm text-[#39413C] outline-none placeholder:text-[#7B847E] focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/10"
+        />
+      </div>
       </div>
 
       {error && (
@@ -353,12 +374,12 @@ export default function MyBookings() {
       {loading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-sm border border-slate-200 bg-white" />
+            <div key={i} className="h-20 animate-pulse rounded-xl border border-[#DCE3DE] bg-white" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
         <div
-          className="rounded-sm border border-dashed border-slate-300 bg-white p-12 text-center"
+          className="rounded-2xl border border-dashed border-[#C9D3CC] bg-white p-12 text-center"
           data-testid="my-bookings-empty"
         >
           <BookMarked className="mx-auto h-10 w-10 text-slate-300" />
@@ -369,16 +390,16 @@ export default function MyBookings() {
       ) : (
         <>
           {/* Desktop: table */}
-          <div className="hidden overflow-hidden rounded-sm border border-slate-200 bg-white md:block">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <div className="hidden overflow-x-auto rounded-2xl border border-[#DDE4DF] bg-white shadow-[0_8px_24px_rgba(24,55,39,0.025)] md:block">
+            <table className="w-full min-w-[1080px] text-sm">
+              <thead className="bg-[#FAFBFA] text-[10px] font-bold uppercase tracking-[0.04em] text-[#657169]">
                 <tr>
-                  <th className="px-6 py-3 text-left">Type</th>
-                  <th className="px-6 py-3 text-left">Title / Room or Vehicle</th>
-                  <th className="px-6 py-3 text-left">When</th>
+                  <th className="px-6 py-4 text-left">Tipe</th>
+                  <th className="px-6 py-4 text-left">Keperluan / Ruang atau Kendaraan</th>
+                  <th className="px-6 py-4 text-left">Jadwal Pemakaian</th>
                   <th className="px-6 py-3 text-left">Status</th>
-                  <th className="px-6 py-3 text-left">Attendance / Process</th>
-                  <th className="px-6 py-3 text-right">Action</th>
+                  <th className="px-6 py-3 text-left">Kehadiran / Proses</th>
+                  <th className="px-6 py-3 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -390,33 +411,33 @@ export default function MyBookings() {
                     return (
                       <tr
                         key={`m-${row.id}`}
-                        className="border-t border-slate-200 hover:bg-slate-50"
+                        className="border-t border-[#E3E8E5] transition-colors hover:bg-[#F8FAF8]"
                         data-testid={`mb-row-meeting-${row.id}`}
                       >
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+                        <td className="px-6 py-5">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E4F4EB] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#1E7C4F]">
                             <DoorOpen className="h-3 w-3" /> Meeting Room
                           </span>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-slate-900">{b.title}</div>
-                          <div className="text-xs text-slate-500">{b.room_name}</div>
+                        <td className="px-6 py-5">
+                          <div className="font-bold text-[#303732]">{b.title}</div>
+                          <div className="mt-1 text-xs text-[#747D77]">{b.room_name}</div>
                           {(b.additional_facilities || []).length > 0 && (
-                            <div className="mt-1 text-xs text-slate-500">
+                            <div className="mt-1 text-[11px] text-[#747D77]">
                               Fasilitas: {b.additional_facilities.join(", ")}
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-slate-700">
+                        <td className="whitespace-nowrap px-6 py-5 text-[#3F4742]">
                           <div>{formatDate(b.date)}</div>
-                          <div className="text-xs text-slate-500">
+                          <div className="mt-1 text-xs text-[#747D77]">
                             {b.start_time} – {b.end_time}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-5">
                           <StatusPill status={b.status} />
                         </td>
-                        <td className="px-6 py-4 text-xs">
+                        <td className="px-6 py-5 text-xs">
                           {b.checked_in_at ? (
                             <div>
                               <div className="font-medium text-emerald-700">In: {fmtTime(b.checked_in_at)}</div>
@@ -432,14 +453,14 @@ export default function MyBookings() {
                             <span className="text-slate-400">—</span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-5">
                           <div className="flex flex-wrap items-center justify-end gap-1">
                             {canIn && (
                               <button
                                 onClick={() => checkInMeeting(b.id)}
                                 disabled={actingId === b.id}
                                 data-testid={`mb-check-in-${b.id}`}
-                                className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 rounded-lg bg-[#238B57] px-3 py-2 text-xs font-bold text-white hover:bg-[#176E43] disabled:opacity-50"
                               >
                                 <LogIn className="h-3 w-3" /> Check in
                               </button>
@@ -449,7 +470,7 @@ export default function MyBookings() {
                                 onClick={() => checkOutMeeting(b.id)}
                                 disabled={actingId === b.id}
                                 data-testid={`mb-check-out-${b.id}`}
-                                className="inline-flex items-center gap-1 rounded-sm border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 rounded-lg bg-[#0B4935] px-3 py-2 text-xs font-bold text-white hover:bg-[#073A2A] disabled:opacity-50"
                               >
                                 <LogOut className="h-3 w-3" /> Check out
                               </button>
@@ -459,7 +480,7 @@ export default function MyBookings() {
                                 onClick={() => setCancellingMeeting(b)}
                                 disabled={actingId === b.id}
                                 data-testid={`mb-cancel-meeting-${b.id}`}
-                                className="inline-flex items-center gap-1 rounded-sm border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:border-red-300 hover:text-red-600 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 rounded-lg border border-[#DCE3DE] px-3 py-2 text-xs font-bold text-[#626C65] hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                               >
                                 <CalendarX2 className="h-3 w-3" /> Cancel
                               </button>
@@ -495,17 +516,17 @@ export default function MyBookings() {
                   return (
                     <tr
                       key={`v-${row.id}`}
-                      className="border-t border-slate-200 hover:bg-slate-50"
+                      className="border-t border-[#E3E8E5] transition-colors hover:bg-[#F8FAF8]"
                       data-testid={`mb-row-vehicle-${row.id}`}
                     >
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1 rounded-sm border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+                      <td className="px-6 py-5">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EEF1EF] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#5F6A63]">
                           <Car className="h-3 w-3" /> Vehicle
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-slate-900">{b.purpose}</div>
-                        <div className="text-xs text-slate-500">
+                      <td className="px-6 py-5">
+                        <div className="font-bold text-[#303732]">{b.purpose}</div>
+                        <div className="mt-1 text-xs text-[#747D77]">
                           {b.vehicle_name
                             ? `${b.vehicle_name} · ${b.vehicle_plate}${b.driver_name ? ` · ${b.driver_name}` : ""}`
                             : `${vehicleServiceLabel(b)} · ${
@@ -513,25 +534,25 @@ export default function MyBookings() {
                               }`}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-slate-700">
+                      <td className="whitespace-nowrap px-6 py-5 text-[#3F4742]">
                         <div>
                           {formatDate(b.start_date)}
                           {b.start_date !== b.end_date && ` → ${formatDate(b.end_date)}`}
                         </div>
-                        <div className="text-xs text-slate-500">
+                        <div className="mt-1 text-xs text-[#747D77]">
                           {b.start_time} – {b.end_time}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <VBStatusPill status={b.status} />
                       </td>
-                      <td className="px-6 py-4 text-xs text-slate-600">{processBlurb}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5 text-xs text-[#68726C]">{processBlurb}</td>
+                      <td className="px-6 py-5">
                         <div className="flex flex-wrap items-center justify-end gap-1">
                           <Link
                             to={`/car/bookings/${b.id}`}
                             data-testid={`mb-vehicle-open-${b.id}`}
-                            className="inline-flex items-center gap-1 rounded-sm bg-[#0B7A4B] px-2 py-1 text-xs font-semibold text-white hover:bg-[#064E3B]"
+                            className="inline-flex items-center gap-1 rounded-lg bg-[#238B57] px-3 py-2 text-xs font-bold text-white hover:bg-[#176E43]"
                           >
                             {actionLabel}
                             <ArrowRight className="h-3 w-3" />
@@ -541,7 +562,7 @@ export default function MyBookings() {
                               onClick={() => cancelVehicle(b.id)}
                               disabled={actingId === b.id}
                               data-testid={`mb-cancel-vehicle-${b.id}`}
-                              className="inline-flex items-center gap-1 rounded-sm border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:border-red-300 hover:text-red-600 disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded-lg border border-[#DCE3DE] px-3 py-2 text-xs font-bold text-[#626C65] hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                             >
                               <CalendarX2 className="h-3 w-3" /> Cancel
                             </button>
@@ -556,7 +577,7 @@ export default function MyBookings() {
           </div>
 
           {/* Mobile: cards */}
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-4 md:hidden">
             {filtered.map((row) => {
               if (row._kind === "meeting") {
                 const b = row.raw;
@@ -565,17 +586,17 @@ export default function MyBookings() {
                 return (
                   <div
                     key={`mc-${row.id}`}
-                    className="rounded-sm border border-slate-200 bg-white p-4"
+                    className="rounded-2xl border border-[#DDE4DF] bg-white p-5 shadow-[0_8px_24px_rgba(24,55,39,0.025)]"
                     data-testid={`mb-card-meeting-${row.id}`}
                   >
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E4F4EB] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#1E7C4F]">
                         <DoorOpen className="h-3 w-3" /> Meeting Room
                       </span>
                       <StatusPill status={b.status} />
                     </div>
-                    <div className="font-display text-base font-semibold text-slate-900">{b.title}</div>
-                    <div className="text-sm text-slate-500">{b.room_name}</div>
+                    <div className="font-display text-base font-bold text-[#303732]">{b.title}</div>
+                    <div className="mt-1 text-sm text-[#747D77]">{b.room_name}</div>
                     {(b.additional_facilities || []).length > 0 && (
                       <div className="mt-1 text-xs text-slate-500">
                         Fasilitas: {b.additional_facilities.join(", ")}
@@ -603,7 +624,7 @@ export default function MyBookings() {
                           onClick={() => checkInMeeting(b.id)}
                           disabled={actingId === b.id}
                           data-testid={`mb-mobile-check-in-${b.id}`}
-                          className="flex-1 inline-flex items-center justify-center gap-1 rounded-sm bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                          className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#238B57] px-3 py-2 text-sm font-bold text-white hover:bg-[#176E43] disabled:opacity-50"
                         >
                           <LogIn className="h-4 w-4" /> Check in
                         </button>
@@ -613,7 +634,7 @@ export default function MyBookings() {
                           onClick={() => checkOutMeeting(b.id)}
                           disabled={actingId === b.id}
                           data-testid={`mb-mobile-check-out-${b.id}`}
-                          className="flex-1 inline-flex items-center justify-center gap-1 rounded-sm bg-[#0B7A4B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#064E3B] disabled:opacity-50"
+                          className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#0B4935] px-3 py-2 text-sm font-bold text-white hover:bg-[#073A2A] disabled:opacity-50"
                         >
                           <LogOut className="h-4 w-4" /> Check out
                         </button>
@@ -623,7 +644,7 @@ export default function MyBookings() {
                           onClick={() => setCancellingMeeting(b)}
                           disabled={actingId === b.id}
                           data-testid={`mb-mobile-cancel-meeting-${b.id}`}
-                          className="flex-1 inline-flex items-center justify-center gap-1 rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-red-300 hover:text-red-600 disabled:opacity-50"
+                          className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-[#DCE3DE] bg-white px-3 py-2 text-sm font-bold text-[#626C65] hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                         >
                           <CalendarX2 className="h-4 w-4" /> Cancel
                         </button>
@@ -660,17 +681,17 @@ export default function MyBookings() {
               return (
                 <div
                   key={`vc-${row.id}`}
-                  className="rounded-sm border border-slate-200 bg-white p-4"
+                  className="rounded-2xl border border-[#DDE4DF] bg-white p-5 shadow-[0_8px_24px_rgba(24,55,39,0.025)]"
                   data-testid={`mb-card-vehicle-${row.id}`}
                 >
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1 rounded-sm border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EEF1EF] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#5F6A63]">
                       <Car className="h-3 w-3" /> Vehicle
                     </span>
                     <VBStatusPill status={b.status} />
                   </div>
-                  <div className="font-display text-base font-semibold text-slate-900">{b.purpose}</div>
-                  <div className="text-sm text-slate-500">
+                  <div className="font-display text-base font-bold text-[#303732]">{b.purpose}</div>
+                  <div className="mt-1 text-sm text-[#747D77]">
                     {b.vehicle_name
                       ? `${b.vehicle_name} · ${b.vehicle_plate}${b.driver_name ? ` · ${b.driver_name}` : ""}`
                       : `${vehicleServiceLabel(b)} · ${
@@ -686,7 +707,7 @@ export default function MyBookings() {
                     <Link
                       to={`/car/bookings/${b.id}`}
                       data-testid={`mb-mobile-vehicle-open-${b.id}`}
-                      className="flex-1 inline-flex items-center justify-center gap-1 rounded-sm bg-[#0B7A4B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#064E3B]"
+                      className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#238B57] px-3 py-2 text-sm font-bold text-white hover:bg-[#176E43]"
                     >
                       {actionLabel}
                       <ArrowRight className="h-4 w-4" />
@@ -696,7 +717,7 @@ export default function MyBookings() {
                         onClick={() => cancelVehicle(b.id)}
                         disabled={actingId === b.id}
                         data-testid={`mb-mobile-cancel-vehicle-${b.id}`}
-                        className="inline-flex items-center justify-center gap-1 rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-red-300 hover:text-red-600 disabled:opacity-50"
+                        className="inline-flex items-center justify-center gap-1 rounded-lg border border-[#DCE3DE] bg-white px-3 py-2 text-sm font-bold text-[#626C65] hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                       >
                         <CalendarX2 className="h-4 w-4" /> Cancel
                       </button>
