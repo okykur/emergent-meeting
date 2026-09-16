@@ -5,6 +5,12 @@ function getDefaultBackendUrl() {
     return "http://localhost:8000";
   }
 
+  // Production is served by Nginx, which proxies same-origin /api requests
+  // to the private backend service. Do not expose or call port 8000 directly.
+  if (process.env.NODE_ENV === "production") {
+    return window.location.origin;
+  }
+
   const protocol = window.location.protocol === "https:" ? "https:" : "http:";
   const backendPort = process.env.REACT_APP_BACKEND_PORT || "8000";
 

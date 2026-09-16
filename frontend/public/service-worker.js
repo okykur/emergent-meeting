@@ -1,5 +1,5 @@
 /* Minimal service worker for PWA install + offline shell. Network-first for API, cache-first for static. */
-const CACHE_NAME = "roombook-v1";
+const CACHE_NAME = "gass-v2";
 const STATIC_ASSETS = ["/", "/index.html", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -26,6 +26,16 @@ self.addEventListener("fetch", (event) => {
     // Network-first for API
     event.respondWith(
       fetch(request).catch(() => caches.match(request))
+    );
+    return;
+  }
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).then((resp) => {
+        const copy = resp.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", copy)).catch(() => {});
+        return resp;
+      }).catch(() => caches.match("/index.html"))
     );
     return;
   }
