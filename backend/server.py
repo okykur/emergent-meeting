@@ -290,6 +290,7 @@ class BookingCreate(BaseModel):
 
 class BookingStatusUpdate(BaseModel):
     status: Literal["pending", "confirmed", "cancelled", "completed"]
+    reason: Optional[str] = Field(default=None, max_length=500)
 
 
 class BookingRoomReassign(BaseModel):
@@ -305,6 +306,7 @@ class BookingCancellationRequest(BaseModel):
 
 class FnbStatusUpdate(BaseModel):
     status: Literal["pending", "approved", "rejected"]
+    reason: Optional[str] = Field(default=None, max_length=500)
 
 
 class Booking(BaseModel):
@@ -343,6 +345,7 @@ class Booking(BaseModel):
     fnb_status: str = "not_required"
     fnb_reviewed_at: Optional[str] = None
     fnb_reviewed_by: Optional[str] = None
+    fnb_rejection_reason: Optional[str] = None
     notes: str
     status: str
     created_at: str
@@ -352,6 +355,9 @@ class Booking(BaseModel):
     room_reassigned_at: Optional[str] = None
     room_reassigned_by: Optional[str] = None
     cancellation_reason: Optional[str] = None
+    rejection_reason: Optional[str] = None
+    rejected_at: Optional[str] = None
+    rejected_by: Optional[str] = None
     cancelled_at: Optional[str] = None
     cancelled_by: Optional[str] = None
     fnb_cancelled_at: Optional[str] = None
@@ -583,6 +589,9 @@ async def _normalize_booking_public(booking: dict) -> dict:
     booking.setdefault("room_reassigned_at", None)
     booking.setdefault("room_reassigned_by", None)
     booking.setdefault("cancellation_reason", None)
+    booking.setdefault("rejection_reason", None)
+    booking.setdefault("rejected_at", None)
+    booking.setdefault("rejected_by", None)
     booking.setdefault("cancelled_at", None)
     booking.setdefault("cancelled_by", None)
     booking.setdefault("fnb_cancelled_at", None)
@@ -611,6 +620,7 @@ async def _normalize_booking_public(booking: dict) -> dict:
     booking["fnb_status"] = booking.get("fnb_status") or ("pending" if booking.get("food_beverages") else "not_required")
     booking.setdefault("fnb_reviewed_at", None)
     booking.setdefault("fnb_reviewed_by", None)
+    booking.setdefault("fnb_rejection_reason", None)
     booking.setdefault("layout_type", "")
     booking.setdefault("layout_other", "")
     return booking
@@ -629,6 +639,9 @@ async def _normalize_bookings_public(bookings: List[dict]) -> List[dict]:
         booking.setdefault("room_reassigned_at", None)
         booking.setdefault("room_reassigned_by", None)
         booking.setdefault("cancellation_reason", None)
+        booking.setdefault("rejection_reason", None)
+        booking.setdefault("rejected_at", None)
+        booking.setdefault("rejected_by", None)
         booking.setdefault("cancelled_at", None)
         booking.setdefault("cancelled_by", None)
         booking.setdefault("fnb_cancelled_at", None)
@@ -657,6 +670,7 @@ async def _normalize_bookings_public(bookings: List[dict]) -> List[dict]:
         booking["fnb_status"] = booking.get("fnb_status") or ("pending" if booking.get("food_beverages") else "not_required")
         booking.setdefault("fnb_reviewed_at", None)
         booking.setdefault("fnb_reviewed_by", None)
+        booking.setdefault("fnb_rejection_reason", None)
         booking.setdefault("layout_type", "")
         booking.setdefault("layout_other", "")
     return bookings
@@ -857,6 +871,62 @@ def _send_supervisor_approval_email(booking: dict, token: str) -> bool:
         return True
     except Exception:
         logger.exception("Failed to send supervisor approval email")
+        return False
+
+
+def _send_booking_rejection_email(booking: dict, reason: str, rejection_type: str) -> bool:
+    recipient = (booking.get("user_email") or "").strip()
+    if not recipient:
+        return False
+    label = "F&B" if rejection_type == "fnb" else "ruang meeting"
+    subject = f"GASS: Pengajuan {booking['title']} ditolak"
+    plain = "\n".join(
+        [
+            f"Halo {booking['user_name']},",
+            "",
+            f"Pengajuan {label} Anda untuk {booking['title']} telah ditolak.",
+            f"Kode booking: {booking['id']}",
+            f"Alasan: {reason}",
+            "",
+            "Silakan perbaiki pengajuan dan buat booking baru bila masih diperlukan.",
+        ]
+    )
+    body = f"""
+    <html><body style='margin:0;padding:24px;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a'>
+      <div style='max-width:600px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden'>
+        <div style='padding:22px 28px;background:#991b1b;color:#fff;font-size:22px;font-weight:800'>GASS</div>
+        <div style='padding:28px'>
+          <p>Halo {html.escape(booking['user_name'])},</p>
+          <h1 style='font-size:22px'>Pengajuan {html.escape(label)} ditolak</h1>
+          <p style='color:#475569;line-height:1.6'>Pengajuan untuk <strong>{html.escape(booking['title'])}</strong> ({html.escape(booking['id'])}) belum dapat disetujui.</p>
+          <div style='margin:20px 0;padding:16px;background:#fff1f2;border-left:4px solid #dc2626;border-radius:6px'>
+            <strong>Alasan penolakan</strong><br><span style='line-height:1.6'>{html.escape(reason)}</span>
+          </div>
+          <p style='color:#475569;line-height:1.6'>Silakan perbaiki pengajuan dan buat booking baru bila masih diperlukan.</p>
+        </div>
+      </div>
+    </body></html>
+    """
+    if SUPERVISOR_EMAIL_PROVIDER == "resend" and RESEND_API_KEY:
+        return _send_resend_email(recipient, subject, plain, body)
+    if not SMTP_HOST:
+        return False
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = SMTP_FROM
+    message["To"] = recipient
+    message.set_content(plain)
+    message.add_alternative(body, subtype="html")
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+            if SMTP_USE_TLS:
+                smtp.starttls()
+            if SMTP_USERNAME:
+                smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+            smtp.send_message(message)
+        return True
+    except Exception:
+        logger.exception("Failed to send booking rejection email")
         return False
 
 
@@ -1621,6 +1691,9 @@ async def update_fnb_status(
         raise HTTPException(status_code=400, detail="This booking has no F&B request")
     if bk.get("status") != "confirmed":
         raise HTTPException(status_code=400, detail="F&B can be approved only after meeting-room admin approval")
+    rejection_reason = (payload.reason or "").strip()
+    if payload.status == "rejected" and not rejection_reason:
+        raise HTTPException(status_code=400, detail="Rejection reason is required")
     if payload.status == "approved":
         _validate_food_beverages_request(bk.get("food_beverages") or "", bk["start_time"], bk["end_time"])
     room = await db.rooms.find_one({"id": bk["room_id"]}, {"_id": 0})
@@ -1634,12 +1707,15 @@ async def update_fnb_status(
                 "fnb_status": payload.status,
                 "fnb_reviewed_at": _now_iso(),
                 "fnb_reviewed_by": manager["id"],
+                "fnb_rejection_reason": rejection_reason if payload.status == "rejected" else None,
                 "room_building": _normalize_room(room)["building"],
             }
         },
     )
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     await _normalize_booking_public(bk)
+    if payload.status == "rejected" and not _send_booking_rejection_email(bk, rejection_reason, "fnb"):
+        logger.warning("F&B rejection saved, but notification email was not sent for booking %s", booking_id)
     return Booking(**bk)
 
 
@@ -1656,6 +1732,9 @@ async def update_manager_meeting_status(
         raise HTTPException(status_code=404, detail="Booking not found")
     if bk.get("status") != "pending":
         raise HTTPException(status_code=400, detail="Only pending meeting-room bookings can be approved or rejected")
+    rejection_reason = (payload.reason or "").strip()
+    if payload.status == "cancelled" and not rejection_reason:
+        raise HTTPException(status_code=400, detail="Rejection reason is required")
     if payload.status == "confirmed" and bk.get("supervisor_approval_status", "approved") != "approved":
         raise HTTPException(status_code=400, detail="Supervisor approval is required before confirming this meeting")
     room = await db.rooms.find_one({"id": bk["room_id"]}, {"_id": 0})
@@ -1664,10 +1743,21 @@ async def update_manager_meeting_status(
     _assert_can_manage_fnb(manager, room)
     await db.bookings.update_one(
         {"id": booking_id},
-        {"$set": {"status": payload.status, "room_building": _normalize_room(room)["building"]}},
+        {
+            "$set": {
+                "status": payload.status,
+                "room_building": _normalize_room(room)["building"],
+                "rejection_reason": rejection_reason if payload.status == "cancelled" else None,
+                "cancellation_reason": rejection_reason if payload.status == "cancelled" else None,
+                "rejected_at": _now_iso() if payload.status == "cancelled" else None,
+                "rejected_by": manager["id"] if payload.status == "cancelled" else None,
+            }
+        },
     )
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     await _normalize_booking_public(bk)
+    if payload.status == "cancelled" and not _send_booking_rejection_email(bk, rejection_reason, "meeting"):
+        logger.warning("Meeting rejection saved, but notification email was not sent for booking %s", booking_id)
     return Booking(**bk)
 
 

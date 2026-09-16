@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   CalendarCheck2,
@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-function BrandMark() {
+function BrandMark({ dark = false }) {
   return (
     <Link
       to="/"
@@ -26,11 +26,11 @@ function BrandMark() {
       <img
         src="/brand-logo.png"
         alt="KCSI Consulting-Shared Services"
-        className="h-12 w-auto object-contain"
+        className={dark ? "h-8 w-auto rounded-sm bg-white px-1 object-contain" : "h-12 w-auto object-contain"}
       />
-      <span className="hidden border-l border-slate-200 pl-3 sm:block">
-        <span className="font-brand block text-lg font-bold tracking-[-0.06em] text-[#064E3B]">GASS</span>
-        <span className="block text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-400">General Affair Services</span>
+      <span className={`hidden border-l pl-3 sm:block ${dark ? "border-white/20" : "border-slate-200"}`}>
+        <span className={`font-brand block text-lg font-bold tracking-[-0.06em] ${dark ? "text-white" : "text-[#064E3B]"}`}>GASS</span>
+        {!dark && <span className="block text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-400">General Affair Services</span>}
       </span>
     </Link>
   );
@@ -39,7 +39,9 @@ function BrandMark() {
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const managerApprovalStyle = location.pathname === "/admin/fnb";
 
   const handleLogout = () => {
     logout();
@@ -68,17 +70,22 @@ export default function Layout() {
     { to: "/admin/cars/drivers", label: "Master Driver", icon: Users, testid: "nav-admin-drivers", show: isCarAdmin },
     { to: "/admin/users", label: "Users", icon: Users, testid: "nav-admin-users", show: isSuper },
   ];
-  const nav = navFull.filter((n) => n.show);
+  const nav = managerApprovalStyle
+    ? [
+        { to: "/hub", label: "Dashboard", icon: Home, testid: "nav-hub", end: true },
+        { to: "/admin/fnb", label: "Ruang Rapat", icon: DoorOpen, testid: "nav-approval-manager" },
+      ]
+    : navFull.filter((n) => n.show);
 
   return (
     <div className="min-h-screen bg-[#F7FAF8]">
       <header
-        className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur-xl"
+        className={`sticky top-0 z-40 border-b backdrop-blur-xl ${managerApprovalStyle ? "border-[#315448] bg-[#143d30] text-white" : "border-slate-200 bg-white/90"}`}
         data-testid="app-header"
       >
         <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-4 px-4 md:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-6">
-            <BrandMark />
+            <BrandMark dark={managerApprovalStyle} />
             <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto md:flex">
               {nav.map((n) => (
                 <NavLink
@@ -87,11 +94,9 @@ export default function Layout() {
                   end={n.end}
                   data-testid={n.testid}
                   className={({ isActive }) =>
-                    `flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-sm px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? "bg-[#064E3B] text-white"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`
+                    managerApprovalStyle
+                      ? `flex h-16 flex-shrink-0 items-center gap-2 whitespace-nowrap border-b-[3px] px-4 text-sm font-semibold transition-colors ${isActive ? "border-white text-white" : "border-transparent text-white/60 hover:text-white"}`
+                      : `flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-sm px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-[#064E3B] text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}`
                   }
                 >
                   <n.icon className="h-4 w-4" />
@@ -103,33 +108,33 @@ export default function Layout() {
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-3 md:flex" data-testid="user-menu">
               <div className="text-right">
-                <div className="text-sm font-medium text-slate-900">{user?.name}</div>
-                <div className="text-xs uppercase tracking-widest text-slate-500">
+                <div className={`text-sm font-medium ${managerApprovalStyle ? "text-white" : "text-slate-900"}`}>{user?.name}</div>
+                <div className={`text-xs uppercase tracking-widest ${managerApprovalStyle ? "mt-0.5 inline-flex rounded bg-[#287859] px-2 py-0.5 text-[9px] font-bold text-white" : "text-slate-500"}`}>
                   {
                     {
                       user: "User",
                       meeting_admin: "Meeting Admin",
                       car_admin: "Car Admin",
-                      manager: "Manager",
+                      manager: managerApprovalStyle ? "GA Manager" : "Manager",
                       super_admin: "Super Admin",
                     }[user?.role] || user?.role
                   }
                 </div>
               </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#064E3B] text-sm font-semibold uppercase text-white">
+              <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold uppercase text-white ${managerApprovalStyle ? "border border-white/30 bg-[#41675a]" : "bg-[#064E3B]"}`}>
                 {user?.name?.[0] || "U"}
               </div>
               <button
                 onClick={handleLogout}
                 data-testid="logout-btn"
-                className="flex h-9 w-9 items-center justify-center rounded-sm border border-slate-300 text-slate-500 hover:border-red-400 hover:text-red-500"
+                className={`flex h-9 w-9 items-center justify-center rounded-sm border hover:border-red-400 hover:text-red-400 ${managerApprovalStyle ? "border-white/20 text-white/60" : "border-slate-300 text-slate-500"}`}
                 title="Logout"
               >
                 <LogOut className="h-4 w-4" />
               </button>
             </div>
             <button
-              className="md:hidden"
+              className={`md:hidden ${managerApprovalStyle ? "text-white" : "text-slate-900"}`}
               onClick={() => setMobileOpen((s) => !s)}
               data-testid="mobile-menu-btn"
             >
@@ -138,7 +143,7 @@ export default function Layout() {
           </div>
         </div>
         {mobileOpen && (
-          <div className="border-t border-slate-200 bg-white md:hidden" data-testid="mobile-nav">
+          <div className={`border-t md:hidden ${managerApprovalStyle ? "border-white/15 bg-[#143d30]" : "border-slate-200 bg-white"}`} data-testid="mobile-nav">
             <nav className="flex flex-col p-2">
               {nav.map((n) => (
                 <NavLink
@@ -147,9 +152,7 @@ export default function Layout() {
                   end={n.end}
                   onClick={() => setMobileOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-2 rounded-sm px-3 py-3 text-sm font-medium ${
-                      isActive ? "bg-[#064E3B] text-white" : "text-slate-700"
-                    }`
+                    `flex items-center gap-2 rounded-sm px-3 py-3 text-sm font-medium ${managerApprovalStyle ? isActive ? "bg-white/15 text-white" : "text-white/70" : isActive ? "bg-[#064E3B] text-white" : "text-slate-700"}`
                   }
                 >
                   <n.icon className="h-4 w-4" />

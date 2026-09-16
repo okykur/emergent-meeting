@@ -245,6 +245,9 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     const normalized = value === "" ? "" : Math.max(0, Number(value));
     setGuestCounts((current) => ({ ...current, [guestType]: normalized }));
     toggleGuestType(guestType, Number(normalized) > 0);
+    if (guestType !== "Internal" && Number(normalized) > 0) {
+      setInvolvesGuests(true);
+    }
   };
 
   const availabilityMessage = (slot) => {
@@ -1056,12 +1059,11 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {GUEST_TYPES.map((type) => {
-                    const disabled = type !== "Internal" && !involvesGuests;
                     const display = type === "Xternal" ? "Eksternal" : type;
                     return (
-                      <label key={type} className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 ${disabled ? "border-[#E6EAE7] bg-[#F7F9F7] text-[#A5AEA8]" : "border-[#DCE3DE] bg-white text-[#526058]"}`}>
+                      <label key={type} className="flex items-center justify-between gap-2 rounded-lg border border-[#DCE3DE] bg-white px-3 py-2 text-[#526058]">
                         <span className="text-xs font-bold">{display}</span>
-                        <input type="number" min={0} max={participants} disabled={disabled} value={guestCounts[type]} onChange={(event) => setGuestCount(type, event.target.value)} data-testid={`booking-guest-count-${type.toLowerCase()}`} placeholder="0" className="h-8 w-14 rounded-md border border-[#DCE3DE] bg-white px-2 text-center text-xs outline-none focus:border-[#238B57]" />
+                        <input type="number" min={0} max={participants} value={guestCounts[type]} onChange={(event) => setGuestCount(type, event.target.value)} data-testid={`booking-guest-count-${type.toLowerCase()}`} placeholder="0" className="h-8 w-14 rounded-md border border-[#DCE3DE] bg-white px-2 text-center text-xs outline-none focus:border-[#238B57]" />
                       </label>
                     );
                   })}
