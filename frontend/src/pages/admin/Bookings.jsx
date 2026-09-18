@@ -3,18 +3,103 @@ import { api, formatApiError } from "../../api";
 import { useAuth } from "../../context/AuthContext";
 import { StatusPill } from "../../components/Status";
 import { formatDate } from "../../utils/dates";
-import { Check, X, Search, Filter, RefreshCw, Loader2 } from "lucide-react";
+import { Check, X, Search, RefreshCw, Loader2 } from "lucide-react";
 
 const LAYOUT_OPTIONS = ["U-Shape", "Classroom", "Round", "Theater", "Lainnya"];
 
 function SupervisorApprovalTag({ status }) {
   const config = {
     approved: { label: "Approved", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-    pending: { label: "Awaiting supervisor", cls: "border-amber-200 bg-amber-50 text-amber-700" },
+    pending: { label: "Pending", cls: "border-amber-200 bg-amber-50 text-amber-700" },
+    waiting: { label: "Waiting previous step", cls: "border-slate-200 bg-slate-50 text-slate-600" },
+    not_required: { label: "Not required", cls: "border-slate-200 bg-slate-50 text-slate-500" },
     rejected: { label: "Rejected", cls: "border-red-200 bg-red-50 text-red-700" },
   };
   const value = config[status] || config.pending;
   return <span className={`inline-flex rounded-sm border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${value.cls}`}>{value.label}</span>;
+}
+
+function MeetingApprovalDialog({ booking, onClose, onSaved }) {
+  const hasFnb = Boolean(booking.food_beverages?.trim());
+  const [decision, setDecision] = useState("approve");
+  const [managerUser, setManagerUser] = useState(hasFnb);
+  const [managerGa, setManagerGa] = useState(hasFnb);
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setError("");
+    if (decision === "approve" && hasFnb && !managerUser && !managerGa) {
+      setError("Pilih minimal satu approval lanjutan.");
+      return;
+    }
+    if (decision === "reject" && !reason.trim()) {
+      setError("Alasan penolakan wajib diisi.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post(`/bookings/${booking.id}/approval`, {
+        action: decision,
+        require_manager_user: decision === "approve" && managerUser,
+        require_manager_ga: decision === "approve" && managerGa,
+        reason: reason.trim(),
+      });
+      onSaved();
+    } catch (err) {
+      setError(formatApiError(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" onClick={onClose}>
+      <form onSubmit={submit} onClick={(event) => event.stopPropagation()} className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" data-testid="meeting-approval-dialog">
+        <div className="border-b border-slate-200 px-6 py-5">
+          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#238B57]">Approval Meeting Admin</div>
+          <h3 className="mt-1 font-display text-xl font-bold text-slate-900">{booking.title}</h3>
+          <p className="mt-1 text-sm text-slate-500">{booking.room_name} · {booking.date}, {booking.start_time}-{booking.end_time}</p>
+        </div>
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1.5">
+            <button type="button" onClick={() => setDecision("approve")} className={`rounded-lg px-4 py-2.5 text-sm font-bold ${decision === "approve" ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500"}`}>Approve</button>
+            <button type="button" onClick={() => setDecision("reject")} className={`rounded-lg px-4 py-2.5 text-sm font-bold ${decision === "reject" ? "bg-white text-red-700 shadow-sm" : "text-slate-500"}`}>Reject</button>
+          </div>
+          {decision === "approve" && hasFnb && (
+            <section className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+              <h4 className="text-sm font-bold text-slate-800">Pilih approval selanjutnya</h4>
+              <p className="mt-1 text-xs leading-5 text-slate-600">Booking memiliki F&amp;B: {booking.food_beverages}. Jika keduanya dipilih, Manager User harus approve terlebih dahulu.</p>
+              <div className="mt-4 space-y-2">
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-amber-200 bg-white p-3">
+                  <input type="checkbox" checked={managerUser} onChange={(event) => setManagerUser(event.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-600" />
+                  <span><strong className="block text-sm text-slate-800">Manager User</strong><small className="text-xs text-slate-500">{booking.supervisor_name} ({booking.supervisor_email})</small></span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-amber-200 bg-white p-3">
+                  <input type="checkbox" checked={managerGa} onChange={(event) => setManagerGa(event.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-600" />
+                  <span><strong className="block text-sm text-slate-800">Manager GA</strong><small className="text-xs text-slate-500">Manager sesuai lokasi {booking.room_building}</small></span>
+                </label>
+              </div>
+            </section>
+          )}
+          {decision === "approve" && !hasFnb && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">Tidak ada F&amp;B. Approval Meeting Admin akan langsung mengonfirmasi booking.</div>}
+          {decision === "reject" && (
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">Alasan penolakan *</label>
+              <textarea required rows={4} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} className="w-full resize-y rounded-lg border border-slate-300 px-3 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" placeholder="Jelaskan alasan penolakan kepada user" />
+            </div>
+          )}
+          {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        </div>
+        <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
+          <button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600">Batal</button>
+          <button type="submit" disabled={saving} className={`inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60 ${decision === "approve" ? "bg-[#238B57]" : "bg-red-600"}`}>{saving && <Loader2 className="h-4 w-4 animate-spin" />}{decision === "approve" ? "Simpan Approval" : "Tolak Booking"}</button>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 function ReassignRoomDialog({ booking, rooms, canManageRoom, onClose, onSaved }) {
@@ -179,6 +264,7 @@ export default function AdminBookings() {
   const [userQ, setUserQ] = useState("");
   const [date, setDate] = useState("");
   const [reassigning, setReassigning] = useState(null);
+  const [approving, setApproving] = useState(null);
   const canManageRoom = (room) =>
     me?.role === "super_admin" || (me?.meeting_buildings || []).includes(room.building || "Unassigned");
   const visibleRooms = rooms.filter(canManageRoom);
@@ -207,15 +293,6 @@ export default function AdminBookings() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, roomId, building, date]);
-
-  const updateStatus = async (id, newStatus) => {
-    try {
-      await api.patch(`/bookings/${id}/status`, { status: newStatus });
-      await load();
-    } catch (e) {
-      alert(formatApiError(e));
-    }
-  };
 
   return (
     <div data-testid="admin-bookings-page">
@@ -306,12 +383,23 @@ export default function AdminBookings() {
         />
       )}
 
+      {approving && (
+        <MeetingApprovalDialog
+          booking={approving}
+          onClose={() => setApproving(null)}
+          onSaved={async () => {
+            setApproving(null);
+            await load();
+          }}
+        />
+      )}
+
       <div className="overflow-x-auto rounded-sm border border-slate-200 bg-white">
         <table className="min-w-[1220px] w-full text-sm">
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
             <tr>
               <th className="px-6 py-3 text-left">User</th>
-              <th className="px-6 py-3 text-left">Supervisor approval</th>
+              <th className="px-6 py-3 text-left">Approval Flow</th>
               <th className="px-6 py-3 text-left">Room / Gedung</th>
               <th className="px-6 py-3 text-left">Title</th>
               <th className="px-6 py-3 text-left">Date</th>
@@ -343,9 +431,12 @@ export default function AdminBookings() {
                   )}
                 </td>
                 <td className="px-6 py-4">
-                  <SupervisorApprovalTag status={b.supervisor_approval_status} />
-                  {b.supervisor_name && <div className="mt-1 text-xs text-slate-500">{b.supervisor_name}</div>}
-                  {b.supervisor_email && <div className="text-xs text-slate-400">{b.supervisor_email}</div>}
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] font-semibold text-slate-500">Admin</div>
+                    <SupervisorApprovalTag status={b.meeting_admin_approval_status || "pending"} />
+                    {b.approval_require_manager_user && <><div className="text-[10px] font-semibold text-slate-500">Manager User</div><SupervisorApprovalTag status={b.manager_user_approval_status} /></>}
+                    {b.approval_require_manager_ga && <><div className="text-[10px] font-semibold text-slate-500">Manager GA</div><SupervisorApprovalTag status={b.manager_ga_approval_status} /></>}
+                  </div>
                 </td>
                 <td className="px-6 py-4 text-slate-700">
                   <div>{b.room_name}</div>
@@ -384,7 +475,7 @@ export default function AdminBookings() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex justify-end gap-1">
-                    {["pending", "confirmed"].includes(b.status) && b.supervisor_approval_status === "approved" && (
+                    {!b.checked_in_at && new Date(`${b.date}T${b.start_time}`) > new Date() && (
                       <button
                         onClick={() => setReassigning(b)}
                         data-testid={`reassign-room-btn-${b.id}`}
@@ -393,45 +484,14 @@ export default function AdminBookings() {
                         <RefreshCw className="h-3 w-3" /> Reassign room
                       </button>
                     )}
-                    {b.status === "pending" && (
-                      <>
-                        {b.supervisor_approval_status === "approved" ? (
-                          <button
-                            onClick={() => updateStatus(b.id, "confirmed")}
-                            data-testid={`approve-btn-${b.id}`}
-                            className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-                          >
-                            <Check className="h-3 w-3" /> Approve
-                          </button>
-                        ) : (
-                          <span className="self-center text-[11px] font-medium text-amber-700">Waiting supervisor</span>
-                        )}
-                        <button
-                          onClick={() => updateStatus(b.id, "cancelled")}
-                          data-testid={`reject-btn-${b.id}`}
-                          className="inline-flex items-center gap-1 rounded-sm border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
-                        >
-                          <X className="h-3 w-3" /> Reject
-                        </button>
-                      </>
-                    )}
-                    {b.status === "confirmed" && (
-                      <>
-                        <button
-                          onClick={() => updateStatus(b.id, "completed")}
-                          data-testid={`complete-btn-${b.id}`}
-                          className="inline-flex items-center gap-1 rounded-sm border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                        >
-                          <Check className="h-3 w-3" /> Complete
-                        </button>
-                        <button
-                          onClick={() => updateStatus(b.id, "cancelled")}
-                          data-testid={`cancel-btn-${b.id}`}
-                          className="inline-flex items-center gap-1 rounded-sm border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          <X className="h-3 w-3" /> Cancel
-                        </button>
-                      </>
+                    {b.status === "pending" && (b.meeting_admin_approval_status || "pending") === "pending" && (
+                      <button
+                        onClick={() => setApproving(b)}
+                        data-testid={`approve-btn-${b.id}`}
+                        className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                      >
+                        <Check className="h-3 w-3" /> Review
+                      </button>
                     )}
                   </div>
                 </td>

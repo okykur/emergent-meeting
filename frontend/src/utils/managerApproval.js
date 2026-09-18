@@ -13,16 +13,15 @@ function hasValidFnbRule(booking) {
   return true;
 }
 
-function needsMeetingApproval(booking) {
-  return booking.status === "pending" && booking.supervisor_approval_status === "approved";
-}
-
-function needsFnbApproval(booking) {
-  return booking.status === "confirmed"
-    && booking.fnb_status === "pending"
+function needsManagerGaApproval(booking) {
+  return booking.status === "pending"
+    && booking.meeting_admin_approval_status === "approved"
+    && booking.approval_require_manager_ga === true
+    && booking.manager_ga_approval_status === "pending"
+    && (!booking.approval_require_manager_user || booking.manager_user_approval_status === "approved")
     && hasValidFnbRule(booking);
 }
 
 export function isActiveManagerApproval(booking) {
-  return needsMeetingApproval(booking) || needsFnbApproval(booking);
+  return needsManagerGaApproval(booking);
 }

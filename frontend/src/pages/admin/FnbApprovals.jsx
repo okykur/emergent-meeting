@@ -178,7 +178,6 @@ export default function AdminFnbApprovals() {
   };
 
   const updateFnbStatus = (id, nextStatus, reason) => updateStatus(id, nextStatus, "status", reason);
-  const updateMeetingStatus = (id, nextStatus, reason) => updateStatus(id, nextStatus, "meeting-status", reason);
 
   return (
     <div data-testid="manager-approval-page">
@@ -208,7 +207,6 @@ export default function AdminFnbApprovals() {
           initialReject={dialogMode === "reject"}
           onClose={() => setSelectedBooking(null)}
           onUpdateFnb={updateFnbStatus}
-          onUpdateMeeting={updateMeetingStatus}
         />
       )}
     </div>

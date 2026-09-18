@@ -8,8 +8,6 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Check,
-  X,
 } from "lucide-react";
 import { StatusPill } from "../../components/Status";
 import { formatDate } from "../../utils/dates";
@@ -40,7 +38,6 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [pending, setPending] = useState([]);
   const [error, setError] = useState("");
-  const [actingId, setActingId] = useState(null);
 
   const load = async () => {
     try {
@@ -58,18 +55,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     load();
   }, []);
-
-  const updateStatus = async (id, newStatus) => {
-    setActingId(id);
-    try {
-      await api.patch(`/bookings/${id}/status`, { status: newStatus });
-      await load();
-    } catch (e) {
-      alert(formatApiError(e));
-    } finally {
-      setActingId(null);
-    }
-  };
 
   return (
     <div data-testid="admin-dashboard">
@@ -180,22 +165,7 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-1">
-                        <button
-                          disabled={actingId === b.id}
-                          onClick={() => updateStatus(b.id, "confirmed")}
-                          data-testid={`dashboard-approve-btn-${b.id}`}
-                          className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
-                        >
-                          <Check className="h-3 w-3" /> Approve
-                        </button>
-                        <button
-                          disabled={actingId === b.id}
-                          onClick={() => updateStatus(b.id, "cancelled")}
-                          data-testid={`dashboard-reject-btn-${b.id}`}
-                          className="inline-flex items-center gap-1 rounded-sm border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                        >
-                          <X className="h-3 w-3" /> Reject
-                        </button>
+                        <Link to="/admin/bookings" className="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Review di menu approval</Link>
                       </div>
                     </td>
                   </tr>

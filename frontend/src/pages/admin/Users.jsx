@@ -11,6 +11,7 @@ import {
   Loader2,
   User as UserIcon,
   CheckCircle2,
+  XCircle,
 } from "lucide-react";
 
 function RoleTag({ role }) {
@@ -47,17 +48,23 @@ function RoleTag({ role }) {
   );
 }
 
-function ApprovalTag({ approved }) {
+function getApprovalStatus(user) {
+  return user.approval_status || (user.is_approved ? "approved" : "pending");
+}
+
+function ApprovalTag({ status }) {
+  const config = {
+    approved: { label: "Disetujui", cls: "bg-[#E4F4EB] text-[#1E7C4F]" },
+    pending: { label: "Menunggu", cls: "bg-[#FFF0C7] text-[#C87400]" },
+    rejected: { label: "Ditolak", cls: "bg-red-50 text-red-700" },
+  };
+  const current = config[status] || config.pending;
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold ${
-        approved
-          ? "bg-[#E4F4EB] text-[#1E7C4F]"
-          : "bg-[#FFF0C7] text-[#C87400]"
-      }`}
-      data-testid={approved ? "approval-approved" : "approval-pending"}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold ${current.cls}`}
+      data-testid={`approval-${status}`}
     >
-      {approved ? "Disetujui" : "Ditunda"}
+      {current.label}
     </span>
   );
 }
@@ -96,7 +103,6 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           meeting_buildings: buildingsToInput(initial.meeting_buildings || []),
           fnb_locations: buildingsToInput(initial.fnb_locations || []),
           role: initial.role || "user",
-          is_approved: Boolean(initial.is_approved),
         }
       : {
           email: "",
@@ -139,7 +145,6 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           meeting_buildings: payload.meeting_buildings,
           fnb_locations: payload.fnb_locations,
           role: payload.role,
-          is_approved: payload.is_approved,
         });
       } else {
         await api.post("/users", payload);
@@ -264,8 +269,9 @@ function UserFormDialog({ initial, onClose, onSaved }) {
             <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-[#238B57]">Informasi Atasan</div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-2 block text-xs font-bold text-[#343B36]">Nama Atasan</label>
+                <label className="mb-2 block text-xs font-bold text-[#343B36]">Nama Atasan *</label>
                 <input
+                  required
                   data-testid="user-supervisor-name-input"
                   value={form.supervisor_name}
                   onChange={(e) => setForm({ ...form, supervisor_name: e.target.value })}
@@ -274,8 +280,9 @@ function UserFormDialog({ initial, onClose, onSaved }) {
                 />
               </div>
               <div>
-                <label className="mb-2 block text-xs font-bold text-[#343B36]">Email Atasan</label>
+                <label className="mb-2 block text-xs font-bold text-[#343B36]">Email Atasan *</label>
                 <input
+                  required
                   type="email"
                   data-testid="user-supervisor-email-input"
                   value={form.supervisor_email}
@@ -331,8 +338,9 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           </div>
           {form.role === "meeting_admin" && (
             <div className="rounded-xl border border-[#D7E9DE] bg-[#F6FAF7] p-4 md:col-span-2">
-              <label className="mb-2 block text-xs font-bold text-[#343B36]">Gedung Approval Meeting</label>
+              <label className="mb-2 block text-xs font-bold text-[#343B36]">Gedung Approval Meeting *</label>
               <input
+                required
                 data-testid="user-meeting-buildings-input"
                 value={form.meeting_buildings}
                 onChange={(e) => setForm({ ...form, meeting_buildings: e.target.value })}
@@ -346,8 +354,9 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           )}
           {form.role === "manager" && (
             <div className="rounded-xl border border-[#D7E9DE] bg-[#F6FAF7] p-4 md:col-span-2">
-              <label className="mb-2 block text-xs font-bold text-[#343B36]">Lokasi Approval Meeting &amp; F&amp;B</label>
+              <label className="mb-2 block text-xs font-bold text-[#343B36]">Lokasi Approval Meeting &amp; F&amp;B *</label>
               <input
+                required
                 data-testid="user-fnb-locations-input"
                 value={form.fnb_locations}
                 onChange={(e) => setForm({ ...form, fnb_locations: e.target.value })}
@@ -359,7 +368,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               </p>
             </div>
           )}
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#DCE3DE] bg-[#FAFBFA] px-3.5 py-3 text-sm text-[#39413C] md:col-span-2">
+          {!initial && <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#DCE3DE] bg-[#FAFBFA] px-3.5 py-3 text-sm text-[#39413C] md:col-span-2">
             <input
               type="checkbox"
               checked={form.is_approved}
@@ -373,7 +382,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
                 Pengguna yang belum disetujui tidak dapat login sampai pilihan ini dicentang dan disimpan.
               </span>
             </span>
-          </label>
+          </label>}
           </div>
           {error && (
             <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -397,6 +406,119 @@ function UserFormDialog({ initial, onClose, onSaved }) {
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {initial ? "Simpan Perubahan" : "Simpan Pengguna"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ApprovalDialog({ user, onClose, onSaved }) {
+  const [decision, setDecision] = useState("approve");
+  const [role, setRole] = useState(user.role || "user");
+  const [meetingBuildings, setMeetingBuildings] = useState(buildingsToInput(user.meeting_buildings || []));
+  const [fnbLocations, setFnbLocations] = useState(buildingsToInput(user.fnb_locations || []));
+  const [reason, setReason] = useState(user.rejection_reason || "");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setError("");
+    if (decision === "reject" && !reason.trim()) {
+      setError("Alasan penolakan wajib diisi.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post(`/users/${user.id}/approval`, {
+        action: decision,
+        role,
+        meeting_buildings: inputToBuildings(meetingBuildings),
+        fnb_locations: inputToBuildings(fnbLocations),
+        rejection_reason: reason.trim(),
+      });
+      onSaved?.(decision);
+    } catch (err) {
+      setError(formatApiError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const detailRows = [
+    ["Nama", user.name],
+    ["Email", user.email],
+    ["Perusahaan", user.company_name || "-"],
+    ["Departemen / Jabatan", [user.department, user.job_title].filter(Boolean).join(" / ") || "-"],
+    ["Lokasi kantor", user.office_address || "-"],
+    ["Atasan", user.supervisor_name && user.supervisor_email ? `${user.supervisor_name} (${user.supervisor_email})` : "Belum lengkap"],
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#10271F]/70 p-4 backdrop-blur-[1px]" onClick={onClose} data-testid="approval-dialog">
+      <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#DCE3DE] bg-white shadow-[0_28px_80px_rgba(8,35,25,0.28)]" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-[#E4E9E6] px-6 py-5">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#238B57]">Review Pendaftaran</div>
+            <h3 className="mt-1 font-display text-xl font-extrabold text-[#252A27]">Approval Pengguna</h3>
+          </div>
+          <button type="button" onClick={onClose} className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#69736D] hover:bg-[#EEF2EF]" aria-label="Tutup"><X className="h-5 w-5" /></button>
+        </div>
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+            <div className="grid grid-cols-1 gap-3 rounded-xl border border-[#DDE6E0] bg-[#F8FAF8] p-4 sm:grid-cols-2">
+              {detailRows.map(([label, value]) => (
+                <div key={label}>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-[#78817B]">{label}</div>
+                  <div className="mt-1 break-words text-sm font-semibold text-[#303732]">{value}</div>
+                </div>
+              ))}
+            </div>
+            {(!user.supervisor_name || !user.supervisor_email) && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Data atasan belum lengkap. Tutup dialog ini dan lengkapi melalui tombol Edit sebelum menyetujui.</div>
+            )}
+            <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#F1F4F2] p-1.5">
+              <button type="button" onClick={() => setDecision("approve")} className={`rounded-lg px-4 py-2.5 text-sm font-bold ${decision === "approve" ? "bg-white text-[#1E7C4F] shadow-sm" : "text-[#69736D]"}`}>Setujui</button>
+              <button type="button" onClick={() => setDecision("reject")} className={`rounded-lg px-4 py-2.5 text-sm font-bold ${decision === "reject" ? "bg-white text-red-700 shadow-sm" : "text-[#69736D]"}`}>Tolak</button>
+            </div>
+            {decision === "approve" ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-[#343B36]">Role yang diberikan *</label>
+                  <select value={role} onChange={(event) => setRole(event.target.value)} className={userFieldClass} data-testid="approval-role-select">
+                    {userRoleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </div>
+                {role === "meeting_admin" && (
+                  <div>
+                    <label className="mb-2 block text-xs font-bold text-[#343B36]">Gedung Approval Meeting *</label>
+                    <input required value={meetingBuildings} onChange={(event) => setMeetingBuildings(event.target.value)} placeholder="Pulogadung, Kudus" className={userFieldClass} />
+                    <p className="mt-1 text-[11px] text-[#747D77]">Pisahkan beberapa gedung dengan koma.</p>
+                  </div>
+                )}
+                {role === "manager" && (
+                  <div>
+                    <label className="mb-2 block text-xs font-bold text-[#343B36]">Lokasi Approval Meeting &amp; F&amp;B *</label>
+                    <input required value={fnbLocations} onChange={(event) => setFnbLocations(event.target.value)} placeholder="Pulogadung, Kudus" className={userFieldClass} />
+                    <p className="mt-1 text-[11px] text-[#747D77]">Pisahkan beberapa lokasi dengan koma.</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <label className="mb-2 block text-xs font-bold text-[#343B36]">Alasan penolakan *</label>
+                <textarea required value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} rows={4} placeholder="Jelaskan alasan agar pemohon dapat melakukan perbaikan." className="w-full resize-y rounded-lg border border-[#DCE3DE] px-3.5 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" data-testid="approval-rejection-reason" />
+              </div>
+            )}
+            {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</div>}
+          </div>
+          <div className="flex items-center justify-end gap-3 border-t border-[#E4E9E6] px-6 py-4">
+            <button type="button" onClick={onClose} className="min-h-10 rounded-lg bg-[#EEF1EF] px-5 text-sm font-bold text-[#626C65]">Batal</button>
+            <button type="submit" disabled={loading} className={`flex min-h-10 items-center gap-2 rounded-lg px-6 text-sm font-bold text-white disabled:opacity-60 ${decision === "approve" ? "bg-[#238B57] hover:bg-[#176E43]" : "bg-red-600 hover:bg-red-700"}`} data-testid="approval-submit-btn">
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {decision === "approve" ? "Setujui & Aktifkan" : "Tolak Pendaftaran"}
             </button>
           </div>
         </form>
@@ -523,6 +645,7 @@ export default function AdminUsers() {
   const [approval, setApproval] = useState("");
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(null); // user | 'new' | null
+  const [approvalTarget, setApprovalTarget] = useState(null);
   const [pwTarget, setPwTarget] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -559,25 +682,15 @@ export default function AdminUsers() {
     ].filter(Boolean).join(" ").toLowerCase();
     if (query && !searchable.includes(query)) return false;
     if (role && user.role !== role) return false;
-    if (approval === "approved" && !user.is_approved) return false;
-    if (approval === "pending" && user.is_approved) return false;
+    if (approval && getApprovalStatus(user) !== approval) return false;
     return true;
   });
-  const pendingCount = users.filter((user) => !user.is_approved).length;
+  const pendingCount = users.filter((user) => getApprovalStatus(user) === "pending").length;
 
   const remove = async (u) => {
     if (!window.confirm(`Delete user "${u.email}"? Their past bookings will be kept for audit.`)) return;
     try {
       await api.delete(`/users/${u.id}`);
-      await load();
-    } catch (e) {
-      alert(formatApiError(e));
-    }
-  };
-
-  const approve = async (u) => {
-    try {
-      await api.patch(`/users/${u.id}`, { is_approved: true, role: u.role || "user" });
       await load();
     } catch (e) {
       alert(formatApiError(e));
@@ -668,8 +781,9 @@ export default function AdminUsers() {
           className="h-10 rounded-lg border border-[#DCE3DE] bg-white px-3 text-sm text-[#39413C] outline-none focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/10 lg:order-2"
         >
           <option value="">Semua Status</option>
-          <option value="pending">Ditunda</option>
+          <option value="pending">Menunggu</option>
           <option value="approved">Disetujui</option>
+          <option value="rejected">Ditolak</option>
         </select>
         <button
           type="submit"
@@ -759,23 +873,26 @@ export default function AdminUsers() {
                     )}
                   </td>
                   <td className="px-6 py-5">
-                    <ApprovalTag approved={u.is_approved} />
+                    <ApprovalTag status={getApprovalStatus(u)} />
+                    {getApprovalStatus(u) === "rejected" && u.rejection_reason && (
+                      <div className="mt-2 max-w-[180px] text-[10px] leading-4 text-red-600" title={u.rejection_reason}>{u.rejection_reason}</div>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-6 py-5 text-xs text-[#6B746E]">
                     {u.created_at ? new Date(u.created_at).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex justify-end gap-1.5">
-                      {!u.is_approved && (
+                      {getApprovalStatus(u) !== "approved" && (
                         <button
                           type="button"
-                          onClick={() => approve(u)}
+                          onClick={() => setApprovalTarget(u)}
                           data-testid={`approve-user-${u.id}`}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#238B57] hover:bg-[#E4F4EB]"
-                          title="Setujui pengguna"
-                          aria-label={`Setujui ${u.name}`}
+                          className={`inline-flex h-8 w-8 items-center justify-center rounded-md ${getApprovalStatus(u) === "rejected" ? "text-red-600 hover:bg-red-50" : "text-[#238B57] hover:bg-[#E4F4EB]"}`}
+                          title="Review pendaftaran"
+                          aria-label={`Review ${u.name}`}
                         >
-                          <CheckCircle2 className="h-4 w-4" />
+                          {getApprovalStatus(u) === "rejected" ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                         </button>
                       )}
                       <button
@@ -824,6 +941,17 @@ export default function AdminUsers() {
           onClose={() => setEditing(null)}
           onSaved={async () => {
             setEditing(null);
+            await load();
+          }}
+        />
+      )}
+
+      {approvalTarget && (
+        <ApprovalDialog
+          user={approvalTarget}
+          onClose={() => setApprovalTarget(null)}
+          onSaved={async () => {
+            setApprovalTarget(null);
             await load();
           }}
         />

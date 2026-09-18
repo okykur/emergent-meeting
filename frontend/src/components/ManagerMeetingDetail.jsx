@@ -3,7 +3,7 @@ import { Check, X, TriangleAlert } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./ui/dialog";
 import { formatDate } from "../utils/dates";
 
-export default function ManagerMeetingDetail({ booking, onClose, onUpdateFnb, onUpdateMeeting, initialConfirm = false, initialReject = false }) {
+export default function ManagerMeetingDetail({ booking, onClose, onUpdateFnb, initialConfirm = false, initialReject = false }) {
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(initialConfirm);
   const [rejecting, setRejecting] = useState(initialReject);
@@ -15,26 +15,24 @@ export default function ManagerMeetingDetail({ booking, onClose, onUpdateFnb, on
   const toMinutes = (time) => { const [h, m] = time.split(":").map(Number); return h * 60 + m; };
   const duration = toMinutes(booking.end_time) - toMinutes(booking.start_time);
   const validFnb = hasFnb && duration >= (booking.food_beverages.toLowerCase().includes("makan") ? 300 : 240);
-  const supervisor = booking.supervisor_approval_status || "approved";
-  const roomApproved = ["confirmed", "ongoing", "completed"].includes(booking.status);
+  const roomApproved = booking.meeting_admin_approval_status === "approved";
   const cancelled = booking.status === "cancelled";
   const fnbStopped = ["rejected", "cancelled"].includes(booking.fnb_status);
-  const canMeeting = booking.status === "pending" && supervisor === "approved";
-  const canFnb = booking.status === "confirmed" && validFnb && booking.fnb_status === "pending";
-  const complete = roomApproved && (!hasFnb || booking.fnb_status === "approved" || booking.fnb_status === "not_required");
-  const active = supervisor !== "approved" ? 1 : !roomApproved ? 2 : hasFnb && !complete ? 3 : hasFnb ? 4 : 3;
-  const stopped = cancelled || supervisor === "rejected" || fnbStopped;
-  const steps = ["Diajukan", "Manager User", "Admin Ruang / GA (Backup)", ...(hasFnb ? ["Manager GA (F&B)"] : []), "Disetujui"];
-  const status = supervisor === "rejected" ? "Ditolak oleh atasan" : cancelled ? "Booking dibatalkan / ditolak" : fnbStopped ? `F&B ${booking.fnb_status === "rejected" ? "ditolak" : "dibatalkan"}` : complete ? "Persetujuan selesai" : supervisor !== "approved" ? "Menunggu persetujuan atasan" : !roomApproved ? "Menunggu persetujuan ruang meeting" : !validFnb ? "Request F&B tidak sesuai aturan durasi" : "Menunggu persetujuan F&B Manager GA";
+  const canMeeting = false;
+  const canFnb = booking.status === "pending" && roomApproved && validFnb && booking.approval_require_manager_ga === true && booking.manager_ga_approval_status === "pending" && (!booking.approval_require_manager_user || booking.manager_user_approval_status === "approved");
+  const complete = booking.status === "confirmed";
+  const steps = ["Diajukan", "Admin Ruang", ...(booking.approval_require_manager_user ? ["Manager User"] : []), ...(booking.approval_require_manager_ga ? ["Manager GA"] : []), "Disetujui"];
+  const statuses = ["approved", booking.meeting_admin_approval_status, ...(booking.approval_require_manager_user ? [booking.manager_user_approval_status] : []), ...(booking.approval_require_manager_ga ? [booking.manager_ga_approval_status] : [])];
+  const active = Math.min(statuses.filter((value) => value === "approved").length, steps.length - 1);
+  const stopped = cancelled || fnbStopped || statuses.includes("rejected");
+  const status = cancelled ? "Booking dibatalkan / ditolak" : fnbStopped ? `F&B ${booking.fnb_status === "rejected" ? "ditolak" : "dibatalkan"}` : complete ? "Persetujuan selesai" : !roomApproved ? "Menunggu Meeting Admin" : booking.approval_require_manager_user && booking.manager_user_approval_status !== "approved" ? "Menunggu Manager User" : "Menunggu Manager GA";
   const decide = async (approved, reason = "") => {
     if (inFlight.current || (!canMeeting && !canFnb)) return;
     inFlight.current = true;
     setSaving(true);
     setActionError("");
     try {
-      const success = canMeeting
-        ? await onUpdateMeeting(booking.id, approved ? "confirmed" : "cancelled", ...(approved ? [] : [reason]))
-        : await onUpdateFnb(booking.id, approved ? "approved" : "rejected", ...(approved ? [] : [reason]));
+      const success = await onUpdateFnb(booking.id, approved ? "approved" : "rejected", ...(approved ? [] : [reason]));
       if (success === false) setActionError(`${approved ? "Persetujuan" : "Penolakan"} belum tersimpan. Silakan coba lagi.`);
     } catch {
       setActionError(`${approved ? "Persetujuan" : "Penolakan"} belum tersimpan. Silakan coba lagi.`);
