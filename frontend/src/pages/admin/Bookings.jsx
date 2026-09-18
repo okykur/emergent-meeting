@@ -3,9 +3,15 @@ import { api, formatApiError } from "../../api";
 import { useAuth } from "../../context/AuthContext";
 import { StatusPill } from "../../components/Status";
 import { formatDate } from "../../utils/dates";
-import { Check, X, Search, RefreshCw, Loader2 } from "lucide-react";
+import { X, Search, RefreshCw, Loader2, CalendarCheck2, Clock3, CircleCheckBig } from "lucide-react";
 
 const LAYOUT_OPTIONS = ["U-Shape", "Classroom", "Round", "Theater", "Lainnya"];
+
+export const canReviewMeetingBooking = (booking) =>
+  booking.status === "pending" && (booking.meeting_admin_approval_status || "pending") === "pending";
+
+export const canReassignMeetingBooking = (booking, now = new Date()) =>
+  !booking.checked_in_at && new Date(`${booking.date}T${booking.start_time}`) > now;
 
 function SupervisorApprovalTag({ status }) {
   const config = {
@@ -269,6 +275,8 @@ export default function AdminBookings() {
     me?.role === "super_admin" || (me?.meeting_buildings || []).includes(room.building || "Unassigned");
   const visibleRooms = rooms.filter(canManageRoom);
   const buildings = [...new Set(visibleRooms.map((r) => r.building || "Unassigned"))].sort();
+  const pendingAdminCount = bookings.filter(canReviewMeetingBooking).length;
+  const confirmedCount = bookings.filter((booking) => booking.status === "confirmed").length;
 
   const load = async () => {
     try {
@@ -295,17 +303,32 @@ export default function AdminBookings() {
   }, [status, roomId, building, date]);
 
   return (
-    <div data-testid="admin-bookings-page">
-      <div className="mb-8">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
-          Booking Monitoring
+    <div data-testid="admin-bookings-page" className="space-y-6">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#238B57]">
+            Approval Ruang Rapat
+          </div>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-[#202521] sm:text-4xl">
+            Persetujuan Meeting
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-[#6D766F]">
+            Review permintaan ruang, tentukan alur approval lanjutan, atau reassign ruangan sebelum meeting dimulai.
+          </p>
         </div>
-        <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-          Meeting Room Bookings
-        </h1>
+        <div className="grid grid-cols-2 gap-3 sm:min-w-[350px]">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700"><Clock3 className="h-4 w-4" /> Perlu Review</div>
+            <div className="mt-1 text-2xl font-bold text-[#202521]">{pendingAdminCount}</div>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700"><CircleCheckBig className="h-4 w-4" /> Confirmed</div>
+            <div className="mt-1 text-2xl font-bold text-[#202521]">{confirmedCount}</div>
+          </div>
+        </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-3 rounded-sm border border-slate-200 bg-white p-4 md:grid-cols-6">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-[#DCE3DE] bg-white p-4 shadow-sm md:grid-cols-6">
         <div className="relative md:col-span-2">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -313,17 +336,17 @@ export default function AdminBookings() {
             value={userQ}
             onChange={(e) => setUserQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && load()}
-            placeholder="Search by user name or email…"
-            className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0B7A4B] focus:ring-2 focus:ring-[#0B7A4B]/15"
+            placeholder="Cari nama atau email user..."
+            className="w-full rounded-lg border border-[#DCE3DE] py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/15"
           />
         </div>
         <select
           data-testid="admin-bookings-status-filter"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+          className="rounded-lg border border-[#DCE3DE] px-3 py-2.5 text-sm outline-none focus:border-[#238B57]"
         >
-          <option value="">All statuses</option>
+          <option value="">Semua status</option>
           <option value="pending">Pending</option>
           <option value="confirmed">Confirmed</option>
           <option value="cancelled">Cancelled</option>
@@ -333,9 +356,9 @@ export default function AdminBookings() {
           data-testid="admin-bookings-building-filter"
           value={building}
           onChange={(e) => setBuilding(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+          className="rounded-lg border border-[#DCE3DE] px-3 py-2.5 text-sm outline-none focus:border-[#238B57]"
         >
-          <option value="">All buildings</option>
+          <option value="">Semua gedung</option>
           {buildings.map((b) => (
             <option key={b} value={b}>
               {b}
@@ -346,9 +369,9 @@ export default function AdminBookings() {
           data-testid="admin-bookings-room-filter"
           value={roomId}
           onChange={(e) => setRoomId(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+          className="rounded-lg border border-[#DCE3DE] px-3 py-2.5 text-sm outline-none focus:border-[#238B57]"
         >
-          <option value="">All rooms</option>
+          <option value="">Semua ruangan</option>
           {visibleRooms.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
@@ -360,7 +383,7 @@ export default function AdminBookings() {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]"
+          className="rounded-lg border border-[#DCE3DE] px-3 py-2.5 text-sm outline-none focus:border-[#238B57]"
         />
       </div>
 
@@ -394,43 +417,43 @@ export default function AdminBookings() {
         />
       )}
 
-      <div className="overflow-x-auto rounded-sm border border-slate-200 bg-white">
-        <table className="min-w-[1220px] w-full text-sm">
-          <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+      <div className="overflow-x-auto rounded-xl border border-[#DCE3DE] bg-white shadow-sm">
+        <table className="w-full min-w-[1280px] text-sm">
+          <thead className="bg-[#F3F6F4] text-[11px] font-bold uppercase tracking-wider text-[#68736B]">
             <tr>
-              <th className="px-6 py-3 text-left">User</th>
-              <th className="px-6 py-3 text-left">Approval Flow</th>
-              <th className="px-6 py-3 text-left">Room / Gedung</th>
-              <th className="px-6 py-3 text-left">Title</th>
-              <th className="px-6 py-3 text-left">Date</th>
-              <th className="px-6 py-3 text-left">Time</th>
-              <th className="px-6 py-3 text-left">People</th>
-              <th className="px-6 py-3 text-left">Status</th>
-              <th className="px-6 py-3 text-right">Actions</th>
+              <th className="px-5 py-4 text-left">Pemohon</th>
+              <th className="px-5 py-4 text-left">Alur Approval</th>
+              <th className="px-5 py-4 text-left">Ruang / Gedung</th>
+              <th className="px-5 py-4 text-left">Agenda</th>
+              <th className="px-5 py-4 text-left">Tanggal</th>
+              <th className="px-5 py-4 text-left">Waktu</th>
+              <th className="px-5 py-4 text-left">Peserta</th>
+              <th className="px-5 py-4 text-left">Status</th>
+              <th className="sticky right-0 z-20 min-w-[190px] border-l border-[#DCE3DE] bg-[#F3F6F4] px-5 py-4 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {bookings.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-6 py-12 text-center text-sm text-slate-500">
-                  No bookings match the filters.
+                  Tidak ada booking yang sesuai dengan filter.
                 </td>
               </tr>
             )}
             {bookings.map((b) => (
               <tr
                 key={b.id}
-                className="border-t border-slate-200 hover:bg-slate-50"
+                className="group border-t border-[#E5EAE7] hover:bg-[#FAFCFA]"
                 data-testid={`admin-booking-row-${b.id}`}
               >
-                <td className="px-6 py-4">
+                <td className="px-5 py-4">
                   <div className="font-medium text-slate-900">{b.user_name}</div>
                   <div className="text-xs text-slate-500">{b.user_email}</div>
                   {b.phone_number && (
                     <div className="mt-1 text-xs font-medium text-slate-600">HP: {b.phone_number}</div>
                   )}
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-5 py-4">
                   <div className="space-y-1.5">
                     <div className="text-[10px] font-semibold text-slate-500">Admin</div>
                     <SupervisorApprovalTag status={b.meeting_admin_approval_status || "pending"} />
@@ -438,13 +461,13 @@ export default function AdminBookings() {
                     {b.approval_require_manager_ga && <><div className="text-[10px] font-semibold text-slate-500">Manager GA</div><SupervisorApprovalTag status={b.manager_ga_approval_status} /></>}
                   </div>
                 </td>
-                <td className="px-6 py-4 text-slate-700">
+                <td className="px-5 py-4 text-slate-700">
                   <div>{b.room_name}</div>
                   <div className="text-xs font-semibold uppercase tracking-wider text-[#0B7A4B]">
                     {b.room_building || "Unassigned"}
                   </div>
                 </td>
-                <td className="px-6 py-4 text-slate-700">
+                <td className="px-5 py-4 text-slate-700">
                   <div>{b.title}</div>
                   {b.layout_type && (
                     <div className="mt-1 max-w-xs text-xs text-slate-500">
@@ -465,32 +488,32 @@ export default function AdminBookings() {
                     </div>
                   )}
                 </td>
-                <td className="px-6 py-4 text-slate-700">{formatDate(b.date)}</td>
-                <td className="px-6 py-4 text-slate-700">
+                <td className="px-5 py-4 text-slate-700">{formatDate(b.date)}</td>
+                <td className="px-5 py-4 text-slate-700">
                   {b.start_time}–{b.end_time}
                 </td>
-                <td className="px-6 py-4 text-slate-700">{b.participants}</td>
-                <td className="px-6 py-4">
+                <td className="px-5 py-4 text-slate-700">{b.participants}</td>
+                <td className="px-5 py-4">
                   <StatusPill status={b.status} />
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex justify-end gap-1">
-                    {!b.checked_in_at && new Date(`${b.date}T${b.start_time}`) > new Date() && (
+                <td className="sticky right-0 z-10 border-l border-[#E5EAE7] bg-white px-5 py-4 group-hover:bg-[#FAFCFA]">
+                  <div className="flex min-w-[150px] justify-end gap-2">
+                    {canReassignMeetingBooking(b) && (
                       <button
                         onClick={() => setReassigning(b)}
                         data-testid={`reassign-room-btn-${b.id}`}
-                        className="inline-flex items-center gap-1 rounded-sm border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#BFD8CC] bg-white px-3 py-2 text-xs font-bold text-[#176E43] hover:bg-[#EEF7F2]"
                       >
                         <RefreshCw className="h-3 w-3" /> Reassign room
                       </button>
                     )}
-                    {b.status === "pending" && (b.meeting_admin_approval_status || "pending") === "pending" && (
+                    {canReviewMeetingBooking(b) && (
                       <button
                         onClick={() => setApproving(b)}
                         data-testid={`approve-btn-${b.id}`}
-                        className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#238B57] px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#176E43]"
                       >
-                        <Check className="h-3 w-3" /> Review
+                        <CalendarCheck2 className="h-3.5 w-3.5" /> Review
                       </button>
                     )}
                   </div>
