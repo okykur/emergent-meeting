@@ -1000,8 +1000,8 @@ def _meeting_email_detail_rows(booking: dict) -> List[tuple[str, str]]:
 def _meeting_email_rows_html(booking: dict) -> str:
     return "".join(
         "<tr>"
-        f"<td style='width:34%;padding:12px 14px;border-bottom:1px solid #e4e9e6;color:#66716b;font-size:13px;line-height:1.4'>{html.escape(label)}</td>"
-        f"<td style='padding:12px 14px;border-bottom:1px solid #e4e9e6;color:#174b37;font-size:13px;font-weight:800;line-height:1.4;text-align:right'>{html.escape(value)}</td>"
+        f"<td bgcolor='#f8faf9' style='width:34%;padding:12px 14px;border-bottom:1px solid #e4e9e6;color:#66716b;font-size:13px;line-height:1.4'>{html.escape(label)}</td>"
+        f"<td bgcolor='#f8faf9' align='right' style='padding:12px 14px;border-bottom:1px solid #e4e9e6;color:#174b37;font-size:13px;font-weight:800;line-height:1.4;text-align:right'>{html.escape(value)}</td>"
         "</tr>"
         for label, value in _meeting_email_detail_rows(booking)
     )
@@ -1011,26 +1011,28 @@ def _meeting_approval_email_html(booking: dict, recipient_name: str, action_html
     table_rows = _meeting_email_rows_html(booking)
     logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
     return f"""
-    <html><body style='margin:0;padding:0;background:#edf1ef;font-family:Arial,sans-serif;color:#202622'>
-      <div style='padding:32px 18px'>
-        <div style='max-width:640px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 6px 20px rgba(20,65,48,.08)'>
-          <div style='padding:24px 32px;background:#0b6642;color:#ffffff'>
-            <table role='presentation' style='border-collapse:collapse'><tr>
-              <td style='padding-right:12px;vertical-align:middle'><span style='display:inline-block;padding:5px 7px;border-radius:5px;background:#ffffff'><img src='{logo_url}' alt='KCSI' width='42' style='display:block;width:42px;height:auto;border:0'></span></td>
-              <td style='vertical-align:middle'><div style='font-size:24px;font-weight:900;letter-spacing:-1px'>GASS</div><div style='margin-top:3px;font-size:10px;color:#c5e0d4'>General Affair Services System</div></td>
-            </tr></table>
-          </div>
-          <div style='padding:34px 32px 30px'>
-            <div style='display:inline-block;padding:6px 11px;border-radius:999px;background:#fff0c2;color:#9a5a00;font-size:9px;font-weight:900;letter-spacing:.4px'>APPROVAL REQUIRED</div>
-            <h1 style='margin:24px 0 18px;font-size:25px;line-height:1.25;color:#222723'>Meeting Approval Request</h1>
-            <p style='margin:0 0 8px;color:#174b37;font-size:15px;font-weight:800'>Dear {html.escape(recipient_name)},</p>
-            <p style='margin:0 0 24px;color:#69736e;font-size:13px;line-height:1.65'>You have received a new meeting approval request. Please review the details below.</p>
-            <table role='presentation' style='width:100%;border:1px solid #dfe5e2;border-collapse:separate;border-spacing:0;background:#f8faf9;border-radius:9px;overflow:hidden'>{table_rows}</table>
-            {action_html}
-          </div>
-          <div style='padding:22px 32px;background:#f7f9f8;color:#a0aaa5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</div>
-        </div>
-      </div>
+    <html><body bgcolor='#edf1ef' style='margin:0;padding:0;background-color:#edf1ef;font-family:Arial,sans-serif;color:#202622'>
+      <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#edf1ef' style='width:100%;background-color:#edf1ef'>
+        <tr><td align='center' style='padding:32px 18px'>
+          <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:12px;overflow:hidden'>
+            <tr><td bgcolor='#0b6642' style='padding:24px 32px;background-color:#0b6642;color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
+                <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='42' style='display:block;width:42px;height:auto;border:0'></td>
+                <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:24px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div><div style='margin-top:3px;font-size:10px;color:#c5e0d4'>General Affair Services System</div></td>
+              </tr></table>
+            </td></tr>
+            <tr><td bgcolor='#ffffff' style='padding:34px 32px 30px;background-color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='#fff0c2' style='padding:6px 11px;background-color:#fff0c2;border-radius:999px;color:#9a5a00;font-size:9px;font-weight:900;letter-spacing:.4px'>APPROVAL REQUIRED</td></tr></table>
+              <h1 style='margin:24px 0 18px;font-size:25px;line-height:1.25;color:#222723'>Meeting Approval Request</h1>
+              <p style='margin:0 0 8px;color:#174b37;font-size:15px;font-weight:800'>Dear {html.escape(recipient_name)},</p>
+              <p style='margin:0 0 24px;color:#69736e;font-size:13px;line-height:1.65'>You have received a new meeting approval request. Please review the details below.</p>
+              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f8faf9' style='width:100%;border:1px solid #dfe5e2;border-collapse:separate;border-spacing:0;background-color:#f8faf9;border-radius:9px;overflow:hidden'>{table_rows}</table>
+              {action_html}
+            </td></tr>
+            <tr><td align='center' bgcolor='#f7f9f8' style='padding:22px 32px;background-color:#f7f9f8;color:#a0aaa5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
+          </table>
+        </td></tr>
+      </table>
     </body></html>
     """
 
