@@ -1000,12 +1000,39 @@ def _meeting_email_detail_rows(booking: dict) -> List[tuple[str, str]]:
 def _meeting_email_rows_html(booking: dict) -> str:
     return "".join(
         "<tr>"
-        f"<td style='padding:10px 0 2px;color:#718078;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase'>{html.escape(label)}</td>"
-        "</tr><tr>"
-        f"<td style='padding:0 0 13px;color:#17231d;font-size:15px;font-weight:700;line-height:1.45;border-bottom:1px solid #e5ece8'>{html.escape(value)}</td>"
+        f"<td style='width:34%;padding:12px 14px;border-bottom:1px solid #e4e9e6;color:#66716b;font-size:13px;line-height:1.4'>{html.escape(label)}</td>"
+        f"<td style='padding:12px 14px;border-bottom:1px solid #e4e9e6;color:#174b37;font-size:13px;font-weight:800;line-height:1.4;text-align:right'>{html.escape(value)}</td>"
         "</tr>"
         for label, value in _meeting_email_detail_rows(booking)
     )
+
+
+def _meeting_approval_email_html(booking: dict, recipient_name: str, action_html: str) -> str:
+    table_rows = _meeting_email_rows_html(booking)
+    logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
+    return f"""
+    <html><body style='margin:0;padding:0;background:#edf1ef;font-family:Arial,sans-serif;color:#202622'>
+      <div style='padding:32px 18px'>
+        <div style='max-width:640px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 6px 20px rgba(20,65,48,.08)'>
+          <div style='padding:24px 32px;background:#0b6642;color:#ffffff'>
+            <table role='presentation' style='border-collapse:collapse'><tr>
+              <td style='padding-right:12px;vertical-align:middle'><span style='display:inline-block;padding:5px 7px;border-radius:5px;background:#ffffff'><img src='{logo_url}' alt='KCSI' width='42' style='display:block;width:42px;height:auto;border:0'></span></td>
+              <td style='vertical-align:middle'><div style='font-size:24px;font-weight:900;letter-spacing:-1px'>GASS</div><div style='margin-top:3px;font-size:10px;color:#c5e0d4'>General Affair Services System</div></td>
+            </tr></table>
+          </div>
+          <div style='padding:34px 32px 30px'>
+            <div style='display:inline-block;padding:6px 11px;border-radius:999px;background:#fff0c2;color:#9a5a00;font-size:9px;font-weight:900;letter-spacing:.4px'>APPROVAL REQUIRED</div>
+            <h1 style='margin:24px 0 18px;font-size:25px;line-height:1.25;color:#222723'>Meeting Approval Request</h1>
+            <p style='margin:0 0 8px;color:#174b37;font-size:15px;font-weight:800'>Dear {html.escape(recipient_name)},</p>
+            <p style='margin:0 0 24px;color:#69736e;font-size:13px;line-height:1.65'>You have received a new meeting approval request. Please review the details below.</p>
+            <table role='presentation' style='width:100%;border:1px solid #dfe5e2;border-collapse:separate;border-spacing:0;background:#f8faf9;border-radius:9px;overflow:hidden'>{table_rows}</table>
+            {action_html}
+          </div>
+          <div style='padding:22px 32px;background:#f7f9f8;color:#a0aaa5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</div>
+        </div>
+      </div>
+    </body></html>
+    """
 
 
 def _supervisor_email_is_configured() -> bool:
@@ -1022,7 +1049,6 @@ def _send_supervisor_approval_email(booking: dict, token: str) -> bool:
     reject_url = _supervisor_approval_url(token, "rejected")
     title = booking["title"]
     detail_rows = _meeting_email_detail_rows(booking)
-    table_rows = _meeting_email_rows_html(booking)
     subject = f"[GASS] Approval Required - {title}"
     plain = "\n".join(
         [
@@ -1043,29 +1069,14 @@ def _send_supervisor_approval_email(booking: dict, token: str) -> bool:
             "This is an automated email from GASS. Please do not reply to this email.",
         ]
     )
-    body = f"""
-    <html><body style='margin:0;padding:24px;background:#f2f7f4;font-family:Arial,sans-serif;color:#17231d'>
-      <div style='max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #dbe7e0;border-radius:18px;overflow:hidden;box-shadow:0 12px 32px rgba(6,78,59,.08)'>
-        <div style='padding:28px 32px;background:#064e3b;color:#ffffff'>
-          <div style='font-size:30px;font-weight:900;letter-spacing:-1.5px'>GASS</div>
-          <div style='margin-top:4px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#a6e5c4'>General Affair Services System</div>
-        </div>
-        <div style='padding:30px 32px'>
-          <div style='display:inline-block;padding:6px 10px;border-radius:999px;background:#e7f5ed;color:#137149;font-size:10px;font-weight:800;letter-spacing:1.2px'>APPROVAL REQUIRED</div>
-          <h1 style='margin:14px 0 22px;font-size:26px;line-height:1.25;color:#17231d'>Meeting Approval Request</h1>
-          <p style='margin:0 0 8px;font-size:16px;font-weight:700'>Dear {html.escape(booking['supervisor_name'])},</p>
-          <p style='margin:0 0 22px;color:#58675f;font-size:14px;line-height:1.65'>You have received a new meeting approval request. Please review the details below.</p>
-          <table role='presentation' style='width:100%;border-collapse:collapse'>{table_rows}</table>
-          <div style='margin-top:26px'>
-            <a href='{html.escape(approve_url, quote=True)}' style='display:inline-block;margin:0 8px 8px 0;padding:13px 22px;border-radius:9px;background:#188052;color:#ffffff;text-decoration:none;font-size:14px;font-weight:800'>Approve</a>
-            <a href='{html.escape(reject_url, quote=True)}' style='display:inline-block;margin-bottom:8px;padding:12px 22px;border-radius:9px;background:#ffffff;color:#b4232c;text-decoration:none;font-size:14px;font-weight:800;border:1px solid #e5a9ad'>Reject</a>
-          </div>
-          <p style='margin:18px 0 0;color:#85928b;font-size:11px;line-height:1.55'>The approval link can be used once and expires before the meeting begins.</p>
-        </div>
-        <div style='padding:18px 32px;background:#f7faf8;color:#849089;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</div>
+    action_html = f"""
+      <div style='margin-top:24px'>
+        <a href='{html.escape(approve_url, quote=True)}' style='display:inline-block;margin:0 8px 8px 0;padding:12px 22px;border-radius:8px;background:#188052;color:#ffffff;text-decoration:none;font-size:13px;font-weight:800'>Approve</a>
+        <a href='{html.escape(reject_url, quote=True)}' style='display:inline-block;margin-bottom:8px;padding:11px 22px;border-radius:8px;background:#ffffff;color:#b4232c;text-decoration:none;font-size:13px;font-weight:800;border:1px solid #e5a9ad'>Reject</a>
       </div>
-    </body></html>
+      <p style='margin:10px 0 0;color:#919b96;font-size:10px;line-height:1.5'>The approval link can be used once and expires before the meeting begins.</p>
     """
+    body = _meeting_approval_email_html(booking, booking["supervisor_name"], action_html)
     if SUPERVISOR_EMAIL_PROVIDER == "resend":
         return _send_resend_email(booking["supervisor_email"], subject, plain, body)
 
@@ -1109,7 +1120,6 @@ def _send_manager_ga_approval_notifications(booking: dict, recipients: List[str]
     subject = f"[GASS] Approval Required - {booking['title']}"
     approval_url = f"{APP_PUBLIC_URL}/admin/fnb"
     detail_rows = _meeting_email_detail_rows(booking)
-    table_rows = _meeting_email_rows_html(booking)
     plain = "\n".join(
         [
             "GASS",
@@ -1128,25 +1138,8 @@ def _send_manager_ga_approval_notifications(booking: dict, recipients: List[str]
             "This is an automated email from GASS. Please do not reply to this email.",
         ]
     )
-    body = f"""
-    <html><body style='margin:0;padding:24px;background:#f2f7f4;font-family:Arial,sans-serif;color:#17231d'>
-      <div style='max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #dbe7e0;border-radius:18px;overflow:hidden;box-shadow:0 12px 32px rgba(6,78,59,.08)'>
-        <div style='padding:28px 32px;background:#064e3b;color:#ffffff'>
-          <div style='font-size:30px;font-weight:900;letter-spacing:-1.5px'>GASS</div>
-          <div style='margin-top:4px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#a6e5c4'>General Affair Services System</div>
-        </div>
-        <div style='padding:30px 32px'>
-          <div style='display:inline-block;padding:6px 10px;border-radius:999px;background:#e7f5ed;color:#137149;font-size:10px;font-weight:800;letter-spacing:1.2px'>APPROVAL REQUIRED</div>
-          <h1 style='margin:14px 0 22px;font-size:26px;line-height:1.25;color:#17231d'>Meeting Approval Request</h1>
-          <p style='margin:0 0 8px;font-size:16px;font-weight:700'>Dear GA Manager,</p>
-          <p style='margin:0 0 22px;color:#58675f;font-size:14px;line-height:1.65'>You have received a new meeting approval request. Please review the details below.</p>
-          <table role='presentation' style='width:100%;border-collapse:collapse'>{table_rows}</table>
-          <a href='{html.escape(approval_url, quote=True)}' style='display:inline-block;margin-top:26px;padding:13px 22px;border-radius:9px;background:#188052;color:#ffffff;text-decoration:none;font-size:14px;font-weight:800'>Review in GASS</a>
-        </div>
-        <div style='padding:18px 32px;background:#f7faf8;color:#849089;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</div>
-      </div>
-    </body></html>
-    """
+    action_html = f"<a href='{html.escape(approval_url, quote=True)}' style='display:inline-block;margin-top:24px;padding:12px 22px;border-radius:8px;background:#188052;color:#ffffff;text-decoration:none;font-size:13px;font-weight:800'>Review in GASS</a>"
+    body = _meeting_approval_email_html(booking, "GA Manager", action_html)
     for recipient in recipients:
         if not _send_resend_email(recipient, subject, plain, body):
             logger.warning("Failed to send Manager GA approval notification to %s", recipient)

@@ -33,6 +33,10 @@ def assert_template_content(message):
     assert "Ruang Komodo (Lantai 2), HO NTI Jakarta" in message["html"]
     assert "Snack Box, Lunch Box, Projector, Whiteboard" in message["html"]
     assert "This is an automated email from GASS" in message["html"]
+    assert "background:#0b6642" in message["html"]
+    assert "background:#fff0c2" in message["html"]
+    assert "/brand-logo.png" in message["html"]
+    assert "text-align:right" in message["html"]
 
 
 def test_manager_user_email_uses_resend_and_keeps_decision_links(monkeypatch):
