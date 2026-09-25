@@ -46,9 +46,35 @@ def test_registration_accepts_public_email_domains(monkeypatch):
         supervisor_name="Supervisor",
         supervisor_email="supervisor@outlook.com",
     )
-    response = asyncio.run(server.register(payload, FakeBackgroundTasks()))
+    background_tasks = FakeBackgroundTasks()
+    response = asyncio.run(server.register(payload, background_tasks))
 
     assert response.message.startswith("Account created")
     assert users.inserted["email"] == "new.user@gmail.com"
     assert users.inserted["supervisor_email"] == "supervisor@outlook.com"
     assert users.inserted["approval_status"] == "pending"
+    assert [task[0] for task in background_tasks.tasks] == [
+        server._send_registration_pending_confirmation,
+        server._send_registration_admin_notification,
+    ]
+
+
+def test_pending_registration_email_uses_resend_template(monkeypatch):
+    sent = []
+
+    def capture(to_email, subject, text, html):
+        sent.append({"to": to_email, "subject": subject, "text": text, "html": html})
+        return True
+
+    monkeypatch.setattr(server, "RESEND_API_KEY", "test-key")
+    monkeypatch.setattr(server, "_send_resend_email", capture)
+    server._send_registration_pending_confirmation({"name": "Anita Wijaya", "email": "anita@gmail.com"})
+
+    assert sent[0]["to"] == "anita@gmail.com"
+    assert sent[0]["subject"] == "Pengajuan Akun GASS Sedang Diproses"
+    assert "bgcolor='#272d91'" in sent[0]["html"]
+    assert "MENUNGGU PERSETUJUAN" in sent[0]["html"]
+    assert "Pengajuan Akun Anda Sedang Diproses" in sent[0]["html"]
+    assert "Halo Anita Wijaya" in sent[0]["html"]
+    assert "menunggu persetujuan Admin" in sent[0]["html"]
+    assert "/brand-logo.png" in sent[0]["html"]

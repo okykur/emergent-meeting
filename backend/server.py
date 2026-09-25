@@ -826,6 +826,61 @@ def _send_registration_admin_notification(user: dict, recipients: Optional[List[
             logger.warning("Failed to send user registration notification to %s", recipient)
 
 
+def _send_registration_pending_confirmation(user: dict) -> None:
+    recipient = (user.get("email") or "").strip().lower()
+    if not RESEND_API_KEY or not recipient:
+        logger.warning("Registration confirmation skipped because Resend or user email is not configured")
+        return
+
+    name = (user.get("name") or "User").strip()
+    subject = "Pengajuan Akun GASS Sedang Diproses"
+    plain = "\n".join(
+        [
+            "GASS",
+            "General Affair Services System",
+            "",
+            "MENUNGGU PERSETUJUAN",
+            "Pengajuan Akun Anda Sedang Diproses",
+            "",
+            f"Halo {name},",
+            "Permintaan pembuatan akun Anda telah kami terima dan sedang menunggu persetujuan Admin. Anda akan menerima pemberitahuan kembali terkait hasil pengajuan.",
+            "",
+            "Terima kasih.",
+            "GASS System",
+            "",
+            "This is an automated email from GASS. Please do not reply to this email.",
+        ]
+    )
+    logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
+    html_body = f"""
+    <html><body bgcolor='#f1f4f3' style='margin:0;padding:0;background-color:#f1f4f3;font-family:Arial,sans-serif;color:#202622'>
+      <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f1f4f3' style='width:100%;background-color:#f1f4f3'>
+        <tr><td align='center' style='padding:40px 18px'>
+          <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:14px;overflow:hidden'>
+            <tr><td bgcolor='#272d91' style='padding:34px 34px;background-color:#272d91;color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
+                <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='45' style='display:block;width:45px;height:auto;border:0'></td>
+                <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:27px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div></td>
+              </tr></table>
+              <div style='margin-top:10px;font-size:12px;font-weight:600;color:#ffffff'>General Affair Services System</div>
+            </td></tr>
+            <tr><td bgcolor='#ffffff' style='padding:34px;background-color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='#dff1f8' style='padding:7px 12px;background-color:#dff1f8;border-radius:999px;color:#197494;font-size:10px;font-weight:900;letter-spacing:.3px'>MENUNGGU PERSETUJUAN</td></tr></table>
+              <h1 style='margin:28px 0 18px;font-size:25px;line-height:1.3;color:#252a27'>Pengajuan Akun Anda Sedang Diproses</h1>
+              <p style='margin:0 0 8px;color:#174b37;font-size:16px;font-weight:800'>Halo {html.escape(name)},</p>
+              <p style='margin:0;color:#174b37;font-size:15px;font-weight:600;line-height:1.6'>Permintaan pembuatan akun Anda telah kami terima dan sedang menunggu persetujuan Admin. Anda akan menerima pemberitahuan kembali terkait hasil pengajuan.</p>
+              <p style='margin:24px 0 0;color:#174b37;font-size:15px;font-weight:700;line-height:1.55'>Terima kasih.<br>GASS System</p>
+            </td></tr>
+            <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body></html>
+    """
+    if not _send_resend_email(recipient, subject, plain, html_body):
+        logger.warning("Failed to send registration pending confirmation to %s", recipient)
+
+
 def _send_user_approval_result(user: dict) -> None:
     if not RESEND_API_KEY:
         logger.warning("User approval result notification skipped because Resend is not configured")
@@ -1379,6 +1434,7 @@ async def register(payload: RegisterRequest, background_tasks: BackgroundTasks):
         {"role": "super_admin", "is_approved": True}, {"_id": 0, "email": 1}
     ).to_list(100)
     recipients = USER_APPROVAL_ADMIN_EMAILS + [item["email"] for item in super_admins if item.get("email")]
+    background_tasks.add_task(_send_registration_pending_confirmation, doc)
     background_tasks.add_task(_send_registration_admin_notification, doc, recipients)
     return RegisterResponse(message="Account created. Please wait for admin approval before signing in.")
 
