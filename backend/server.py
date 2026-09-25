@@ -1149,13 +1149,16 @@ def _meeting_accommodation_summary(booking: dict) -> str:
 
 
 def _meeting_email_detail_rows(booking: dict) -> List[tuple[str, str]]:
+    accommodation = _meeting_accommodation_summary(booking)
+    if accommodation == "No accommodation requested":
+        accommodation = "Tidak ada akomodasi"
     return [
-        ("Requestor", booking.get("user_name") or "-"),
-        ("Meeting Title", booking.get("title") or "-"),
-        ("Participants", _meeting_participants_summary(booking)),
-        ("Date & Time", _meeting_email_date(booking)),
-        ("Venue", f"{booking.get('room_name') or '-'}, {booking.get('room_building') or 'Unassigned'}"),
-        ("Accommodation", _meeting_accommodation_summary(booking)),
+        ("Pemohon", booking.get("user_name") or "-"),
+        ("Judul Rapat", booking.get("title") or "-"),
+        ("Peserta", _meeting_participants_summary(booking)),
+        ("Tanggal & Waktu", _meeting_confirmation_date(booking)),
+        ("Lokasi", f"{booking.get('room_name') or '-'}, {booking.get('room_building') or 'Belum ditentukan'}"),
+        ("Akomodasi", accommodation),
     ]
 
 
@@ -1173,25 +1176,26 @@ def _meeting_approval_email_html(booking: dict, recipient_name: str, action_html
     table_rows = _meeting_email_rows_html(booking)
     logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
     return f"""
-    <html><body bgcolor='#edf1ef' style='margin:0;padding:0;background-color:#edf1ef;font-family:Arial,sans-serif;color:#202622'>
-      <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#edf1ef' style='width:100%;background-color:#edf1ef'>
-        <tr><td align='center' style='padding:32px 18px'>
-          <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:12px;overflow:hidden'>
-            <tr><td bgcolor='#0b6642' style='padding:24px 32px;background-color:#0b6642;color:#ffffff'>
+    <html><body bgcolor='#f1f4f3' style='margin:0;padding:0;background-color:#f1f4f3;font-family:Arial,sans-serif;color:#202622'>
+      <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f1f4f3' style='width:100%;background-color:#f1f4f3'>
+        <tr><td align='center' style='padding:40px 18px'>
+          <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:14px;overflow:hidden'>
+            <tr><td bgcolor='#2948b8' style='padding:34px;background-color:#2948b8;color:#ffffff'>
               <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
-                <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='42' style='display:block;width:42px;height:auto;border:0'></td>
-                <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:24px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div><div style='margin-top:3px;font-size:10px;color:#c5e0d4'>General Affair Services System</div></td>
+                <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='45' style='display:block;width:45px;height:auto;border:0'></td>
+                <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:27px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div></td>
               </tr></table>
+              <div style='margin-top:10px;font-size:12px;font-weight:600;color:#ffffff'>General Affair Services System</div>
             </td></tr>
-            <tr><td bgcolor='#ffffff' style='padding:34px 32px 30px;background-color:#ffffff'>
-              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='#fff0c2' style='padding:6px 11px;background-color:#fff0c2;border-radius:999px;color:#9a5a00;font-size:9px;font-weight:900;letter-spacing:.4px'>APPROVAL REQUIRED</td></tr></table>
-              <h1 style='margin:24px 0 18px;font-size:25px;line-height:1.25;color:#222723'>Meeting Approval Request</h1>
-              <p style='margin:0 0 8px;color:#174b37;font-size:15px;font-weight:800'>Dear {html.escape(recipient_name)},</p>
-              <p style='margin:0 0 24px;color:#69736e;font-size:13px;line-height:1.65'>You have received a new meeting approval request. Please review the details below.</p>
-              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f8faf9' style='width:100%;border:1px solid #dfe5e2;border-collapse:separate;border-spacing:0;background-color:#f8faf9;border-radius:9px;overflow:hidden'>{table_rows}</table>
+            <tr><td bgcolor='#ffffff' style='padding:34px;background-color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='#d8ecfb' style='padding:7px 12px;background-color:#d8ecfb;border-radius:999px;color:#2b60a8;font-size:10px;font-weight:900;letter-spacing:.3px'>DIPERLUKAN PERSETUJUAN</td></tr></table>
+              <h1 style='margin:28px 0 18px;font-size:25px;line-height:1.3;color:#252a27'>Permintaan Persetujuan Rapat</h1>
+              <p style='margin:0 0 8px;color:#174b37;font-size:16px;font-weight:800'>Yth. {html.escape(recipient_name)},</p>
+              <p style='margin:0 0 26px;color:#68716d;font-size:14px;line-height:1.6'>Anda menerima permintaan persetujuan rapat baru. Mohon tinjau detail rapat berikut.</p>
+              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f8fafc' style='width:100%;border:1px solid #dfe4ea;border-collapse:separate;border-spacing:0;background-color:#f8fafc;border-radius:9px;overflow:hidden'>{table_rows}</table>
               {action_html}
             </td></tr>
-            <tr><td align='center' bgcolor='#f7f9f8' style='padding:22px 32px;background-color:#f7f9f8;color:#a0aaa5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
+            <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
           </table>
         </td></tr>
       </table>
@@ -1311,32 +1315,33 @@ def _send_supervisor_approval_email(booking: dict, token: str) -> bool:
     reject_url = _supervisor_approval_url(token, "rejected")
     title = booking["title"]
     detail_rows = _meeting_email_detail_rows(booking)
-    subject = f"[GASS] Approval Required - {title}"
+    subject = f"[GASS] Persetujuan Rapat Diperlukan - {title}"
     plain = "\n".join(
         [
             "GASS",
             "General Affair Services System",
             "",
-            "APPROVAL REQUIRED",
-            "Meeting Approval Request",
+            "DIPERLUKAN PERSETUJUAN",
+            "Permintaan Persetujuan Rapat",
             "",
-            f"Dear {booking['supervisor_name']},",
-            "You have received a new meeting approval request. Please review the details below.",
+            f"Yth. {booking['supervisor_name']},",
+            "Anda menerima permintaan persetujuan rapat baru. Mohon tinjau detail rapat berikut.",
             "",
             *[f"{label}\n{value}" for label, value in detail_rows],
             "",
-            f"Approve: {approve_url}",
-            f"Reject: {reject_url}",
+            f"Setujui meeting: {approve_url}",
+            f"Tolak meeting: {reject_url}",
             "",
             "This is an automated email from GASS. Please do not reply to this email.",
         ]
     )
     action_html = f"""
-      <div style='margin-top:24px'>
-        <a href='{html.escape(approve_url, quote=True)}' style='display:inline-block;margin:0 8px 8px 0;padding:12px 22px;border-radius:8px;background:#188052;color:#ffffff;text-decoration:none;font-size:13px;font-weight:800'>Approve</a>
-        <a href='{html.escape(reject_url, quote=True)}' style='display:inline-block;margin-bottom:8px;padding:11px 22px;border-radius:8px;background:#ffffff;color:#b4232c;text-decoration:none;font-size:13px;font-weight:800;border:1px solid #e5a9ad'>Reject</a>
-      </div>
-      <p style='margin:10px 0 0;color:#919b96;font-size:10px;line-height:1.5'>The approval link can be used once and expires before the meeting begins.</p>
+      <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' style='margin-top:26px'><tr>
+        <td width='49%' align='center' style='border:1px solid #ef3038;border-radius:8px'><a href='{html.escape(reject_url, quote=True)}' style='display:block;padding:13px 12px;color:#df242c;text-decoration:none;font-size:13px;font-weight:800'>Reject Meeting</a></td>
+        <td width='2%' style='font-size:1px;line-height:1px'>&nbsp;</td>
+        <td width='49%' align='center' bgcolor='#2948b8' style='background-color:#2948b8;border-radius:8px'><a href='{html.escape(approve_url, quote=True)}' style='display:block;padding:14px 12px;color:#ffffff;text-decoration:none;font-size:13px;font-weight:800'>Approve Meeting</a></td>
+      </tr></table>
+      <p style='margin:10px 0 0;color:#919b96;font-size:10px;line-height:1.5'>Tautan persetujuan hanya dapat digunakan satu kali dan berakhir sebelum meeting dimulai.</p>
     """
     body = _meeting_approval_email_html(booking, booking["supervisor_name"], action_html)
     if SUPERVISOR_EMAIL_PROVIDER == "resend":
@@ -1364,7 +1369,7 @@ def _send_supervisor_approval_email(booking: dict, token: str) -> bool:
 async def _manager_ga_recipients(building: str) -> List[str]:
     managers = await db.users.find(
         {"role": "manager", "is_approved": True},
-        {"_id": 0, "email": 1, "fnb_locations": 1},
+        {"_id": 0, "email": 1, "role": 1, "fnb_locations": 1},
     ).to_list(500)
     return sorted(
         {
@@ -1471,7 +1476,7 @@ def _send_manager_ga_approval_notifications(booking: dict, recipients: List[str]
     if not recipients:
         logger.warning("No Manager GA recipient is assigned for booking %s", booking.get("id"))
         return
-    subject = f"[GASS] Approval Required - {booking['title']}"
+    subject = f"[GASS] Persetujuan Rapat Diperlukan - {booking['title']}"
     approval_url = f"{APP_PUBLIC_URL}/admin/fnb"
     detail_rows = _meeting_email_detail_rows(booking)
     plain = "\n".join(
@@ -1479,21 +1484,21 @@ def _send_manager_ga_approval_notifications(booking: dict, recipients: List[str]
             "GASS",
             "General Affair Services System",
             "",
-            "APPROVAL REQUIRED",
-            "Meeting Approval Request",
+            "DIPERLUKAN PERSETUJUAN",
+            "Permintaan Persetujuan Rapat",
             "",
-            "Dear GA Manager,",
-            "You have received a new meeting approval request. Please review the details below.",
+            "Yth. Manager GA,",
+            "Anda menerima permintaan persetujuan rapat baru. Mohon tinjau detail rapat berikut.",
             "",
             *[f"{label}\n{value}" for label, value in detail_rows],
             "",
-            f"Review in GASS: {approval_url}",
+            f"Buka approval meeting: {approval_url}",
             "",
             "This is an automated email from GASS. Please do not reply to this email.",
         ]
     )
-    action_html = f"<a href='{html.escape(approval_url, quote=True)}' style='display:inline-block;margin-top:24px;padding:12px 22px;border-radius:8px;background:#188052;color:#ffffff;text-decoration:none;font-size:13px;font-weight:800'>Review in GASS</a>"
-    body = _meeting_approval_email_html(booking, "GA Manager", action_html)
+    action_html = f"<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' style='margin-top:26px'><tr><td align='center' bgcolor='#2948b8' style='background-color:#2948b8;border-radius:8px'><a href='{html.escape(approval_url, quote=True)}' style='display:block;padding:14px 20px;color:#ffffff;text-decoration:none;font-size:13px;font-weight:800'>Buka Approval Meeting</a></td></tr></table>"
+    body = _meeting_approval_email_html(booking, "Manager GA", action_html)
     for recipient in recipients:
         if not _send_resend_email(recipient, subject, plain, body):
             logger.warning("Failed to send Manager GA approval notification to %s", recipient)
