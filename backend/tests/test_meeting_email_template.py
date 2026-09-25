@@ -1,3 +1,5 @@
+import asyncio
+
 import server
 
 
@@ -151,3 +153,60 @@ def test_booking_rejection_email_uses_meeting_rejection_template(monkeypatch):
     assert "Durasi meeting kurang dari 4 jam" in sent[0]["html"]
     assert "/brand-logo.png" in sent[0]["html"]
     assert "automated email from GASS" in sent[0]["html"]
+
+
+def test_meeting_admin_notification_uses_blue_template(monkeypatch):
+    sent = []
+
+    def capture(to_email, subject, text, html):
+        sent.append({"to": to_email, "subject": subject, "text": text, "html": html})
+        return True
+
+    booking = sample_booking()
+    monkeypatch.setattr(server, "RESEND_API_KEY", "test-key")
+    monkeypatch.setattr(server, "_send_resend_email", capture)
+    server._send_meeting_admin_booking_notifications(
+        booking,
+        ["admin.pulogadung@example.com", "admin.pulogadung@example.com"],
+    )
+
+    assert len(sent) == 1
+    assert sent[0]["to"] == "admin.pulogadung@example.com"
+    assert sent[0]["subject"] == "[GASS] Persetujuan Rapat Diperlukan - Product Launching Q1 2026"
+    assert "bgcolor='#2948b8'" in sent[0]["html"]
+    assert "DIPERLUKAN PERSETUJUAN" in sent[0]["html"]
+    assert "Permintaan Persetujuan Rapat" in sent[0]["html"]
+    assert "Yth. Admin Meeting Room" in sent[0]["html"]
+    assert "Anita Wijaya" in sent[0]["html"]
+    assert "Internal 10, BOD 3, External 2" in sent[0]["html"]
+    assert "15 September 2025, 08:00 – 14:00" in sent[0]["html"]
+    assert "Ruang Komodo (Lantai 2), HO NTI Jakarta" in sent[0]["html"]
+    assert "Snack Box, Lunch Box, Projector, Whiteboard" in sent[0]["html"]
+    assert "/admin/bookings" in sent[0]["html"]
+    assert "/brand-logo.png" in sent[0]["html"]
+
+
+def test_meeting_admin_recipients_are_filtered_by_building(monkeypatch):
+    class FakeCursor:
+        async def to_list(self, _limit):
+            return [
+                {
+                    "email": "pulogadung@example.com",
+                    "meeting_buildings": ["Pulogadung", "Kudus"],
+                    "role": "meeting_admin",
+                },
+                {
+                    "email": "kudus@example.com",
+                    "meeting_buildings": ["Kudus"],
+                    "role": "meeting_admin",
+                },
+            ]
+
+    class FakeUsers:
+        def find(self, *_args, **_kwargs):
+            return FakeCursor()
+
+    monkeypatch.setattr(server, "db", type("FakeDb", (), {"users": FakeUsers()})())
+
+    recipients = asyncio.run(server._meeting_admin_recipients("Pulogadung"))
+    assert recipients == ["pulogadung@example.com"]

@@ -1375,6 +1375,98 @@ async def _manager_ga_recipients(building: str) -> List[str]:
     )
 
 
+async def _meeting_admin_recipients(building: str) -> List[str]:
+    admins = await db.users.find(
+        {"role": "meeting_admin", "is_approved": True},
+        {"_id": 0, "email": 1, "role": 1, "meeting_buildings": 1},
+    ).to_list(500)
+    return sorted(
+        {
+            admin["email"].strip().lower()
+            for admin in admins
+            if admin.get("email") and _can_manage_meeting_building(admin, building)
+        }
+    )
+
+
+def _send_meeting_admin_booking_notifications(booking: dict, recipients: List[str]) -> None:
+    if not recipients:
+        logger.warning("No Meeting Admin recipient is assigned for booking %s", booking.get("id"))
+        return
+
+    accommodation = _meeting_accommodation_summary(booking)
+    if accommodation == "No accommodation requested":
+        accommodation = "Tidak ada akomodasi"
+    detail_rows = [
+        ("Pemohon", booking.get("user_name") or "-"),
+        ("Judul Rapat", booking.get("title") or "-"),
+        ("Peserta", _meeting_participants_summary(booking)),
+        ("Tanggal & Waktu", _meeting_confirmation_date(booking)),
+        ("Lokasi", f"{booking.get('room_name') or '-'}, {booking.get('room_building') or 'Belum ditentukan'}"),
+        ("Akomodasi", accommodation),
+    ]
+    subject = f"[GASS] Persetujuan Rapat Diperlukan - {booking.get('title') or 'Meeting'}"
+    approval_url = f"{APP_PUBLIC_URL}/admin/bookings"
+    plain = "\n".join(
+        [
+            "GASS",
+            "General Affair Services System",
+            "",
+            "DIPERLUKAN PERSETUJUAN",
+            "Permintaan Persetujuan Rapat",
+            "",
+            "Yth. Admin Meeting Room,",
+            "Sebuah permintaan ruangan rapat telah diajukan dan saat ini sedang menunggu persetujuan Anda.",
+            "",
+            *[f"{label}: {value}" for label, value in detail_rows],
+            "",
+            "Mohon lakukan review dan berikan persetujuan agar proses ini dapat dilanjutkan ke tahap berikutnya.",
+            f"Login ke sistem: {approval_url}",
+            "",
+            "This is an automated email from GASS. Please do not reply to this email.",
+        ]
+    )
+    rows_html = "".join(
+        "<tr>"
+        f"<td bgcolor='#f8fafc' style='width:34%;padding:13px 15px;border-bottom:1px solid #e3e7ed;color:#68716d;font-size:13px;line-height:1.4'>{html.escape(label)}</td>"
+        f"<td bgcolor='#f8fafc' align='right' style='padding:13px 15px;border-bottom:1px solid #e3e7ed;color:#174b37;font-size:13px;font-weight:800;line-height:1.4;text-align:right'>{html.escape(value)}</td>"
+        "</tr>"
+        for label, value in detail_rows
+    )
+    logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
+    approval_link = html.escape(approval_url, quote=True)
+    body = f"""
+    <html><body bgcolor='#f1f4f3' style='margin:0;padding:0;background-color:#f1f4f3;font-family:Arial,sans-serif;color:#202622'>
+      <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f1f4f3' style='width:100%;background-color:#f1f4f3'>
+        <tr><td align='center' style='padding:40px 18px'>
+          <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:14px;overflow:hidden'>
+            <tr><td bgcolor='#2948b8' style='padding:34px;background-color:#2948b8;color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
+                <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='45' style='display:block;width:45px;height:auto;border:0'></td>
+                <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:27px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div></td>
+              </tr></table>
+              <div style='margin-top:10px;font-size:12px;font-weight:600;color:#ffffff'>General Affair Services System</div>
+            </td></tr>
+            <tr><td bgcolor='#ffffff' style='padding:34px;background-color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='#d8ecfb' style='padding:7px 12px;background-color:#d8ecfb;border-radius:999px;color:#2b60a8;font-size:10px;font-weight:900;letter-spacing:.3px'>DIPERLUKAN PERSETUJUAN</td></tr></table>
+              <h1 style='margin:28px 0 18px;font-size:25px;line-height:1.3;color:#252a27'>Permintaan Persetujuan Rapat</h1>
+              <p style='margin:0 0 8px;color:#174b37;font-size:16px;font-weight:800'>Yth. Admin Meeting Room,</p>
+              <p style='margin:0 0 26px;color:#68716d;font-size:14px;line-height:1.6'>Sebuah permintaan ruangan rapat telah diajukan dan saat ini sedang menunggu persetujuan Anda.</p>
+              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f8fafc' style='width:100%;border:1px solid #dfe4ea;border-collapse:separate;border-spacing:0;background-color:#f8fafc;border-radius:9px;overflow:hidden'>{rows_html}</table>
+              <p style='margin:26px 0;color:#68716d;font-size:14px;line-height:1.6'>Mohon lakukan review dan berikan persetujuan agar proses ini dapat dilanjutkan ke tahap berikutnya.</p>
+              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'><tr><td align='center' bgcolor='#2948b8' style='background-color:#2948b8;border-radius:8px'><a href='{approval_link}' style='display:block;padding:14px 20px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:800'>Login Ke Sistem</a></td></tr></table>
+            </td></tr>
+            <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body></html>
+    """
+    for recipient in sorted(set(recipients)):
+        if not _send_resend_email(recipient, subject, plain, body):
+            logger.warning("Failed to send Meeting Admin booking notification to %s", recipient)
+
+
 def _send_manager_ga_approval_notifications(booking: dict, recipients: List[str]) -> None:
     if not recipients:
         logger.warning("No Manager GA recipient is assigned for booking %s", booking.get("id"))
@@ -1981,7 +2073,11 @@ async def room_availability_check(
 
 # ---------- Bookings ----------
 @api.post("/bookings", response_model=Booking)
-async def create_booking(payload: BookingCreate, user: dict = Depends(get_current_user)):
+async def create_booking(
+    payload: BookingCreate,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(get_current_user),
+):
     # Validate room
     room = await db.rooms.find_one({"id": payload.room_id}, {"_id": 0})
     if not room:
@@ -2136,6 +2232,8 @@ async def create_booking(payload: BookingCreate, user: dict = Depends(get_curren
         "created_at": _now_iso(),
     }
     await db.bookings.insert_one(doc)
+    recipients = await _meeting_admin_recipients(room["building"])
+    background_tasks.add_task(_send_meeting_admin_booking_notifications, doc, recipients)
     return Booking(**{k: v for k, v in doc.items() if k != "_id"})
 
 
