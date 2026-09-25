@@ -108,3 +108,33 @@ def test_approved_registration_email_uses_green_template(monkeypatch):
     assert "/brand-logo.png" in sent[0]["html"]
     assert "/login" in sent[0]["html"]
     assert "automated email from GASS" in sent[0]["html"]
+
+
+def test_rejected_registration_email_uses_red_template(monkeypatch):
+    sent = []
+
+    def capture(to_email, subject, text, html):
+        sent.append({"to": to_email, "subject": subject, "text": text, "html": html})
+        return True
+
+    monkeypatch.setattr(server, "RESEND_API_KEY", "test-key")
+    monkeypatch.setattr(server, "_send_resend_email", capture)
+    server._send_user_approval_result(
+        {
+            "name": "Anita Wijaya",
+            "email": "anita@gmail.com",
+            "approval_status": "rejected",
+            "rejection_reason": "Aplikasi hanya untuk internal",
+        }
+    )
+
+    assert sent[0]["to"] == "anita@gmail.com"
+    assert sent[0]["subject"] == "Pengajuan Akun GASS Anda Ditolak"
+    assert "bgcolor='#c91d23'" in sent[0]["html"]
+    assert "PENGAJUAN DITOLAK" in sent[0]["html"]
+    assert "Pengajuan Akun Anda Ditolak" in sent[0]["html"]
+    assert "Halo Anita Wijaya" in sent[0]["html"]
+    assert "Aplikasi hanya untuk internal" in sent[0]["html"]
+    assert "/brand-logo.png" in sent[0]["html"]
+    assert "General Affair" in sent[0]["html"]
+    assert "automated email from GASS" in sent[0]["html"]

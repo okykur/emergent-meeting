@@ -886,7 +886,6 @@ def _send_user_approval_result(user: dict) -> None:
         logger.warning("User approval result notification skipped because Resend is not configured")
         return
     approved = user.get("approval_status") == "approved"
-    status_label = "approved" if approved else "rejected"
     reason = (user.get("rejection_reason") or "").strip()
     if approved:
         name = (user.get("name") or "User").strip()
@@ -942,21 +941,59 @@ def _send_user_approval_result(user: dict) -> None:
         </body></html>
         """
     else:
-        subject = f"Your GASS registration was {status_label}"
+        name = (user.get("name") or "User").strip()
+        display_reason = reason or "Tidak ada alasan yang diberikan"
+        subject = "Pengajuan Akun GASS Anda Ditolak"
         plain = "\n".join(
             [
-                f"Hello {user['name']},",
+                "GASS",
+                "General Affair Services System",
                 "",
-                f"Your GASS account registration has been {status_label}.",
-                f"Reason: {reason}",
+                "PENGAJUAN DITOLAK",
+                "Pengajuan Akun Anda Ditolak",
+                "",
+                f"Halo {name},",
+                "Mohon maaf, pengajuan pembuatan akun Anda belum dapat kami setujui.",
+                "",
+                f"Alasan: {display_reason}",
+                "",
+                "Silakan hubungi Admin untuk informasi lebih lanjut atau mengajukan kembali.",
+                "",
+                "Terima kasih.",
+                "General Affair",
+                "",
+                "This is an automated email from GASS. Please do not reply to this email.",
             ]
         )
+        logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
         html_body = f"""
-        <html><body style='margin:0;padding:24px;background:#f2f7f4;font-family:Arial,sans-serif;color:#0f172a'>
-          <div style='max-width:560px;margin:0 auto;background:#fff;border:1px solid #dbe7e0;border-radius:16px;overflow:hidden'>
-            <div style='padding:24px 28px;background:#064e3b;color:#fff'><strong style='font-size:24px'>GASS</strong></div>
-            <div style='padding:28px'><h1 style='margin-top:0;font-size:22px'>Registration {status_label}</h1><p>Hello {html.escape(user['name'])},</p><p>Your GASS account registration has been <strong>{status_label}</strong>.</p><p style='padding:14px;background:#fff5f5;border-radius:8px'><strong>Reason:</strong> {html.escape(reason)}</p></div>
-          </div>
+        <html><body bgcolor='#f1f4f3' style='margin:0;padding:0;background-color:#f1f4f3;font-family:Arial,sans-serif;color:#202622'>
+          <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f1f4f3' style='width:100%;background-color:#f1f4f3'>
+            <tr><td align='center' style='padding:40px 18px'>
+              <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:14px;overflow:hidden'>
+                <tr><td bgcolor='#c91d23' style='padding:34px;background-color:#c91d23;color:#ffffff'>
+                  <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
+                    <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='45' style='display:block;width:45px;height:auto;border:0'></td>
+                    <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:27px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div></td>
+                  </tr></table>
+                  <div style='margin-top:10px;font-size:12px;font-weight:600;color:#ffffff'>General Affair Services System</div>
+                </td></tr>
+                <tr><td bgcolor='#ffffff' style='padding:34px;background-color:#ffffff'>
+                  <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='#fde7e7' style='padding:7px 12px;background-color:#fde7e7;border-radius:999px;color:#ad2429;font-size:10px;font-weight:900;letter-spacing:.3px'>PENGAJUAN DITOLAK</td></tr></table>
+                  <h1 style='margin:28px 0 18px;font-size:25px;line-height:1.3;color:#252a27'>Pengajuan Akun Anda Ditolak</h1>
+                  <p style='margin:0 0 18px;color:#174b37;font-size:16px;font-weight:800'>Halo {html.escape(name)},</p>
+                  <p style='margin:0;color:#174b37;font-size:15px;font-weight:600;line-height:1.6'>Mohon maaf, pengajuan pembuatan akun Anda belum dapat kami setujui.</p>
+                  <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' style='margin:26px 0'><tr>
+                    <td style='padding:14px 16px;border:1px solid #dfe4e1;color:#66706a;font-size:14px'>Alasan</td>
+                    <td align='right' style='padding:14px 16px;border:1px solid #dfe4e1;border-left:0;color:#174b37;font-size:14px;font-weight:800'>{html.escape(display_reason)}</td>
+                  </tr></table>
+                  <p style='margin:0;color:#174b37;font-size:15px;font-weight:600;line-height:1.6'>Silakan hubungi Admin untuk informasi lebih lanjut atau mengajukan kembali.</p>
+                  <p style='margin:24px 0 0;color:#174b37;font-size:15px;font-weight:700;line-height:1.55'>Terima kasih.<br>General Affair</p>
+                </td></tr>
+                <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
+              </table>
+            </td></tr>
+          </table>
         </body></html>
         """
     if not _send_resend_email(user["email"], subject, plain, html_body):
