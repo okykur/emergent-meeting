@@ -54,13 +54,6 @@ SUPERVISOR_EMAIL_PROVIDER = os.environ.get("SUPERVISOR_EMAIL_PROVIDER", "smtp").
 PASSWORD_RESET_EMAIL_PROVIDER = os.environ.get("PASSWORD_RESET_EMAIL_PROVIDER", SUPERVISOR_EMAIL_PROVIDER).strip().lower()
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_FROM = os.environ.get("RESEND_FROM", "GASS <no-reply-booking@kcsi.id>")
-ALLOWED_REGISTRATION_DOMAINS = {
-    domain.strip().lower()
-    for domain in os.environ.get(
-        "ALLOWED_REGISTRATION_DOMAINS", "kcsi.id,kcsi-id.com,kcsi.co.id"
-    ).split(",")
-    if domain.strip()
-}
 USER_APPROVAL_ADMIN_EMAILS = [
     email.strip().lower()
     for email in os.environ.get("USER_APPROVAL_ADMIN_EMAILS", ADMIN_EMAIL).split(",")
@@ -91,11 +84,6 @@ def verify_password(plain: str, hashed: str) -> bool:
         return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
     except Exception:
         return False
-
-
-def registration_email_domain_allowed(email: str) -> bool:
-    domain = email.strip().lower().rsplit("@", 1)[-1]
-    return not ALLOWED_REGISTRATION_DOMAINS or domain in ALLOWED_REGISTRATION_DOMAINS
 
 
 def create_access_token(user_id: str, email: str, role: str) -> str:
@@ -1359,9 +1347,6 @@ async def register(payload: RegisterRequest, background_tasks: BackgroundTasks):
     email = payload.email.lower()
     if not payload.supervisor_name.strip():
         raise HTTPException(status_code=400, detail="Supervisor name is required")
-    if not registration_email_domain_allowed(email):
-        allowed = ", ".join(sorted(ALLOWED_REGISTRATION_DOMAINS))
-        raise HTTPException(status_code=400, detail=f"Registration is limited to company email domains: {allowed}")
     existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")

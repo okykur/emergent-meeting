@@ -134,7 +134,7 @@ export default function Register() {
                 <Field label="Email" id="register-email">
                   <input id="register-email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required
                     value={form.email} onChange={(event) => update("email", event.target.value)}
-                    placeholder="nama.karyawan@kcsi.co.id" data-testid="register-email-input" />
+                    placeholder="nama@email.com" data-testid="register-email-input" />
                 </Field>
                 <Field label="Nama Perusahaan" id="register-company">
                   <input id="register-company" autoComplete="organization" required maxLength={120}
