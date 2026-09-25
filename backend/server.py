@@ -1377,34 +1377,106 @@ def _send_booking_rejection_email(booking: dict, reason: str, rejection_type: st
     if not recipient:
         return False
     label = "F&B" if rejection_type == "fnb" else "ruang meeting"
-    subject = f"GASS: Pengajuan {booking['title']} ditolak"
-    plain = "\n".join(
-        [
-            f"Halo {booking['user_name']},",
-            "",
-            f"Pengajuan {label} Anda untuk {booking['title']} telah ditolak.",
-            f"Kode booking: {booking['id']}",
-            f"Alasan: {reason}",
-            "",
-            "Silakan perbaiki pengajuan dan buat booking baru bila masih diperlukan.",
+    if rejection_type != "fnb":
+        name = (booking.get("user_name") or "User").strip()
+        display_reason = reason.strip() or "Tidak ada alasan yang diberikan"
+        accommodation = _meeting_accommodation_summary(booking)
+        if accommodation == "No accommodation requested":
+            accommodation = "Tidak ada akomodasi"
+        detail_rows = [
+            ("Judul Rapat", booking.get("title") or "-"),
+            ("Peserta", _meeting_participants_summary(booking)),
+            ("Tanggal & Waktu", _meeting_confirmation_date(booking)),
+            ("Lokasi", f"{booking.get('room_name') or '-'}, {booking.get('room_building') or 'Belum ditentukan'}"),
+            ("Akomodasi", accommodation),
+            ("Alasan Ditolak", display_reason),
         ]
-    )
-    body = f"""
-    <html><body style='margin:0;padding:24px;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a'>
-      <div style='max-width:600px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden'>
-        <div style='padding:22px 28px;background:#991b1b;color:#fff;font-size:22px;font-weight:800'>GASS</div>
-        <div style='padding:28px'>
-          <p>Halo {html.escape(booking['user_name'])},</p>
-          <h1 style='font-size:22px'>Pengajuan {html.escape(label)} ditolak</h1>
-          <p style='color:#475569;line-height:1.6'>Pengajuan untuk <strong>{html.escape(booking['title'])}</strong> ({html.escape(booking['id'])}) belum dapat disetujui.</p>
-          <div style='margin:20px 0;padding:16px;background:#fff1f2;border-left:4px solid #dc2626;border-radius:6px'>
-            <strong>Alasan penolakan</strong><br><span style='line-height:1.6'>{html.escape(reason)}</span>
+        subject = f"[GASS] Peminjaman Ruangan Ditolak - {booking.get('title') or 'Meeting'}"
+        plain = "\n".join(
+            [
+                "GASS",
+                "General Affair Services System",
+                "",
+                "PEMINJAMAN TIDAK DISETUJUI",
+                "Pengajuan Peminjaman Ruangan Ditolak",
+                "",
+                f"Halo {name},",
+                "Maaf, pengajuan peminjaman ruangan berikut ditolak.",
+                "",
+                *[f"{row_label}: {value}" for row_label, value in detail_rows],
+                "",
+                "Dipersilakan mengulang kembali permintaan pengajuan ruangan yang dibutuhkan, atau bisa langsung menghubungi Admin.",
+                "",
+                "Terima kasih.",
+                "GASS System",
+                "",
+                "This is an automated email from GASS. Please do not reply to this email.",
+            ]
+        )
+        rows_html = "".join(
+            "<tr>"
+            f"<td bgcolor='#f8faf9' style='width:34%;padding:13px 15px;border-bottom:1px solid #e4e9e6;color:#66716b;font-size:13px;line-height:1.4'>{html.escape(row_label)}</td>"
+            f"<td bgcolor='#f8faf9' align='right' style='padding:13px 15px;border-bottom:1px solid #e4e9e6;color:#174b37;font-size:13px;font-weight:800;line-height:1.4;text-align:right'>{html.escape(value)}</td>"
+            "</tr>"
+            for row_label, value in detail_rows
+        )
+        logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
+        body = f"""
+        <html><body bgcolor='#f1f4f3' style='margin:0;padding:0;background-color:#f1f4f3;font-family:Arial,sans-serif;color:#202622'>
+          <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f1f4f3' style='width:100%;background-color:#f1f4f3'>
+            <tr><td align='center' style='padding:40px 18px'>
+              <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:14px;overflow:hidden'>
+                <tr><td bgcolor='#c91d23' style='padding:34px;background-color:#c91d23;color:#ffffff'>
+                  <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
+                    <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='45' style='display:block;width:45px;height:auto;border:0'></td>
+                    <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:27px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div></td>
+                  </tr></table>
+                  <div style='margin-top:10px;font-size:12px;font-weight:600;color:#ffffff'>General Affair Services System</div>
+                </td></tr>
+                <tr><td bgcolor='#ffffff' style='padding:34px;background-color:#ffffff'>
+                  <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='#fde7e7' style='padding:7px 12px;background-color:#fde7e7;border-radius:999px;color:#a64b19;font-size:10px;font-weight:900;letter-spacing:.3px'>PEMINJAMAN TIDAK DISETUJUI</td></tr></table>
+                  <h1 style='margin:28px 0 18px;font-size:25px;line-height:1.3;color:#252a27'>Pengajuan Peminjaman Ruangan Ditolak</h1>
+                  <p style='margin:0 0 8px;color:#174b37;font-size:16px;font-weight:800'>Halo {html.escape(name)},</p>
+                  <p style='margin:0 0 26px;color:#174b37;font-size:15px;font-weight:600;line-height:1.6'>Maaf, pengajuan peminjaman ruangan berikut ditolak.</p>
+                  <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f8faf9' style='width:100%;border:1px solid #dfe5e2;border-collapse:separate;border-spacing:0;background-color:#f8faf9;border-radius:9px;overflow:hidden'>{rows_html}</table>
+                  <p style='margin:26px 0 0;color:#174b37;font-size:15px;font-weight:600;line-height:1.55'>Dipersilakan mengulang kembali permintaan pengajuan ruangan yang dibutuhkan, atau bisa langsung menghubungi Admin.</p>
+                  <p style='margin:24px 0 0;color:#174b37;font-size:15px;font-weight:700;line-height:1.55'>Terima kasih.<br>GASS System</p>
+                </td></tr>
+                <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </body></html>
+        """
+    else:
+        subject = f"GASS: Pengajuan {booking['title']} ditolak"
+        plain = "\n".join(
+            [
+                f"Halo {booking['user_name']},",
+                "",
+                f"Pengajuan {label} Anda untuk {booking['title']} telah ditolak.",
+                f"Kode booking: {booking['id']}",
+                f"Alasan: {reason}",
+                "",
+                "Silakan perbaiki pengajuan dan buat booking baru bila masih diperlukan.",
+            ]
+        )
+        body = f"""
+        <html><body style='margin:0;padding:24px;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a'>
+          <div style='max-width:600px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden'>
+            <div style='padding:22px 28px;background:#991b1b;color:#fff;font-size:22px;font-weight:800'>GASS</div>
+            <div style='padding:28px'>
+              <p>Halo {html.escape(booking['user_name'])},</p>
+              <h1 style='font-size:22px'>Pengajuan {html.escape(label)} ditolak</h1>
+              <p style='color:#475569;line-height:1.6'>Pengajuan untuk <strong>{html.escape(booking['title'])}</strong> ({html.escape(booking['id'])}) belum dapat disetujui.</p>
+              <div style='margin:20px 0;padding:16px;background:#fff1f2;border-left:4px solid #dc2626;border-radius:6px'>
+                <strong>Alasan penolakan</strong><br><span style='line-height:1.6'>{html.escape(reason)}</span>
+              </div>
+              <p style='color:#475569;line-height:1.6'>Silakan perbaiki pengajuan dan buat booking baru bila masih diperlukan.</p>
+            </div>
           </div>
-          <p style='color:#475569;line-height:1.6'>Silakan perbaiki pengajuan dan buat booking baru bila masih diperlukan.</p>
-        </div>
-      </div>
-    </body></html>
-    """
+        </body></html>
+        """
     if SUPERVISOR_EMAIL_PROVIDER == "resend" and RESEND_API_KEY:
         return _send_resend_email(recipient, subject, plain, body)
     if not SMTP_HOST:
