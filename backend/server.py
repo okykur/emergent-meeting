@@ -787,38 +787,73 @@ def _send_registration_admin_notification(user: dict, recipients: Optional[List[
     if not RESEND_API_KEY or not recipient_list:
         logger.warning("User registration notification skipped because Resend or admin recipients are not configured")
         return
-    subject = f"GASS user registration: {user['name']}"
+    detail_rows = [
+        ("Pemohon", user.get("name") or "-"),
+        ("Email", user.get("email") or "-"),
+        ("Nama Perusahaan", user.get("company_name") or "-"),
+        ("Departemen", user.get("department") or "-"),
+        ("Jabatan", user.get("job_title") or "-"),
+        ("Alamat Kantor", user.get("office_address") or "-"),
+        ("Nama Atasan", user.get("supervisor_name") or "-"),
+        ("Email Atasan", user.get("supervisor_email") or "-"),
+    ]
+    subject = f"[GASS] Persetujuan Aktivasi Akun - {user.get('name') or 'User Baru'}"
     plain = "\n".join(
         [
-            "A new GASS account is waiting for Super Admin review.",
+            "GASS",
+            "General Affair Services System",
             "",
-            f"Name: {user['name']}",
-            f"Email: {user['email']}",
-            f"Company: {user['company_name']}",
-            f"Department: {user['department']}",
-            f"Position: {user['job_title']}",
-            f"Supervisor: {user['supervisor_name']} ({user['supervisor_email']})",
+            "DIPERLUKAN PERSETUJUAN",
+            "Permintaan Persetujuan Aktivasi Akun User",
             "",
-            f"Open GASS user management: {APP_PUBLIC_URL}/admin/users",
+            "Yth. Super Admin,",
+            "Terdapat user baru yang telah melakukan pendaftaran akun pada sistem.",
+            "",
+            "Detail pengajuan sebagai berikut:",
+            "",
+            *[f"{label}: {value}" for label, value in detail_rows],
+            "",
+            "Mohon Bapak/Ibu dapat melakukan review dan memberikan persetujuan untuk mengaktifkan akun user tersebut dengan login ke sistem.",
+            f"Login ke sistem: {APP_PUBLIC_URL}/admin/users",
+            "",
+            "This is an automated email from GASS. Please do not reply to this email.",
         ]
     )
+    rows_html = "".join(
+        "<tr>"
+        f"<td bgcolor='#f8fafc' style='width:36%;padding:13px 15px;border-bottom:1px solid #e3e7ed;color:#68716d;font-size:13px;line-height:1.4'>{html.escape(label)}</td>"
+        f"<td bgcolor='#f8fafc' align='right' style='padding:13px 15px;border-bottom:1px solid #e3e7ed;color:#174b37;font-size:13px;font-weight:800;line-height:1.4;text-align:right'>{html.escape(value)}</td>"
+        "</tr>"
+        for label, value in detail_rows
+    )
+    logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
+    review_url = html.escape(f"{APP_PUBLIC_URL}/admin/users", quote=True)
     html_body = f"""
-    <html><body style='margin:0;padding:24px;background:#f2f7f4;font-family:Arial,sans-serif;color:#0f172a'>
-      <div style='max-width:600px;margin:0 auto;background:#fff;border:1px solid #dbe7e0;border-radius:16px;overflow:hidden'>
-        <div style='padding:24px 28px;background:#064e3b;color:#fff'><strong style='font-size:24px'>GASS</strong><div style='margin-top:4px'>New user registration</div></div>
-        <div style='padding:28px'>
-          <p style='margin-top:0'>A new account is waiting for Super Admin review.</p>
-          <table style='width:100%;border-collapse:collapse'>
-            <tr><td style='padding:7px;color:#64748b'>Name</td><td style='padding:7px;font-weight:700'>{html.escape(user['name'])}</td></tr>
-            <tr><td style='padding:7px;color:#64748b'>Email</td><td style='padding:7px'>{html.escape(user['email'])}</td></tr>
-            <tr><td style='padding:7px;color:#64748b'>Company</td><td style='padding:7px'>{html.escape(user['company_name'])}</td></tr>
-            <tr><td style='padding:7px;color:#64748b'>Department</td><td style='padding:7px'>{html.escape(user['department'])}</td></tr>
-            <tr><td style='padding:7px;color:#64748b'>Position</td><td style='padding:7px'>{html.escape(user['job_title'])}</td></tr>
-            <tr><td style='padding:7px;color:#64748b'>Supervisor</td><td style='padding:7px'>{html.escape(user['supervisor_name'])} ({html.escape(user['supervisor_email'])})</td></tr>
+    <html><body bgcolor='#f1f4f3' style='margin:0;padding:0;background-color:#f1f4f3;font-family:Arial,sans-serif;color:#202622'>
+      <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f1f4f3' style='width:100%;background-color:#f1f4f3'>
+        <tr><td align='center' style='padding:40px 18px'>
+          <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:14px;overflow:hidden'>
+            <tr><td bgcolor='#2948b8' style='padding:34px;background-color:#2948b8;color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
+                <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='45' style='display:block;width:45px;height:auto;border:0'></td>
+                <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:27px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div></td>
+              </tr></table>
+              <div style='margin-top:10px;font-size:12px;font-weight:600;color:#ffffff'>General Affair Services System</div>
+            </td></tr>
+            <tr><td bgcolor='#ffffff' style='padding:34px;background-color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='#d8ecfb' style='padding:7px 12px;background-color:#d8ecfb;border-radius:999px;color:#2b60a8;font-size:10px;font-weight:900;letter-spacing:.3px'>DIPERLUKAN PERSETUJUAN</td></tr></table>
+              <h1 style='margin:28px 0 18px;font-size:25px;line-height:1.3;color:#252a27'>Permintaan Persetujuan Aktivasi Akun User</h1>
+              <p style='margin:0 0 8px;color:#174b37;font-size:16px;font-weight:800'>Yth. Super Admin,</p>
+              <p style='margin:0;color:#68716d;font-size:14px;line-height:1.6'>Terdapat user baru yang telah melakukan pendaftaran akun pada sistem.</p>
+              <p style='margin:24px 0;color:#68716d;font-size:14px;line-height:1.6'>Detail pengajuan sebagai berikut:</p>
+              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f8fafc' style='width:100%;border:1px solid #dfe4ea;border-collapse:separate;border-spacing:0;background-color:#f8fafc;border-radius:9px;overflow:hidden'>{rows_html}</table>
+              <p style='margin:26px 0;color:#68716d;font-size:14px;line-height:1.6'>Mohon Bapak/Ibu dapat melakukan review dan memberikan persetujuan untuk mengaktifkan akun user tersebut dengan login ke sistem.</p>
+              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'><tr><td align='center' bgcolor='#2948b8' style='background-color:#2948b8;border-radius:8px'><a href='{review_url}' style='display:block;padding:14px 20px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:800'>Login Ke Sistem</a></td></tr></table>
+            </td></tr>
+            <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
           </table>
-          <a href='{html.escape(f"{APP_PUBLIC_URL}/admin/users", quote=True)}' style='display:inline-block;margin-top:22px;padding:12px 18px;border-radius:8px;background:#0b7a4b;color:#fff;text-decoration:none;font-weight:700'>Review registration</a>
-        </div>
-      </div>
+        </td></tr>
+      </table>
     </body></html>
     """
     for recipient in recipient_list:

@@ -80,6 +80,42 @@ def test_pending_registration_email_uses_resend_template(monkeypatch):
     assert "/brand-logo.png" in sent[0]["html"]
 
 
+def test_new_registration_notifies_superadmin_with_blue_template(monkeypatch):
+    sent = []
+
+    def capture(to_email, subject, text, html):
+        sent.append({"to": to_email, "subject": subject, "text": text, "html": html})
+        return True
+
+    user = {
+        "name": "Anita Wijaya",
+        "email": "anitawijaya@kcsi.com",
+        "company_name": "KCSI",
+        "department": "IT",
+        "job_title": "System Analyst",
+        "office_address": "HO Jakarta",
+        "supervisor_name": "Oky",
+        "supervisor_email": "oky@kcsi.com",
+    }
+    monkeypatch.setattr(server, "RESEND_API_KEY", "test-key")
+    monkeypatch.setattr(server, "_send_resend_email", capture)
+    server._send_registration_admin_notification(user, ["superadmin@kcsi.com"])
+
+    assert sent[0]["to"] == "superadmin@kcsi.com"
+    assert sent[0]["subject"] == "[GASS] Persetujuan Aktivasi Akun - Anita Wijaya"
+    assert "bgcolor='#2948b8'" in sent[0]["html"]
+    assert "DIPERLUKAN PERSETUJUAN" in sent[0]["html"]
+    assert "Permintaan Persetujuan Aktivasi Akun User" in sent[0]["html"]
+    assert "Yth. Super Admin" in sent[0]["html"]
+    assert "anitawijaya@kcsi.com" in sent[0]["html"]
+    assert "System Analyst" in sent[0]["html"]
+    assert "HO Jakarta" in sent[0]["html"]
+    assert "oky@kcsi.com" in sent[0]["html"]
+    assert "Login Ke Sistem" in sent[0]["html"]
+    assert "/admin/users" in sent[0]["html"]
+    assert "/brand-logo.png" in sent[0]["html"]
+
+
 def test_approved_registration_email_uses_green_template(monkeypatch):
     sent = []
 
