@@ -1164,6 +1164,104 @@ def _meeting_approval_email_html(booking: dict, recipient_name: str, action_html
     """
 
 
+def _meeting_confirmation_date(booking: dict) -> str:
+    month_names = {
+        1: "Januari",
+        2: "Februari",
+        3: "Maret",
+        4: "April",
+        5: "Mei",
+        6: "Juni",
+        7: "Juli",
+        8: "Agustus",
+        9: "September",
+        10: "Oktober",
+        11: "November",
+        12: "Desember",
+    }
+    try:
+        meeting_date = datetime.strptime(booking["date"], "%Y-%m-%d")
+        date_label = f"{meeting_date.day} {month_names[meeting_date.month]} {meeting_date.year}"
+    except (KeyError, TypeError, ValueError):
+        date_label = booking.get("date") or "-"
+    return f"{date_label}, {booking.get('start_time', '-')} – {booking.get('end_time', '-')}"
+
+
+def _send_booking_approval_email(booking: dict) -> bool:
+    recipient = (booking.get("user_email") or "").strip().lower()
+    if not RESEND_API_KEY or not recipient:
+        return False
+
+    name = (booking.get("user_name") or "User").strip()
+    accommodation = _meeting_accommodation_summary(booking)
+    if accommodation == "No accommodation requested":
+        accommodation = "Tidak ada akomodasi"
+    detail_rows = [
+        ("Judul Rapat", booking.get("title") or "-"),
+        ("Peserta", _meeting_participants_summary(booking)),
+        ("Tanggal & Waktu", _meeting_confirmation_date(booking)),
+        ("Lokasi", f"{booking.get('room_name') or '-'}, {booking.get('room_building') or 'Belum ditentukan'}"),
+        ("Akomodasi", accommodation),
+    ]
+    plain = "\n".join(
+        [
+            "GASS",
+            "General Affair Services System",
+            "",
+            "PEMINJAMAN DISETUJUI",
+            "Pengajuan Peminjaman Ruangan Disetujui",
+            "",
+            f"Halo {name},",
+            "Pengajuan peminjaman ruangan berikut telah disetujui. Silakan lanjutkan proses sesuai prosedur.",
+            "",
+            *[f"{label}: {value}" for label, value in detail_rows],
+            "",
+            "Silakan login ke sistem untuk melanjutkan proses.",
+            f"Login ke sistem: {APP_PUBLIC_URL}/login",
+            "",
+            "This is an automated email from GASS. Please do not reply to this email.",
+        ]
+    )
+    rows_html = "".join(
+        "<tr>"
+        f"<td bgcolor='#f8faf9' style='width:34%;padding:14px 16px;border-bottom:1px solid #e4e9e6;color:#66716b;font-size:14px;line-height:1.4'>{html.escape(label)}</td>"
+        f"<td bgcolor='#f8faf9' align='right' style='padding:14px 16px;border-bottom:1px solid #e4e9e6;color:#174b37;font-size:14px;font-weight:800;line-height:1.4;text-align:right'>{html.escape(value)}</td>"
+        "</tr>"
+        for label, value in detail_rows
+    )
+    logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
+    login_url = html.escape(f"{APP_PUBLIC_URL}/login", quote=True)
+    subject = f"[GASS] Peminjaman Ruangan Disetujui - {booking.get('title') or 'Meeting'}"
+    body = f"""
+    <html><body bgcolor='#f1f4f3' style='margin:0;padding:0;background-color:#f1f4f3;font-family:Arial,sans-serif;color:#202622'>
+      <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f1f4f3' style='width:100%;background-color:#f1f4f3'>
+        <tr><td align='center' style='padding:40px 18px'>
+          <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:14px;overflow:hidden'>
+            <tr><td bgcolor='#0d6645' style='padding:34px;background-color:#0d6645;color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
+                <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='45' style='display:block;width:45px;height:auto;border:0'></td>
+                <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:27px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div></td>
+              </tr></table>
+              <div style='margin-top:10px;font-size:12px;font-weight:600;color:#d7eee4'>General Affair Services System</div>
+            </td></tr>
+            <tr><td bgcolor='#ffffff' style='padding:34px;background-color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='#e2f1f3' style='padding:7px 12px;background-color:#e2f1f3;border-radius:999px;color:#1b6673;font-size:10px;font-weight:900;letter-spacing:.3px'>PEMINJAMAN DISETUJUI</td></tr></table>
+              <h1 style='margin:28px 0 18px;font-size:25px;line-height:1.3;color:#252a27'>Pengajuan Peminjaman Ruangan Disetujui</h1>
+              <p style='margin:0 0 8px;color:#174b37;font-size:16px;font-weight:800'>Halo {html.escape(name)},</p>
+              <p style='margin:0 0 26px;color:#174b37;font-size:15px;font-weight:600;line-height:1.6'>Pengajuan peminjaman ruangan berikut telah disetujui. Silakan lanjutkan proses sesuai prosedur.</p>
+              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f8faf9' style='width:100%;border:1px solid #dfe5e2;border-collapse:separate;border-spacing:0;background-color:#f8faf9;border-radius:9px;overflow:hidden'>{rows_html}</table>
+              <p style='margin:26px 0;color:#174b37;font-size:15px;font-weight:700;line-height:1.55'>Silakan login ke sistem untuk melanjutkan proses.</p>
+              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'><tr><td align='center' bgcolor='#2f7458' style='background-color:#2f7458;border-radius:8px'><a href='{login_url}' style='display:block;padding:14px 20px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:800'>Login Ke Sistem</a></td></tr></table>
+            </td></tr>
+            <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body></html>
+    """
+    return _send_resend_email(recipient, subject, plain, body)
+
+
 def _supervisor_email_is_configured() -> bool:
     if SUPERVISOR_EMAIL_PROVIDER == "resend":
         return bool(RESEND_API_KEY)
@@ -1470,6 +1568,11 @@ async def decide_meeting_supervisor_approval(
             updated = await db.bookings.find_one({"id": booking["id"]}, {"_id": 0})
             recipients = await _manager_ga_recipients(updated["room_building"])
             _send_manager_ga_approval_notifications(updated, recipients)
+        else:
+            updated = await db.bookings.find_one({"id": booking["id"]}, {"_id": 0})
+            await _normalize_booking_public(updated)
+            if not _send_booking_approval_email(updated):
+                logger.warning("Meeting approval saved, but confirmation email was not sent for booking %s", booking["id"])
         return HTMLResponse(
             _approval_result_page("Meeting approved", "Your approval has been recorded. GASS will continue the selected approval process.", True)
         )
@@ -2117,6 +2220,8 @@ async def decide_meeting_admin_approval(
     await _normalize_booking_public(approved)
     if require_manager_ga and not require_manager_user:
         _send_manager_ga_approval_notifications(approved, manager_ga_recipients)
+    if final_after_admin and not _send_booking_approval_email(approved):
+        logger.warning("Meeting approval saved, but confirmation email was not sent for booking %s", booking_id)
     return Booking(**approved)
 
 
@@ -2349,6 +2454,8 @@ async def update_fnb_status(
     await _normalize_booking_public(bk)
     if payload.status == "rejected" and not _send_booking_rejection_email(bk, rejection_reason, "fnb"):
         logger.warning("F&B rejection saved, but notification email was not sent for booking %s", booking_id)
+    if payload.status == "approved" and not _send_booking_approval_email(bk):
+        logger.warning("Meeting approval saved, but confirmation email was not sent for booking %s", booking_id)
     return Booking(**bk)
 
 

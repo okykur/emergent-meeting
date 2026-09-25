@@ -71,3 +71,54 @@ def test_manager_ga_email_uses_resend_template(monkeypatch):
     assert sent[0]["to"] == "ga.manager@example.com"
     assert "Review in GASS" in sent[0]["html"]
     assert_template_content(sent[0])
+
+
+def test_booking_approval_email_uses_final_confirmation_template(monkeypatch):
+    sent = []
+
+    def capture(to_email, subject, text, html):
+        sent.append({"to": to_email, "subject": subject, "text": text, "html": html})
+        return True
+
+    booking = sample_booking()
+    booking["user_email"] = "anita@example.com"
+    monkeypatch.setattr(server, "RESEND_API_KEY", "test-key")
+    monkeypatch.setattr(server, "_send_resend_email", capture)
+
+    assert server._send_booking_approval_email(booking) is True
+    assert sent[0]["to"] == "anita@example.com"
+    assert sent[0]["subject"] == "[GASS] Peminjaman Ruangan Disetujui - Product Launching Q1 2026"
+    assert "bgcolor='#0d6645'" in sent[0]["html"]
+    assert "PEMINJAMAN DISETUJUI" in sent[0]["html"]
+    assert "Pengajuan Peminjaman Ruangan Disetujui" in sent[0]["html"]
+    assert "Halo Anita Wijaya" in sent[0]["html"]
+    assert "Internal 10, BOD 3, External 2" in sent[0]["html"]
+    assert "15 September 2025, 08:00 – 14:00" in sent[0]["html"]
+    assert "Ruang Komodo (Lantai 2), HO NTI Jakarta" in sent[0]["html"]
+    assert "Snack Box, Lunch Box, Projector, Whiteboard" in sent[0]["html"]
+    assert "Login Ke Sistem" in sent[0]["html"]
+    assert "/brand-logo.png" in sent[0]["html"]
+
+
+def test_booking_approval_email_labels_empty_accommodation(monkeypatch):
+    sent = []
+
+    def capture(to_email, subject, text, html):
+        sent.append({"to": to_email, "subject": subject, "text": text, "html": html})
+        return True
+
+    booking = sample_booking()
+    booking.update(
+        {
+            "user_email": "anita@example.com",
+            "snack_type": "",
+            "meal_types": [],
+            "additional_facilities": [],
+            "food_beverages": "",
+        }
+    )
+    monkeypatch.setattr(server, "RESEND_API_KEY", "test-key")
+    monkeypatch.setattr(server, "_send_resend_email", capture)
+
+    assert server._send_booking_approval_email(booking) is True
+    assert "Tidak ada akomodasi" in sent[0]["html"]
