@@ -888,30 +888,77 @@ def _send_user_approval_result(user: dict) -> None:
     approved = user.get("approval_status") == "approved"
     status_label = "approved" if approved else "rejected"
     reason = (user.get("rejection_reason") or "").strip()
-    subject = f"Your GASS registration was {status_label}"
-    plain_lines = [
-        f"Hello {user['name']},",
-        "",
-        f"Your GASS account registration has been {status_label}.",
-    ]
     if approved:
-        plain_lines.extend([f"Assigned role: {user['role']}", f"Sign in: {APP_PUBLIC_URL}/login"])
+        name = (user.get("name") or "User").strip()
+        subject = "Akun GASS Anda Telah Disetujui"
+        plain = "\n".join(
+            [
+                "GASS",
+                "General Affair Services System",
+                "",
+                "AKUN DISETUJUI",
+                "Akun Anda Telah Disetujui",
+                "",
+                f"Halo {name},",
+                "Akun Anda telah berhasil disetujui oleh Admin dan sudah dapat digunakan. Silakan login menggunakan email dan password yang telah didaftarkan.",
+                "",
+                "Jika mengalami kendala saat login, silakan hubungi Admin.",
+                "",
+                "Terima kasih.",
+                "GASS System",
+                "",
+                f"Login ke sistem: {APP_PUBLIC_URL}/login",
+                "",
+                "This is an automated email from GASS. Please do not reply to this email.",
+            ]
+        )
+        logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
+        login_url = html.escape(f"{APP_PUBLIC_URL}/login", quote=True)
+        html_body = f"""
+        <html><body bgcolor='#f1f4f3' style='margin:0;padding:0;background-color:#f1f4f3;font-family:Arial,sans-serif;color:#202622'>
+          <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f1f4f3' style='width:100%;background-color:#f1f4f3'>
+            <tr><td align='center' style='padding:40px 18px'>
+              <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:14px;overflow:hidden'>
+                <tr><td bgcolor='#0d6645' style='padding:34px;background-color:#0d6645;color:#ffffff'>
+                  <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
+                    <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='45' style='display:block;width:45px;height:auto;border:0'></td>
+                    <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:27px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div></td>
+                  </tr></table>
+                  <div style='margin-top:10px;font-size:12px;font-weight:600;color:#d7eee4'>General Affair Services System</div>
+                </td></tr>
+                <tr><td bgcolor='#ffffff' style='padding:34px;background-color:#ffffff'>
+                  <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='#e2f2e6' style='padding:7px 12px;background-color:#e2f2e6;border-radius:999px;color:#17643b;font-size:10px;font-weight:900;letter-spacing:.3px'>AKUN DISETUJUI</td></tr></table>
+                  <h1 style='margin:28px 0 18px;font-size:25px;line-height:1.3;color:#252a27'>Akun Anda Telah Disetujui</h1>
+                  <p style='margin:0 0 18px;color:#174b37;font-size:16px;font-weight:800'>Halo {html.escape(name)},</p>
+                  <p style='margin:0;color:#174b37;font-size:15px;font-weight:600;line-height:1.6'>Akun Anda telah berhasil disetujui oleh Admin dan sudah dapat digunakan. Silakan login menggunakan email dan password yang telah didaftarkan.</p>
+                  <p style='margin:24px 0 0;color:#174b37;font-size:15px;font-weight:600;line-height:1.6'>Jika mengalami kendala saat login, silakan hubungi Admin.</p>
+                  <p style='margin:24px 0;color:#174b37;font-size:15px;font-weight:700;line-height:1.55'>Terima kasih.<br>GASS System</p>
+                  <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'><tr><td align='center' bgcolor='#2f7458' style='background-color:#2f7458;border-radius:8px'><a href='{login_url}' style='display:block;padding:14px 20px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:800'>Login Ke Sistem</a></td></tr></table>
+                </td></tr>
+                <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </body></html>
+        """
     else:
-        plain_lines.append(f"Reason: {reason}")
-    plain = "\n".join(plain_lines)
-    action = (
-        f"<a href='{html.escape(f'{APP_PUBLIC_URL}/login', quote=True)}' style='display:inline-block;margin-top:18px;padding:12px 18px;border-radius:8px;background:#0b7a4b;color:#fff;text-decoration:none;font-weight:700'>Sign in to GASS</a>"
-        if approved
-        else f"<p style='padding:14px;background:#fff5f5;border-radius:8px'><strong>Reason:</strong> {html.escape(reason)}</p>"
-    )
-    html_body = f"""
-    <html><body style='margin:0;padding:24px;background:#f2f7f4;font-family:Arial,sans-serif;color:#0f172a'>
-      <div style='max-width:560px;margin:0 auto;background:#fff;border:1px solid #dbe7e0;border-radius:16px;overflow:hidden'>
-        <div style='padding:24px 28px;background:#064e3b;color:#fff'><strong style='font-size:24px'>GASS</strong></div>
-        <div style='padding:28px'><h1 style='margin-top:0;font-size:22px'>Registration {status_label}</h1><p>Hello {html.escape(user['name'])},</p><p>Your GASS account registration has been <strong>{status_label}</strong>.</p>{action}</div>
-      </div>
-    </body></html>
-    """
+        subject = f"Your GASS registration was {status_label}"
+        plain = "\n".join(
+            [
+                f"Hello {user['name']},",
+                "",
+                f"Your GASS account registration has been {status_label}.",
+                f"Reason: {reason}",
+            ]
+        )
+        html_body = f"""
+        <html><body style='margin:0;padding:24px;background:#f2f7f4;font-family:Arial,sans-serif;color:#0f172a'>
+          <div style='max-width:560px;margin:0 auto;background:#fff;border:1px solid #dbe7e0;border-radius:16px;overflow:hidden'>
+            <div style='padding:24px 28px;background:#064e3b;color:#fff'><strong style='font-size:24px'>GASS</strong></div>
+            <div style='padding:28px'><h1 style='margin-top:0;font-size:22px'>Registration {status_label}</h1><p>Hello {html.escape(user['name'])},</p><p>Your GASS account registration has been <strong>{status_label}</strong>.</p><p style='padding:14px;background:#fff5f5;border-radius:8px'><strong>Reason:</strong> {html.escape(reason)}</p></div>
+          </div>
+        </body></html>
+        """
     if not _send_resend_email(user["email"], subject, plain, html_body):
         logger.warning("Failed to send user approval result to %s", user["email"])
 
