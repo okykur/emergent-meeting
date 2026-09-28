@@ -24,6 +24,7 @@ import AdminCarsBookings from "@/pages/admin/CarsBookings";
 import AdminCarBookingDetail from "@/pages/admin/CarBookingDetail";
 import AdminVehicles from "@/pages/admin/Vehicles";
 import AdminDrivers from "@/pages/admin/Drivers";
+import AdminCompanies from "@/pages/admin/Companies";
 import { Toaster } from "sonner";
 
 function RootRedirect() {
@@ -96,6 +97,14 @@ function App() {
                 element={
                   <ProtectedRoute superAdminOnly>
                     <AdminUsers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/companies"
+                element={
+                  <ProtectedRoute superAdminOnly>
+                    <AdminCompanies />
                   </ProtectedRoute>
                 }
               />

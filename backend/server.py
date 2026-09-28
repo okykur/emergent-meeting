@@ -26,6 +26,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
 
@@ -267,6 +269,31 @@ class RoomUpdate(BaseModel):
 class Room(RoomBase):
     id: str
     created_at: str
+
+
+class CompanyBase(BaseModel):
+    company_code: str = Field(min_length=1, max_length=20)
+    company_name: str = Field(min_length=1, max_length=180)
+
+
+class CompanyCreate(CompanyBase):
+    pass
+
+
+class CompanyUpdate(BaseModel):
+    company_code: Optional[str] = Field(default=None, min_length=1, max_length=20)
+    company_name: Optional[str] = Field(default=None, min_length=1, max_length=180)
+
+
+class Company(CompanyBase):
+    id: str
+    system_number: str
+    created_at: str
+    created_by: str
+    created_by_id: str
+    updated_by: str
+    updated_by_id: str
+    datetime_updated: str
 
 
 class BookingCreate(BaseModel):
@@ -2004,6 +2031,96 @@ async def delete_room(room_id: str, admin: dict = Depends(require_admin)):
     return {"ok": True}
 
 
+# ---------- Companies ----------
+def _normalize_company_values(company_code: str, company_name: str) -> tuple[str, str]:
+    code = company_code.strip().upper()
+    name = " ".join(company_name.split())
+    if not code:
+        raise HTTPException(status_code=400, detail="Company code is required")
+    if not code.replace("-", "").replace("_", "").isalnum():
+        raise HTTPException(status_code=400, detail="Company code may contain only letters, numbers, hyphens, and underscores")
+    if not name:
+        raise HTTPException(status_code=400, detail="Company name is required")
+    return code, name
+
+
+async def _next_company_system_number() -> str:
+    counter = await db.counters.find_one_and_update(
+        {"_id": "company_system_number"},
+        {"$inc": {"seq": 1}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+    return f"CMP-{counter['seq']:06d}"
+
+
+@api.get("/companies", response_model=List[Company])
+async def list_companies(_admin: dict = Depends(require_super_admin)):
+    items = await db.companies.find({}, {"_id": 0}).sort("company_code", 1).to_list(1000)
+    return [Company(**item) for item in items]
+
+
+@api.post("/companies", response_model=Company)
+async def create_company(payload: CompanyCreate, admin: dict = Depends(require_super_admin)):
+    company_code, company_name = _normalize_company_values(payload.company_code, payload.company_name)
+    if await db.companies.find_one({"company_code": company_code}):
+        raise HTTPException(status_code=409, detail=f"Company code {company_code} already exists")
+    now = _now_iso()
+    actor = admin.get("name") or admin.get("email") or admin["id"]
+    doc = {
+        "id": str(uuid.uuid4()),
+        "system_number": await _next_company_system_number(),
+        "company_code": company_code,
+        "company_name": company_name,
+        "created_at": now,
+        "created_by": actor,
+        "created_by_id": admin["id"],
+        "updated_by": actor,
+        "updated_by_id": admin["id"],
+        "datetime_updated": now,
+    }
+    try:
+        await db.companies.insert_one(doc)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail=f"Company code {company_code} already exists")
+    return Company(**{key: value for key, value in doc.items() if key != "_id"})
+
+
+@api.put("/companies/{company_id}", response_model=Company)
+async def update_company(company_id: str, payload: CompanyUpdate, admin: dict = Depends(require_super_admin)):
+    existing = await db.companies.find_one({"id": company_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Company not found")
+    raw_updates = payload.model_dump(exclude_unset=True)
+    if not raw_updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    company_code, company_name = _normalize_company_values(
+        raw_updates.get("company_code", existing["company_code"]),
+        raw_updates.get("company_name", existing["company_name"]),
+    )
+    duplicate = await db.companies.find_one({"company_code": company_code, "id": {"$ne": company_id}})
+    if duplicate:
+        raise HTTPException(status_code=409, detail=f"Company code {company_code} already exists")
+    updates = {
+        "company_code": company_code,
+        "company_name": company_name,
+        "updated_by": admin.get("name") or admin.get("email") or admin["id"],
+        "updated_by_id": admin["id"],
+        "datetime_updated": _now_iso(),
+    }
+    await db.companies.update_one({"id": company_id}, {"$set": updates})
+    updated = await db.companies.find_one({"id": company_id}, {"_id": 0})
+    return Company(**updated)
+
+
+@api.delete("/companies/{company_id}")
+async def delete_company(company_id: str, _admin: dict = Depends(require_super_admin)):
+    result = await db.companies.delete_one({"id": company_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return {"ok": True}
+
+
 @api.get("/rooms/{room_id}/availability")
 async def room_availability(
     room_id: str,
@@ -3081,6 +3198,21 @@ async def root():
 
 
 # ---------- Startup: seed data & indexes ----------
+SAMPLE_COMPANIES = [
+    ("ATI", "PT Aroma Tobacco International"),
+    ("DNN", "PT Dinamika Niaga Nusantara"),
+    ("GLT", "PT Graha Lumbung Terpadu"),
+    ("GPT", "GPT"),
+    ("KDK", "PT Karunia Daun Kencana"),
+    ("MNM", "PT Multisarana Niaga Mandiri"),
+    ("NCT", "PT Nikorama Citra Tobacco"),
+    ("NNA", "PT Niaga Nusa Abadi"),
+    ("NSTI", "PT Nikki Super Tobacco Indonesia"),
+    ("NTI", "PT Nojorono Tobacco International"),
+    ("PST", "PST"),
+]
+
+
 SAMPLE_ROOMS = [
     {
         "name": "Aurora Boardroom",
@@ -3143,6 +3275,33 @@ SAMPLE_ROOMS = [
         "is_active": False,
     },
 ]
+
+
+async def seed_companies():
+    if await db.companies.count_documents({}) == 0:
+        now = _now_iso()
+        docs = [
+            {
+                "id": str(uuid.uuid4()),
+                "system_number": f"CMP-{sequence:06d}",
+                "company_code": company_code,
+                "company_name": company_name,
+                "created_at": now,
+                "created_by": "system",
+                "created_by_id": "system",
+                "updated_by": "system",
+                "updated_by_id": "system",
+                "datetime_updated": now,
+            }
+            for sequence, (company_code, company_name) in enumerate(SAMPLE_COMPANIES, start=1)
+        ]
+        await db.companies.insert_many(docs)
+        logger.info("Seeded %s companies", len(docs))
+    await db.counters.update_one(
+        {"_id": "company_system_number"},
+        {"$max": {"seq": len(SAMPLE_COMPANIES)}},
+        upsert=True,
+    )
 
 
 async def seed_admin():
@@ -4068,6 +4227,8 @@ async def seed_fleet():
 @app.on_event("startup")
 async def on_startup():
     await db.users.create_index("email", unique=True)
+    await db.companies.create_index("company_code", unique=True)
+    await db.companies.create_index("system_number", unique=True)
     await db.rooms.create_index("name")
     await db.rooms.create_index("building")
     await db.bookings.create_index([("room_id", 1), ("date", 1)])
@@ -4083,6 +4244,7 @@ async def on_startup():
     await db.supervisor_meeting_approvals.create_index("expires_at", expireAfterSeconds=0)
     await seed_admin()
     await migrate_legacy_roles()
+    await seed_companies()
     await seed_rooms()
     await seed_fleet()
 
