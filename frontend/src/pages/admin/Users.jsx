@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, formatApiError } from "../../api";
 import { useAuth } from "../../context/AuthContext";
+import CompanySelect from "../../components/CompanySelect";
 import {
   Search,
   Plus,
@@ -224,13 +225,13 @@ function UserFormDialog({ initial, onClose, onSaved }) {
             />
           </div>
           <div>
-            <label className="mb-2 block text-xs font-bold text-[#343B36]">Perusahaan (Company)</label>
-            <input
-              data-testid="user-company-input"
+            <label className="mb-2 block text-xs font-bold text-[#343B36]">Perusahaan (Company) *</label>
+            <CompanySelect
+              required
               value={form.company_name}
-              onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-              placeholder="Nama perusahaan"
+              onChange={(value) => setForm({ ...form, company_name: value })}
               className={userFieldClass}
+              testId="user-company-input"
             />
           </div>
           <div className="contents">

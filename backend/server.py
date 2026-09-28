@@ -14,6 +14,7 @@ import json
 import secrets
 import smtplib
 import html
+import re
 from datetime import datetime, timezone, timedelta
 from email.message import EmailMessage
 from typing import Dict, List, Optional, Literal
@@ -294,6 +295,13 @@ class Company(CompanyBase):
     updated_by: str
     updated_by_id: str
     datetime_updated: str
+
+
+class CompanyOption(BaseModel):
+    system_number: str
+    company_code: str
+    company_name: str
+    search_name: str
 
 
 class BookingCreate(BaseModel):
@@ -1823,12 +1831,13 @@ async def register(payload: RegisterRequest, background_tasks: BackgroundTasks):
     existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+    company_name = await _resolve_company_name(payload.company_name)
     user_id = str(uuid.uuid4())
     doc = {
         "id": user_id,
         "email": email,
         "name": payload.name.strip(),
-        "company_name": payload.company_name.strip(),
+        "company_name": company_name,
         "job_title": payload.job_title.strip(),
         "department": payload.department.strip(),
         "office_address": payload.office_address.strip(),
@@ -2044,6 +2053,23 @@ def _normalize_company_values(company_code: str, company_name: str) -> tuple[str
     return code, name
 
 
+def _company_search_name(company_name: str) -> str:
+    return re.sub(r"^PT\.?\s+", "", company_name.strip(), flags=re.IGNORECASE)
+
+
+async def _resolve_company_name(company_name: str) -> str:
+    requested = " ".join((company_name or "").split())
+    if not requested:
+        raise HTTPException(status_code=400, detail="Company must be selected from Master Company")
+    company = await db.companies.find_one(
+        {"company_name": {"$regex": f"^{re.escape(requested)}$", "$options": "i"}},
+        {"_id": 0, "company_name": 1},
+    )
+    if not company:
+        raise HTTPException(status_code=400, detail="Company must be selected from Master Company")
+    return company["company_name"]
+
+
 async def _next_company_system_number() -> str:
     counter = await db.counters.find_one_and_update(
         {"_id": "company_system_number"},
@@ -2052,6 +2078,17 @@ async def _next_company_system_number() -> str:
         return_document=ReturnDocument.AFTER,
     )
     return f"CMP-{counter['seq']:06d}"
+
+
+@api.get("/companies/options", response_model=List[CompanyOption])
+async def list_company_options():
+    items = await db.companies.find(
+        {}, {"_id": 0, "system_number": 1, "company_code": 1, "company_name": 1}
+    ).sort("company_name", 1).to_list(1000)
+    return [
+        CompanyOption(**item, search_name=_company_search_name(item["company_name"]))
+        for item in items
+    ]
 
 
 @api.get("/companies", response_model=List[Company])
@@ -2946,7 +2983,7 @@ class AdminUserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
     name: str = Field(min_length=1)
-    company_name: str = ""
+    company_name: str = Field(min_length=1, max_length=180)
     job_title: str = ""
     department: str = ""
     office_address: str = ""
@@ -3011,6 +3048,7 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
         raise HTTPException(status_code=400, detail="Email already registered")
     if not payload.supervisor_name.strip():
         raise HTTPException(status_code=400, detail="Supervisor name is required")
+    company_name = await _resolve_company_name(payload.company_name)
     meeting_buildings = _normalize_building_list(payload.meeting_buildings) if payload.role == "meeting_admin" else []
     fnb_locations = _normalize_building_list(payload.fnb_locations) if payload.role == "manager" else []
     if payload.role == "meeting_admin" and not meeting_buildings:
@@ -3021,7 +3059,7 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
         "id": str(uuid.uuid4()),
         "email": email,
         "name": payload.name.strip(),
-        "company_name": payload.company_name.strip(),
+        "company_name": company_name,
         "job_title": payload.job_title.strip(),
         "department": payload.department.strip(),
         "office_address": payload.office_address.strip(),
@@ -3112,6 +3150,9 @@ async def decide_user_approval(
 async def admin_update_user(
     user_id: str, payload: AdminUserUpdate, admin: dict = Depends(require_super_admin)
 ):
+    existing_user = await db.users.find_one({"id": user_id}, {"_id": 0, "company_name": 1})
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
     updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -3124,6 +3165,12 @@ async def admin_update_user(
             raise HTTPException(status_code=400, detail="Supervisor name is required")
     if "supervisor_email" in updates:
         updates["supervisor_email"] = str(updates["supervisor_email"]).strip().lower()
+    if "company_name" in updates:
+        requested_company = " ".join(updates["company_name"].split())
+        if requested_company.casefold() != (existing_user.get("company_name") or "").strip().casefold():
+            updates["company_name"] = await _resolve_company_name(requested_company)
+        else:
+            updates["company_name"] = existing_user.get("company_name") or requested_company
     if "meeting_buildings" in updates:
         updates["meeting_buildings"] = _normalize_building_list(updates["meeting_buildings"])
     if "fnb_locations" in updates:

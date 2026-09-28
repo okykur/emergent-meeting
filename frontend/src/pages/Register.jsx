@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Info, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import CompanySelect from "../components/CompanySelect";
 import "./Register.css";
 
 const emptyForm = {
@@ -137,9 +138,8 @@ export default function Register() {
                     placeholder="nama@email.com" data-testid="register-email-input" />
                 </Field>
                 <Field label="Nama Perusahaan" id="register-company">
-                  <input id="register-company" autoComplete="organization" required maxLength={120}
-                    value={form.company_name} onChange={(event) => update("company_name", event.target.value)}
-                    placeholder="Nama perusahaan" data-testid="register-company-input" />
+                  <CompanySelect id="register-company" required value={form.company_name}
+                    onChange={(value) => update("company_name", value)} testId="register-company-input" />
                 </Field>
                 <Field label="Departemen" id="register-department">
                   <input id="register-department" required maxLength={120}

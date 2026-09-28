@@ -22,6 +22,11 @@ class FakeUsers:
         return FakeCursor()
 
 
+class FakeCompanies:
+    async def find_one(self, _query, _projection=None):
+        return {"company_name": "PT Aroma Tobacco International"}
+
+
 class FakeBackgroundTasks:
     def __init__(self):
         self.tasks = []
@@ -32,14 +37,14 @@ class FakeBackgroundTasks:
 
 def test_registration_accepts_public_email_domains(monkeypatch):
     users = FakeUsers()
-    monkeypatch.setattr(server, "db", type("FakeDb", (), {"users": users})())
+    monkeypatch.setattr(server, "db", type("FakeDb", (), {"users": users, "companies": FakeCompanies()})())
     monkeypatch.setattr(server, "hash_password", lambda _password: "hashed")
 
     payload = server.RegisterRequest(
         email="new.user@gmail.com",
         password="SecurePass123",
         name="New User",
-        company_name="External Company",
+        company_name="PT Aroma Tobacco International",
         job_title="Manager",
         department="Operations",
         office_address="Jakarta",

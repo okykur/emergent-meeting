@@ -41,6 +41,18 @@ class FakeCompanies:
         self.docs = [doc for doc in self.docs if doc.get("id") != query.get("id")]
         return Result(deleted_count=before - len(self.docs))
 
+    def find(self, _query, _projection=None):
+        docs = [{key: value for key, value in doc.items() if key != "_id"} for doc in self.docs]
+
+        class Cursor:
+            def sort(self, *_args):
+                return self
+
+            async def to_list(self, _limit):
+                return docs
+
+        return Cursor()
+
 
 class FakeCounters:
     async def find_one_and_update(self, *_args, **_kwargs):
@@ -101,3 +113,19 @@ def test_company_master_rejects_non_super_admin():
     with pytest.raises(HTTPException) as error:
         asyncio.run(server.require_super_admin({"role": "meeting_admin"}))
     assert error.value.status_code == 403
+
+
+def test_company_options_remove_pt_from_search_name(monkeypatch):
+    companies = FakeCompanies()
+    companies.docs.append(
+        {
+            "system_number": "CMP-000001",
+            "company_code": "ATI",
+            "company_name": "PT Aroma Tobacco International",
+        }
+    )
+    monkeypatch.setattr(server, "db", type("FakeDb", (), {"companies": companies})())
+
+    options = asyncio.run(server.list_company_options())
+    assert options[0].company_name == "PT Aroma Tobacco International"
+    assert options[0].search_name == "Aroma Tobacco International"
