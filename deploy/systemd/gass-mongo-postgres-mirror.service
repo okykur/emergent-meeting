@@ -1,0 +1,15 @@
+[Unit]
+Description=GASS MongoDB to PostgreSQL Mirror
+After=network.target mongod.service postgresql.service
+Requires=mongod.service postgresql.service
+
+[Service]
+Type=oneshot
+User=ubuntu22
+WorkingDirectory=/opt/kcsi-booking/backend
+EnvironmentFile=/opt/kcsi-booking/backend/.env
+ExecStart=/opt/kcsi-booking/backend/.venv/bin/python /opt/kcsi-booking/backend/scripts/mongo_postgres_mirror.py
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

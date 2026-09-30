@@ -1,0 +1,12 @@
+[Unit]
+Description=Run GASS MongoDB to PostgreSQL mirror every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+Unit=gass-mongo-postgres-mirror.service
+
+[Install]
+WantedBy=timers.target
