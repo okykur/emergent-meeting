@@ -12,12 +12,13 @@ import logging
 import os
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from bson import json_util
 from dotenv import load_dotenv
 from pymongo import MongoClient
-from psycopg import connect
+from psycopg import connect, sql
 from psycopg.types.json import Jsonb
 
 
@@ -72,6 +73,31 @@ ON CONFLICT (collection_name, document_key) DO UPDATE SET
 """
 
 
+def _collection_upsert_sql(collection_name: str):
+    return sql.SQL(
+        """
+        INSERT INTO {} (id, document, synced_at)
+        VALUES (%s, %s, now())
+        ON CONFLICT (id) DO UPDATE SET
+            document = EXCLUDED.document,
+            synced_at = now()
+        """
+    ).format(sql.Identifier("GassBooking", collection_name))
+
+
+def _collection_delete_sql(collection_name: str, prune: bool):
+    table = sql.Identifier("GassBooking", collection_name)
+    if prune:
+        return sql.SQL("DELETE FROM {} WHERE NOT (id = ANY(%s))").format(table)
+    return sql.SQL("DELETE FROM {}").format(table)
+
+
+def _collection_count_sql(collection_name: str):
+    return sql.SQL("SELECT count(*) FROM {}").format(
+        sql.Identifier("GassBooking", collection_name)
+    )
+
+
 def _document_key(document: dict[str, Any]) -> str:
     key = document.get("id", document.get("_id"))
     if key is None:
@@ -122,6 +148,8 @@ def sync() -> dict[str, int]:
         with connect(postgres_dsn) as postgres:
             with postgres.cursor() as cursor:
                 cursor.execute(SCHEMA_SQL)
+                relational_schema = Path(__file__).with_name("postgres_mirror_schema.sql")
+                cursor.execute(relational_schema.read_text(encoding="utf-8"))
                 cursor.execute("SELECT pg_try_advisory_xact_lock(hashtext(%s))", ("gass-mongo-mirror",))
                 if not cursor.fetchone()[0]:
                     logging.info("Another mirror run is active; skipping")
@@ -155,7 +183,17 @@ def sync() -> dict[str, int]:
                             "DELETE FROM \"GassBooking\".documents WHERE collection_name = %s AND NOT (document_key = ANY(%s))",
                             (collection_name, keys),
                         )
+                        relational_rows = [(key, row[2]) for key, row in zip(keys, rows)]
+                        cursor.executemany(
+                            _collection_upsert_sql(collection_name), relational_rows
+                        )
+                        cursor.execute(
+                            _collection_delete_sql(collection_name, prune=True), (keys,)
+                        )
                     else:
+                        cursor.execute(
+                            _collection_delete_sql(collection_name, prune=False)
+                        )
                         cursor.execute(
                             "DELETE FROM \"GassBooking\".documents WHERE collection_name = %s",
                             (collection_name,),
@@ -169,6 +207,12 @@ def sync() -> dict[str, int]:
                     if mirror_count != len(documents):
                         raise RuntimeError(
                             f"Count mismatch for {collection_name}: MongoDB={len(documents)}, PostgreSQL={mirror_count}"
+                        )
+                    cursor.execute(_collection_count_sql(collection_name))
+                    table_count = cursor.fetchone()[0]
+                    if table_count != len(documents):
+                        raise RuntimeError(
+                            f"Table count mismatch for {collection_name}: MongoDB={len(documents)}, PostgreSQL={table_count}"
                         )
                     counts[collection_name] = mirror_count
 

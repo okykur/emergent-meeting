@@ -1,8 +1,10 @@
 # MongoDB to PostgreSQL Mirror
 
 MongoDB remains the GASS source of truth. The mirror service copies selected
-collections into `GASS.GassBooking.documents` as lossless MongoDB
-Extended JSON stored in PostgreSQL `jsonb`.
+collections into separate PostgreSQL tables under `GASS.GassBooking`. Each
+table exposes MongoDB fields as columns and retains the lossless Extended JSON
+document in a `jsonb` column. `GassBooking.documents` remains the consolidated
+rollback copy.
 
 ## Runtime
 
@@ -11,6 +13,9 @@ Extended JSON stored in PostgreSQL `jsonb`.
 - Frequency: every five minutes
 - PostgreSQL listener: localhost only
 - Sync behavior: upsert current documents and prune deleted source documents
+- Tables: `users`, `companies`, `counters`, `rooms`, `bookings`,
+  `supervisor_meeting_approvals`, `password_resets`, `vehicles`, `drivers`, and
+  `vehicle_bookings`
 
 ## Environment
 
