@@ -1,0 +1,15 @@
+[Unit]
+Description=GASS Booking Backend (PostgreSQL)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=ubuntu22
+WorkingDirectory=/opt/kcsi-booking/backend
+EnvironmentFile=/opt/kcsi-booking/backend/.env
+ExecStart=/opt/kcsi-booking/backend/.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

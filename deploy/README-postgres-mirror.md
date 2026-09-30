@@ -1,50 +1,48 @@
-# MongoDB to PostgreSQL Mirror
+# PostgreSQL Runtime and MongoDB Rollback
 
-MongoDB remains the GASS source of truth. The mirror service copies selected
-collections into separate PostgreSQL tables under `GASS.GassBooking`. Each
-table exposes MongoDB fields as columns and retains the lossless Extended JSON
-document in a `jsonb` column. `GassBooking.documents` remains the consolidated
-rollback copy.
+PostgreSQL is the GASS application source of truth. The backend reads and
+writes database `GASS`, schema `GassBooking`, through `POSTGRES_DSN`. Each
+collection-compatible table retains the complete document in a `jsonb` column
+while exposing frequently used fields as generated columns.
+
+MongoDB is retained temporarily as a rollback snapshot. It is not read or
+written by the application runtime. Do not enable the legacy mirror timer after
+cutover because it would overwrite PostgreSQL data with the stale MongoDB copy.
 
 ## Runtime
 
-- Service: `gass-mongo-postgres-mirror.service`
-- Timer: `gass-mongo-postgres-mirror.timer`
-- Frequency: every five minutes
+- Backend service: `kcsi-backend.service`
+- Backend database setting: `POSTGRES_DSN`
+- Legacy mirror timer: disabled
 - PostgreSQL listener: localhost only
-- Sync behavior: upsert current documents and prune deleted source documents
 - Tables: `users`, `companies`, `counters`, `rooms`, `bookings`,
   `supervisor_meeting_approvals`, `password_resets`, `vehicles`, `drivers`, and
   `vehicle_bookings`
 
 ## Environment
 
-`POSTGRES_MIRROR_DSN` is required and must only be stored in the protected
-backend `.env` file. `MIRROR_COLLECTIONS` is optional; when omitted, the script
-uses the maintained default collection list.
+`POSTGRES_DSN` is required and must only be stored in the protected backend
+`.env` file. `MONGO_URL`, `DB_NAME`, `POSTGRES_MIRROR_DSN`, and
+`MIRROR_COLLECTIONS` are legacy migration settings and are not required by the
+application runtime.
 
 ## Operations
 
-Run an immediate sync:
+Inspect the backend and verify that the legacy mirror remains disabled:
 
 ```bash
-sudo systemctl start gass-mongo-postgres-mirror.service
+systemctl status kcsi-backend --no-pager
+systemctl is-enabled gass-mongo-postgres-mirror.timer
 ```
 
-Inspect the timer and logs:
+Inspect backend logs:
 
 ```bash
-systemctl list-timers gass-mongo-postgres-mirror.timer
-journalctl -u gass-mongo-postgres-mirror.service -n 100 --no-pager
+journalctl -u kcsi-backend -n 100 --no-pager
 ```
 
-Check the latest run:
+Check PostgreSQL data directly:
 
 ```sql
-SELECT *
-FROM "GassBooking".sync_runs
-ORDER BY id DESC
-LIMIT 1;
+SELECT count(*) FROM "GassBooking".bookings;
 ```
-
-The mirror is not used by the application and is not a PostgreSQL cutover.

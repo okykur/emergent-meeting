@@ -26,15 +26,12 @@ from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Respons
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo import ReturnDocument
-from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from postgres_compat import DuplicateKeyError, PostgresDatabase, ReturnDocument
 
 
 # ---------- Config ----------
-MONGO_URL = os.environ["MONGO_URL"]
-DB_NAME = os.environ["DB_NAME"]
+POSTGRES_DSN = os.environ["POSTGRES_DSN"]
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_MINUTES = 60 * 24  # 24h
@@ -67,8 +64,7 @@ try:
 except ZoneInfoNotFoundError:
     APP_TIMEZONE = timezone(timedelta(hours=7))
 
-client = AsyncIOMotorClient(MONGO_URL)
-db = client[DB_NAME]
+db = PostgresDatabase(POSTGRES_DSN)
 
 app = FastAPI(title="Meeting Room Booking API")
 api = APIRouter(prefix="/api")
@@ -4298,7 +4294,7 @@ async def on_startup():
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    client.close()
+    db.close()
 
 
 app.include_router(api)
