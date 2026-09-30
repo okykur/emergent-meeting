@@ -1,7 +1,7 @@
 # MongoDB to PostgreSQL Mirror
 
 MongoDB remains the GASS source of truth. The mirror service copies selected
-collections into `gass_mirror.mongo_mirror.documents` as lossless MongoDB
+collections into `GASS.GassBooking.documents` as lossless MongoDB
 Extended JSON stored in PostgreSQL `jsonb`.
 
 ## Runtime
@@ -37,7 +37,7 @@ Check the latest run:
 
 ```sql
 SELECT *
-FROM mongo_mirror.sync_runs
+FROM "GassBooking".sync_runs
 ORDER BY id DESC
 LIMIT 1;
 ```

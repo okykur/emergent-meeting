@@ -35,9 +35,9 @@ DEFAULT_COLLECTIONS = (
 )
 
 SCHEMA_SQL = """
-CREATE SCHEMA IF NOT EXISTS mongo_mirror;
+CREATE SCHEMA IF NOT EXISTS "GassBooking";
 
-CREATE TABLE IF NOT EXISTS mongo_mirror.documents (
+CREATE TABLE IF NOT EXISTS "GassBooking".documents (
     collection_name text NOT NULL,
     document_key text NOT NULL,
     document jsonb NOT NULL,
@@ -47,11 +47,11 @@ CREATE TABLE IF NOT EXISTS mongo_mirror.documents (
 );
 
 CREATE INDEX IF NOT EXISTS documents_collection_idx
-    ON mongo_mirror.documents (collection_name);
+    ON "GassBooking".documents (collection_name);
 CREATE INDEX IF NOT EXISTS documents_payload_gin_idx
-    ON mongo_mirror.documents USING gin (document);
+    ON "GassBooking".documents USING gin (document);
 
-CREATE TABLE IF NOT EXISTS mongo_mirror.sync_runs (
+CREATE TABLE IF NOT EXISTS "GassBooking".sync_runs (
     id bigserial PRIMARY KEY,
     started_at timestamptz NOT NULL,
     finished_at timestamptz NULL,
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS mongo_mirror.sync_runs (
 """
 
 UPSERT_SQL = """
-INSERT INTO mongo_mirror.documents (
+INSERT INTO "GassBooking".documents (
     collection_name, document_key, document, source_updated_at, synced_at
 ) VALUES (%s, %s, %s, %s, now())
 ON CONFLICT (collection_name, document_key) DO UPDATE SET
@@ -128,7 +128,7 @@ def sync() -> dict[str, int]:
                     return {}
 
                 cursor.execute(
-                    "INSERT INTO mongo_mirror.sync_runs (started_at, status) VALUES (%s, 'running') RETURNING id",
+                    "INSERT INTO \"GassBooking\".sync_runs (started_at, status) VALUES (%s, 'running') RETURNING id",
                     (started_at,),
                 )
                 run_id = cursor.fetchone()[0]
@@ -152,17 +152,17 @@ def sync() -> dict[str, int]:
                     if rows:
                         cursor.executemany(UPSERT_SQL, rows)
                         cursor.execute(
-                            "DELETE FROM mongo_mirror.documents WHERE collection_name = %s AND NOT (document_key = ANY(%s))",
+                            "DELETE FROM \"GassBooking\".documents WHERE collection_name = %s AND NOT (document_key = ANY(%s))",
                             (collection_name, keys),
                         )
                     else:
                         cursor.execute(
-                            "DELETE FROM mongo_mirror.documents WHERE collection_name = %s",
+                            "DELETE FROM \"GassBooking\".documents WHERE collection_name = %s",
                             (collection_name,),
                         )
 
                     cursor.execute(
-                        "SELECT count(*) FROM mongo_mirror.documents WHERE collection_name = %s",
+                        "SELECT count(*) FROM \"GassBooking\".documents WHERE collection_name = %s",
                         (collection_name,),
                     )
                     mirror_count = cursor.fetchone()[0]
@@ -174,7 +174,7 @@ def sync() -> dict[str, int]:
 
                 cursor.execute(
                     """
-                    UPDATE mongo_mirror.sync_runs
+                    UPDATE "GassBooking".sync_runs
                     SET finished_at = now(), status = 'success', collection_counts = %s
                     WHERE id = %s
                     """,
