@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Download, Star, Building2 } from "lucide-react";
 import { api, formatApiError } from "../../api";
+import { useAuth } from "../../context/AuthContext";
 
 const STATUS_CONFIG = [
   { key: "approved", label: "Approved", color: "#148455" },
@@ -76,6 +77,7 @@ function EmptyState({ children }) {
 }
 
 export default function GaOperationsDashboard() {
+  const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [period, setPeriod] = useState("month");
@@ -87,7 +89,8 @@ export default function GaOperationsDashboard() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api.get("/bookings"), api.get("/rooms")])
+    const bookingsEndpoint = user?.role === "manager" ? "/fnb/bookings" : "/bookings";
+    Promise.all([api.get(bookingsEndpoint), api.get("/rooms")])
       .then(([bookingResponse, roomResponse]) => {
         if (!active) return;
         setBookings(bookingResponse.data || []);
@@ -98,7 +101,7 @@ export default function GaOperationsDashboard() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [user?.role]);
 
   const range = useMemo(
     () => periodRange(period, customStart, customEnd),

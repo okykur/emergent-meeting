@@ -2,8 +2,10 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const ADMIN_ROLES = ["meeting_admin", "car_admin", "manager", "super_admin"];
+const MEETING_DASHBOARD_ROLES = ["meeting_admin", "manager", "super_admin"];
+const VEHICLE_DASHBOARD_ROLES = ["car_admin", "manager", "super_admin"];
 
-export default function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, meetingAdminOnly = false, carAdminOnly = false }) {
+export default function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, meetingDashboardOnly = false, vehicleDashboardOnly = false }) {
   const { user } = useAuth();
   const location = useLocation();
 
@@ -29,11 +31,11 @@ export default function ProtectedRoute({ children, adminOnly = false, superAdmin
     return <Navigate to="/admin" replace />;
   }
 
-  if (meetingAdminOnly && user.role !== "meeting_admin") {
+  if (meetingDashboardOnly && !MEETING_DASHBOARD_ROLES.includes(user.role)) {
     return <Navigate to="/hub" replace />;
   }
 
-  if (carAdminOnly && user.role !== "car_admin") {
+  if (vehicleDashboardOnly && !VEHICLE_DASHBOARD_ROLES.includes(user.role)) {
     return <Navigate to="/hub" replace />;
   }
 

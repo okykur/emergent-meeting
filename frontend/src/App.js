@@ -87,7 +87,7 @@ function App() {
               <Route
                 path="/admin/ga-dashboard"
                 element={
-                  <ProtectedRoute meetingAdminOnly>
+                  <ProtectedRoute meetingDashboardOnly>
                     <GaOperationsDashboard />
                   </ProtectedRoute>
                 }
@@ -99,7 +99,7 @@ function App() {
               <Route
                 path="/admin/cars"
                 element={
-                  <ProtectedRoute carAdminOnly>
+                  <ProtectedRoute vehicleDashboardOnly>
                     <AdminCarsDashboard />
                   </ProtectedRoute>
                 }
