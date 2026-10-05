@@ -76,14 +76,13 @@ function EmptyState({ children }) {
   return <div className="flex min-h-32 items-center justify-center text-sm text-[#7B847E]">{children}</div>;
 }
 
-export default function GaOperationsDashboard() {
+export default function GaOperationsDashboard({ dashboardTabs = null }) {
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [period, setPeriod] = useState("month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [activeTab, setActiveTab] = useState("meeting");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -233,20 +232,11 @@ export default function GaOperationsDashboard() {
         </div>
       )}
 
-      <div className="mt-5 flex border-b border-[#DCE2DE]">
-        <button type="button" onClick={() => setActiveTab("meeting")} className={`border-b-2 px-5 py-3 text-sm font-bold ${activeTab === "meeting" ? "border-[#168454] text-[#168454]" : "border-transparent text-[#68726B]"}`}>Ruang Rapat</button>
-        <button type="button" onClick={() => setActiveTab("vehicle")} className={`border-b-2 px-5 py-3 text-sm font-bold ${activeTab === "vehicle" ? "border-[#168454] text-[#168454]" : "border-transparent text-[#68726B]"}`}>Kendaraan</button>
-      </div>
+      {dashboardTabs}
 
       {error && <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</div>}
 
-      {activeTab === "vehicle" ? (
-        <Panel className="mt-5 p-10 text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-[#E8F3ED] text-[#15794F]"><Building2 className="h-5 w-5" /></div>
-          <h2 className="mt-4 font-display text-lg font-bold text-[#202521]">Dashboard kendaraan tahap berikutnya</h2>
-          <p className="mt-2 text-sm text-[#717A74]">Template Ruang Rapat diselesaikan terlebih dahulu. Tab ini sudah disiapkan untuk integrasi data kendaraan.</p>
-        </Panel>
-      ) : loading ? (
+      {loading ? (
         <div className="mt-5 grid animate-pulse gap-4 md:grid-cols-3"><div className="h-36 rounded-xl bg-slate-200" /><div className="h-36 rounded-xl bg-slate-200" /><div className="h-36 rounded-xl bg-slate-200" /></div>
       ) : (
         <>

@@ -71,7 +71,7 @@ function EmptyState({ children }) {
   return <div className="flex min-h-32 items-center justify-center text-sm text-[#7B847E]">{children}</div>;
 }
 
-export default function AdminCarsDashboard() {
+export default function AdminCarsDashboard({ dashboardTabs = null }) {
   const [bookings, setBookings] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [period, setPeriod] = useState("month");
@@ -166,7 +166,7 @@ export default function AdminCarsDashboard() {
 
       {period === "custom" && <div className="mt-4 flex flex-wrap items-center justify-end gap-2 text-xs"><label className="font-semibold text-[#667069]" htmlFor="vehicle-dashboard-start">Mulai</label><input id="vehicle-dashboard-start" type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} className="rounded-lg border border-[#DDE3DE] bg-white px-3 py-2" /><label className="font-semibold text-[#667069]" htmlFor="vehicle-dashboard-end">Selesai</label><input id="vehicle-dashboard-end" type="date" min={customStart} value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} className="rounded-lg border border-[#DDE3DE] bg-white px-3 py-2" /></div>}
 
-      <div className="mt-5 flex border-b border-[#DCE2DE]"><span className="border-b-2 border-transparent px-5 py-3 text-sm font-bold text-[#9AA19C]">Ruang Rapat</span><span className="border-b-2 border-[#168454] px-5 py-3 text-sm font-bold text-[#168454]">Kendaraan</span></div>
+      {dashboardTabs}
       {error && <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</div>}
 
       {loading ? <div className="mt-5 grid animate-pulse gap-4 md:grid-cols-3"><div className="h-36 rounded-xl bg-slate-200" /><div className="h-36 rounded-xl bg-slate-200" /><div className="h-36 rounded-xl bg-slate-200" /></div> : <>

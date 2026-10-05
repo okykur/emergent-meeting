@@ -13,19 +13,17 @@ import MyCalendar from "@/pages/MyCalendar";
 import CarBookingNew from "@/pages/car/CarBookingNew";
 import MyCarBookings from "@/pages/car/MyCarBookings";
 import CarBookingDetail from "@/pages/car/CarBookingDetail";
-import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminBookings from "@/pages/admin/Bookings";
 import AdminFnbApprovals from "@/pages/admin/FnbApprovals";
 import AdminRooms from "@/pages/admin/Rooms";
 import AdminCalendar from "@/pages/admin/Calendar";
 import AdminUsers from "@/pages/admin/Users";
-import AdminCarsDashboard from "@/pages/admin/CarsDashboard";
 import AdminCarsBookings from "@/pages/admin/CarsBookings";
 import AdminCarBookingDetail from "@/pages/admin/CarBookingDetail";
 import AdminVehicles from "@/pages/admin/Vehicles";
 import AdminDrivers from "@/pages/admin/Drivers";
 import AdminCompanies from "@/pages/admin/Companies";
-import GaOperationsDashboard from "@/pages/admin/GaOperationsDashboard";
+import OperationsDashboard from "@/pages/admin/OperationsDashboard";
 import { Toaster } from "sonner";
 
 function RootRedirect() {
@@ -38,12 +36,9 @@ function RootRedirect() {
 function AdminHome() {
   const { user } = useAuth();
   if (user && user.role === "car_admin") {
-    return <Navigate to="/admin/cars" replace />;
+    return <Navigate to="/admin/dashboard?tab=vehicle" replace />;
   }
-  if (user && user.role === "manager") {
-    return <Navigate to="/admin/fnb" replace />;
-  }
-  return <AdminDashboard />;
+  return <Navigate to="/admin/dashboard" replace />;
 }
 
 function App() {
@@ -85,25 +80,19 @@ function App() {
             >
               <Route path="/admin" element={<AdminHome />} />
               <Route
-                path="/admin/ga-dashboard"
+                path="/admin/dashboard"
                 element={
-                  <ProtectedRoute meetingDashboardOnly>
-                    <GaOperationsDashboard />
+                  <ProtectedRoute dashboardOnly>
+                    <OperationsDashboard />
                   </ProtectedRoute>
                 }
               />
+              <Route path="/admin/ga-dashboard" element={<Navigate to="/admin/dashboard?tab=meeting" replace />} />
               <Route path="/admin/bookings" element={<AdminBookings />} />
               <Route path="/admin/fnb" element={<AdminFnbApprovals />} />
               <Route path="/admin/calendar" element={<AdminCalendar />} />
               <Route path="/admin/rooms" element={<AdminRooms />} />
-              <Route
-                path="/admin/cars"
-                element={
-                  <ProtectedRoute vehicleDashboardOnly>
-                    <AdminCarsDashboard />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/admin/cars" element={<Navigate to="/admin/dashboard?tab=vehicle" replace />} />
               <Route path="/admin/cars/bookings" element={<AdminCarsBookings />} />
               <Route path="/admin/cars/bookings/:id" element={<AdminCarBookingDetail />} />
               <Route path="/admin/cars/vehicles" element={<AdminVehicles />} />

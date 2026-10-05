@@ -2,10 +2,8 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const ADMIN_ROLES = ["meeting_admin", "car_admin", "manager", "super_admin"];
-const MEETING_DASHBOARD_ROLES = ["meeting_admin", "manager", "super_admin"];
-const VEHICLE_DASHBOARD_ROLES = ["car_admin", "manager", "super_admin"];
 
-export default function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, meetingDashboardOnly = false, vehicleDashboardOnly = false }) {
+export default function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, dashboardOnly = false }) {
   const { user } = useAuth();
   const location = useLocation();
 
@@ -31,11 +29,7 @@ export default function ProtectedRoute({ children, adminOnly = false, superAdmin
     return <Navigate to="/admin" replace />;
   }
 
-  if (meetingDashboardOnly && !MEETING_DASHBOARD_ROLES.includes(user.role)) {
-    return <Navigate to="/hub" replace />;
-  }
-
-  if (vehicleDashboardOnly && !VEHICLE_DASHBOARD_ROLES.includes(user.role)) {
+  if (dashboardOnly && !ADMIN_ROLES.includes(user.role)) {
     return <Navigate to="/hub" replace />;
   }
 

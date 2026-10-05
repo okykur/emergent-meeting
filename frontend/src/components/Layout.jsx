@@ -58,8 +58,7 @@ export default function Layout() {
 
   const navFull = [
     { to: "/hub", label: "Home", icon: Home, testid: "nav-hub", end: true, show: true },
-    { to: "/admin/ga-dashboard", label: "Dashboard Meeting", icon: ChartNoAxesCombined, testid: "nav-ga-dashboard", show: ["meeting_admin", "manager", "super_admin"].includes(role) },
-    { to: "/admin/cars", label: "Dashboard Kendaraan", icon: ChartNoAxesCombined, testid: "nav-car-dashboard", show: ["car_admin", "manager", "super_admin"].includes(role) },
+    { to: role === "car_admin" ? "/admin/dashboard?tab=vehicle" : "/admin/dashboard", label: "Dashboard", icon: ChartNoAxesCombined, testid: "nav-admin-dashboard", show: ["meeting_admin", "car_admin", "manager", "super_admin"].includes(role) },
     { to: "/rooms", label: "Meeting Room", icon: DoorOpen, testid: "nav-rooms", show: true },
     // My Booking menu hidden; Home now renders the same content. Route/page kept for future re-enable.
     { to: "/my-bookings", label: "My Booking", icon: BookMarked, testid: "nav-my-bookings", show: false },
@@ -78,8 +77,7 @@ export default function Layout() {
   const nav = managerApprovalStyle
     ? [
         { to: "/hub", label: "Dashboard", icon: Home, testid: "nav-hub", end: true },
-        { to: "/admin/ga-dashboard", label: "Dashboard Meeting", icon: ChartNoAxesCombined, testid: "nav-ga-dashboard" },
-        { to: "/admin/cars", label: "Dashboard Kendaraan", icon: ChartNoAxesCombined, testid: "nav-car-dashboard" },
+        { to: "/admin/dashboard", label: "Dashboard", icon: ChartNoAxesCombined, testid: "nav-admin-dashboard" },
         { to: "/admin/fnb", label: "Ruang Rapat", icon: DoorOpen, testid: "nav-approval-manager" },
       ]
     : navFull.filter((n) => n.show);
