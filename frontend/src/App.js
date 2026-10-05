@@ -96,7 +96,14 @@ function App() {
               <Route path="/admin/fnb" element={<AdminFnbApprovals />} />
               <Route path="/admin/calendar" element={<AdminCalendar />} />
               <Route path="/admin/rooms" element={<AdminRooms />} />
-              <Route path="/admin/cars" element={<AdminCarsDashboard />} />
+              <Route
+                path="/admin/cars"
+                element={
+                  <ProtectedRoute carAdminOnly>
+                    <AdminCarsDashboard />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/admin/cars/bookings" element={<AdminCarsBookings />} />
               <Route path="/admin/cars/bookings/:id" element={<AdminCarBookingDetail />} />
               <Route path="/admin/cars/vehicles" element={<AdminVehicles />} />

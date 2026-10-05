@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 
 const ADMIN_ROLES = ["meeting_admin", "car_admin", "manager", "super_admin"];
 
-export default function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, meetingAdminOnly = false }) {
+export default function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, meetingAdminOnly = false, carAdminOnly = false }) {
   const { user } = useAuth();
   const location = useLocation();
 
@@ -30,6 +30,10 @@ export default function ProtectedRoute({ children, adminOnly = false, superAdmin
   }
 
   if (meetingAdminOnly && user.role !== "meeting_admin") {
+    return <Navigate to="/hub" replace />;
+  }
+
+  if (carAdminOnly && user.role !== "car_admin") {
     return <Navigate to="/hub" replace />;
   }
 

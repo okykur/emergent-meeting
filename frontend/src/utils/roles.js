@@ -12,7 +12,7 @@ export const ADMIN_ROLES = [ROLES.MEETING_ADMIN, ROLES.CAR_ADMIN, ROLES.MANAGER,
 export const ROLE_LABELS = {
   user: "User",
   meeting_admin: "Admin GA",
-  car_admin: "Car Admin",
+  car_admin: "Admin Kendaraan",
   manager: "Manager",
   super_admin: "Super Admin",
 };
