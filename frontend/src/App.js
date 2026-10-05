@@ -25,6 +25,7 @@ import AdminCarBookingDetail from "@/pages/admin/CarBookingDetail";
 import AdminVehicles from "@/pages/admin/Vehicles";
 import AdminDrivers from "@/pages/admin/Drivers";
 import AdminCompanies from "@/pages/admin/Companies";
+import GaOperationsDashboard from "@/pages/admin/GaOperationsDashboard";
 import { Toaster } from "sonner";
 
 function RootRedirect() {
@@ -83,6 +84,14 @@ function App() {
               }
             >
               <Route path="/admin" element={<AdminHome />} />
+              <Route
+                path="/admin/ga-dashboard"
+                element={
+                  <ProtectedRoute meetingAdminOnly>
+                    <GaOperationsDashboard />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/admin/bookings" element={<AdminBookings />} />
               <Route path="/admin/fnb" element={<AdminFnbApprovals />} />
               <Route path="/admin/calendar" element={<AdminCalendar />} />
