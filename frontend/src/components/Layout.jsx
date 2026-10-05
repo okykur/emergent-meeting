@@ -58,7 +58,7 @@ export default function Layout() {
 
   const navFull = [
     { to: "/hub", label: "Home", icon: Home, testid: "nav-hub", end: true, show: true },
-    { to: "/admin/ga-dashboard", label: "Dashboard GA", icon: ChartNoAxesCombined, testid: "nav-ga-dashboard", show: role === "meeting_admin" },
+    { to: "/admin/ga-dashboard", label: "Dashboard Meeting", icon: ChartNoAxesCombined, testid: "nav-ga-dashboard", show: role === "meeting_admin" },
     { to: "/admin/cars", label: "Dashboard Kendaraan", icon: ChartNoAxesCombined, testid: "nav-car-dashboard", show: role === "car_admin" },
     { to: "/rooms", label: "Meeting Room", icon: DoorOpen, testid: "nav-rooms", show: true },
     // My Booking menu hidden; Home now renders the same content. Route/page kept for future re-enable.
@@ -118,7 +118,7 @@ export default function Layout() {
                   {
                     {
                       user: "User",
-                      meeting_admin: "Admin GA",
+                      meeting_admin: "Meeting Admin",
                       car_admin: "Admin Kendaraan",
                       manager: managerApprovalStyle ? "GA Manager" : "Manager",
                       super_admin: "Super Admin",
