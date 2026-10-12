@@ -84,6 +84,7 @@ export default function MyCarBookings() {
           <table className="min-w-[900px] w-full text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
               <tr>
+                <th className="px-6 py-3 text-left">Booking ID</th>
                 <th className="px-6 py-3 text-left">Purpose</th>
                 <th className="px-6 py-3 text-left">Type</th>
                 <th className="px-6 py-3 text-left">Dates</th>
@@ -95,6 +96,7 @@ export default function MyCarBookings() {
             <tbody>
               {filtered.map((b) => (
                 <tr key={b.id} className="border-t border-slate-200 hover:bg-slate-50" data-testid={`mcb-row-${b.id}`}>
+                  <td className="whitespace-nowrap px-6 py-4 font-mono text-xs font-bold text-[#0B4935]">{b.booking_number || b.id}</td>
                   <td className="px-6 py-4 font-medium text-slate-900">{b.purpose}</td>
                   <td className="px-6 py-4 text-slate-700">
                     {vehicleServiceLabel(b)}

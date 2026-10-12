@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS "GassBooking".users (
     company_name text GENERATED ALWAYS AS (document ->> 'company_name') STORED,
     job_title text GENERATED ALWAYS AS (document ->> 'job_title') STORED,
     department text GENERATED ALWAYS AS (document ->> 'department') STORED,
+    department_code text GENERATED ALWAYS AS (document ->> 'department_code') STORED,
     office_address text GENERATED ALWAYS AS (document ->> 'office_address') STORED,
     supervisor_name text GENERATED ALWAYS AS (document ->> 'supervisor_name') STORED,
     supervisor_email text GENERATED ALWAYS AS (document ->> 'supervisor_email') STORED,
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS "GassBooking".users (
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_uk ON "GassBooking".users (email);
 CREATE INDEX IF NOT EXISTS users_role_idx ON "GassBooking".users (role);
 CREATE INDEX IF NOT EXISTS users_approval_status_idx ON "GassBooking".users (approval_status);
+CREATE INDEX IF NOT EXISTS users_department_code_idx ON "GassBooking".users (department_code);
 
 CREATE TABLE IF NOT EXISTS "GassBooking".companies (
     id text PRIMARY KEY,
@@ -47,6 +49,21 @@ CREATE TABLE IF NOT EXISTS "GassBooking".companies (
 
 CREATE UNIQUE INDEX IF NOT EXISTS companies_system_number_uk ON "GassBooking".companies (system_number);
 CREATE UNIQUE INDEX IF NOT EXISTS companies_company_code_uk ON "GassBooking".companies (company_code);
+
+CREATE TABLE IF NOT EXISTS "GassBooking".departments (
+    id text PRIMARY KEY,
+    document jsonb NOT NULL,
+    synced_at timestamptz NOT NULL DEFAULT now(),
+    code_dept text GENERATED ALWAYS AS (document ->> 'code_dept') STORED,
+    dept_name text GENERATED ALWAYS AS (document ->> 'dept_name') STORED,
+    created_date text GENERATED ALWAYS AS (NULLIF(document ->> 'created_date', '')) STORED,
+    created_by text GENERATED ALWAYS AS (document ->> 'created_by') STORED,
+    updated_by text GENERATED ALWAYS AS (document ->> 'updated_by') STORED,
+    updated_date text GENERATED ALWAYS AS (NULLIF(document ->> 'updated_date', '')) STORED
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS departments_code_dept_uk ON "GassBooking".departments (code_dept);
+CREATE UNIQUE INDEX IF NOT EXISTS departments_dept_name_lower_uk ON "GassBooking".departments (lower(dept_name));
 
 CREATE TABLE IF NOT EXISTS "GassBooking".counters (
     id text PRIMARY KEY,
@@ -81,6 +98,7 @@ CREATE TABLE IF NOT EXISTS "GassBooking".bookings (
     document jsonb NOT NULL,
     synced_at timestamptz NOT NULL DEFAULT now(),
     mongo_id text GENERATED ALWAYS AS (document #>> '{_id,$oid}') STORED,
+    booking_number text GENERATED ALWAYS AS (document ->> 'booking_number') STORED,
     room_id text GENERATED ALWAYS AS (document ->> 'room_id') STORED,
     room_name text GENERATED ALWAYS AS (document ->> 'room_name') STORED,
     room_building text GENERATED ALWAYS AS (document ->> 'room_building') STORED,
@@ -153,6 +171,7 @@ CREATE TABLE IF NOT EXISTS "GassBooking".bookings (
 CREATE INDEX IF NOT EXISTS bookings_user_id_idx ON "GassBooking".bookings (user_id);
 CREATE INDEX IF NOT EXISTS bookings_room_date_idx ON "GassBooking".bookings (room_id, "date");
 CREATE INDEX IF NOT EXISTS bookings_status_idx ON "GassBooking".bookings (status);
+CREATE UNIQUE INDEX IF NOT EXISTS bookings_booking_number_uk ON "GassBooking".bookings (booking_number) WHERE booking_number IS NOT NULL AND booking_number <> '';
 
 CREATE TABLE IF NOT EXISTS "GassBooking".supervisor_meeting_approvals (
     id text PRIMARY KEY,
@@ -223,6 +242,7 @@ CREATE TABLE IF NOT EXISTS "GassBooking".vehicle_bookings (
     document jsonb NOT NULL,
     synced_at timestamptz NOT NULL DEFAULT now(),
     mongo_id text GENERATED ALWAYS AS (document #>> '{_id,$oid}') STORED,
+    booking_number text GENERATED ALWAYS AS (document ->> 'booking_number') STORED,
     user_id text GENERATED ALWAYS AS (document ->> 'user_id') STORED,
     user_email text GENERATED ALWAYS AS (document ->> 'user_email') STORED,
     employee_name text GENERATED ALWAYS AS (document ->> 'employee_name') STORED,
@@ -266,4 +286,5 @@ CREATE TABLE IF NOT EXISTS "GassBooking".vehicle_bookings (
 CREATE INDEX IF NOT EXISTS vehicle_bookings_user_idx ON "GassBooking".vehicle_bookings (user_id);
 CREATE INDEX IF NOT EXISTS vehicle_bookings_vehicle_start_idx ON "GassBooking".vehicle_bookings (vehicle_id, start_date);
 CREATE INDEX IF NOT EXISTS vehicle_bookings_driver_idx ON "GassBooking".vehicle_bookings (driver_id);
+CREATE UNIQUE INDEX IF NOT EXISTS vehicle_bookings_booking_number_uk ON "GassBooking".vehicle_bookings (booking_number) WHERE booking_number IS NOT NULL AND booking_number <> '';
 

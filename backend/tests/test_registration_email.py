@@ -27,6 +27,11 @@ class FakeCompanies:
         return {"company_name": "PT Aroma Tobacco International"}
 
 
+class FakeDepartments:
+    async def find_one(self, _query, _projection=None):
+        return {"code_dept": "DEPT060", "dept_name": "OPERATIONAL"}
+
+
 class FakeBackgroundTasks:
     def __init__(self):
         self.tasks = []
@@ -37,7 +42,11 @@ class FakeBackgroundTasks:
 
 def test_registration_accepts_public_email_domains(monkeypatch):
     users = FakeUsers()
-    monkeypatch.setattr(server, "db", type("FakeDb", (), {"users": users, "companies": FakeCompanies()})())
+    monkeypatch.setattr(
+        server,
+        "db",
+        type("FakeDb", (), {"users": users, "companies": FakeCompanies(), "departments": FakeDepartments()})(),
+    )
     monkeypatch.setattr(server, "hash_password", lambda _password: "hashed")
 
     payload = server.RegisterRequest(
@@ -46,7 +55,7 @@ def test_registration_accepts_public_email_domains(monkeypatch):
         name="New User",
         company_name="PT Aroma Tobacco International",
         job_title="Manager",
-        department="Operations",
+        department="operational",
         office_address="Jakarta",
         supervisor_name="Supervisor",
         supervisor_email="supervisor@outlook.com",
@@ -58,10 +67,44 @@ def test_registration_accepts_public_email_domains(monkeypatch):
     assert users.inserted["email"] == "new.user@gmail.com"
     assert users.inserted["supervisor_email"] == "supervisor@outlook.com"
     assert users.inserted["approval_status"] == "pending"
+    assert users.inserted["department"] == "OPERATIONAL"
+    assert users.inserted["department_code"] == "DEPT060"
     assert [task[0] for task in background_tasks.tasks] == [
         server._send_registration_pending_confirmation,
         server._send_registration_admin_notification,
     ]
+
+
+def test_registration_allows_other_department(monkeypatch):
+    users = FakeUsers()
+
+    class MissingDepartment:
+        async def find_one(self, _query, _projection=None):
+            return None
+
+    monkeypatch.setattr(
+        server,
+        "db",
+        type("FakeDb", (), {"users": users, "companies": FakeCompanies(), "departments": MissingDepartment()})(),
+    )
+    monkeypatch.setattr(server, "hash_password", lambda _password: "hashed")
+    payload = server.RegisterRequest(
+        email="other.user@gmail.com",
+        password="SecurePass123",
+        name="Other User",
+        company_name="PT Aroma Tobacco International",
+        job_title="Specialist",
+        department="Innovation Office",
+        department_is_other=True,
+        office_address="Jakarta",
+        supervisor_name="Supervisor",
+        supervisor_email="supervisor@outlook.com",
+    )
+
+    asyncio.run(server.register(payload, FakeBackgroundTasks()))
+
+    assert users.inserted["department"] == "Innovation Office"
+    assert users.inserted["department_code"] == ""
 
 
 def test_pending_registration_email_uses_resend_template(monkeypatch):

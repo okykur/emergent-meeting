@@ -66,6 +66,7 @@ function MeetingApprovalDialog({ booking, onClose, onSaved }) {
       <form onSubmit={submit} onClick={(event) => event.stopPropagation()} className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" data-testid="meeting-approval-dialog">
         <div className="border-b border-slate-200 px-6 py-5">
           <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#238B57]">Approval Meeting Admin</div>
+          <div className="mt-1 font-mono text-xs font-bold text-[#0B4935]">{booking.booking_number || booking.id}</div>
           <h3 className="mt-1 font-display text-xl font-bold text-slate-900">{booking.title}</h3>
           <p className="mt-1 text-sm text-slate-500">{booking.room_name} · {booking.date}, {booking.start_time}-{booking.end_time}</p>
         </div>
@@ -169,6 +170,7 @@ function ReassignRoomDialog({ booking, rooms, canManageRoom, onClose, onSaved })
         <div className="flex shrink-0 items-start justify-between border-b border-slate-200 p-5">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#087045]">Room assignment</div>
+            <div className="mt-1 font-mono text-xs font-bold text-[#0B4935]">{booking.booking_number || booking.id}</div>
             <h3 className="mt-1 font-display text-xl font-semibold text-slate-900">Reassign meeting room</h3>
             <p className="mt-1 text-sm text-slate-500">{booking.title} - {booking.date}, {booking.start_time}-{booking.end_time}</p>
           </div>
@@ -336,7 +338,7 @@ export default function AdminBookings() {
             value={userQ}
             onChange={(e) => setUserQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && load()}
-            placeholder="Cari nama atau email user..."
+            placeholder="Cari Booking ID, nama, atau email..."
             className="w-full rounded-lg border border-[#DCE3DE] py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/15"
           />
         </div>
@@ -418,9 +420,10 @@ export default function AdminBookings() {
       )}
 
       <div className="overflow-x-auto rounded-xl border border-[#DCE3DE] bg-white shadow-sm">
-        <table className="w-full min-w-[1280px] text-sm">
+        <table className="w-full min-w-[1400px] text-sm">
           <thead className="bg-[#F3F6F4] text-[11px] font-bold uppercase tracking-wider text-[#68736B]">
             <tr>
+              <th className="px-5 py-4 text-left">Booking ID</th>
               <th className="px-5 py-4 text-left">Pemohon</th>
               <th className="px-5 py-4 text-left">Alur Approval</th>
               <th className="px-5 py-4 text-left">Ruang / Gedung</th>
@@ -435,7 +438,7 @@ export default function AdminBookings() {
           <tbody>
             {bookings.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-6 py-12 text-center text-sm text-slate-500">
+                <td colSpan={10} className="px-6 py-12 text-center text-sm text-slate-500">
                   Tidak ada booking yang sesuai dengan filter.
                 </td>
               </tr>
@@ -446,6 +449,9 @@ export default function AdminBookings() {
                 className="group border-t border-[#E5EAE7] hover:bg-[#FAFCFA]"
                 data-testid={`admin-booking-row-${b.id}`}
               >
+                <td className="whitespace-nowrap px-5 py-4 font-mono text-xs font-bold text-[#0B4935]">
+                  {b.booking_number || b.id}
+                </td>
                 <td className="px-5 py-4">
                   <div className="font-medium text-slate-900">{b.user_name}</div>
                   <div className="text-xs text-slate-500">{b.user_email}</div>

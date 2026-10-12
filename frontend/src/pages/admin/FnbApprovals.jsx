@@ -16,7 +16,7 @@ function formatApprovalDate(date) {
 }
 
 function bookingCode(booking) {
-  return booking.booking_code || booking.code || booking.id;
+  return booking.booking_number || booking.booking_code || booking.code || booking.id;
 }
 
 function accommodationItems(booking) {

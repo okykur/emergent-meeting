@@ -175,7 +175,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     setRequestLayoutChange(room?.layout_fixed === false);
     setRequestAdditionalFacilities(false);
     setAdditionalFacilities([]);
-  }, [room?.id, operatingHours.start, operatingHours.end, today]);
+  }, [room?.id, room?.layout_fixed, operatingHours.start, operatingHours.end, today]);
 
   useEffect(() => {
     const nextStart = getEarliestStartForDate(date, today, operatingHours.start);
@@ -406,11 +406,10 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         !fnbDetails.department.trim() ||
         !fnbDetails.division.trim() ||
         !fnbDetails.costCenter.trim() ||
-        !fnbDetails.activityCode.trim() ||
         !fnbDetails.activityName.trim() ||
         fnbDetails.guestTypes.length === 0
       ) {
-        setError("Please complete department, division, cost center, activity, and guest type for F&B request.");
+        setError("Please complete department, division, cost center, activity name, and guest type for F&B request.");
         return;
       }
     }
@@ -423,20 +422,13 @@ export default function BookingDialog({ room, onClose, onBooked }) {
       setError("Isi nama PIC atau penanggung jawab tamu.");
       return;
     }
-    if (snackSelected) {
-      if (!fnbDetails.snackType.trim() || !fnbDetails.snackTimes || !fnbDetails.snackPax || !fnbDetails.snackPackaging) {
-        setError("Please complete snack type, frequency, pax, and packaging.");
-        return;
-      }
+    if (snackSelected && !fnbDetails.snackPackaging) {
+      setError("Please select snack packaging.");
+      return;
     }
-    if (mealSelected) {
-      if (
-        !fnbDetails.mealPax ||
-        !fnbDetails.mealPackaging
-      ) {
-        setError("Please complete meal type, pax, and packaging.");
-        return;
-      }
+    if (mealSelected && !fnbDetails.mealPackaging) {
+      setError("Please select meal packaging.");
+      return;
     }
     setLoading(true);
     try {
@@ -461,19 +453,19 @@ export default function BookingDialog({ room, onClose, onBooked }) {
         fnb_department: fnbSelected ? fnbDetails.department : "",
         fnb_division: fnbSelected ? fnbDetails.division : "",
         fnb_cost_center: fnbSelected ? fnbDetails.costCenter : "",
-        fnb_activity_code: fnbSelected ? fnbDetails.activityCode : "",
+        fnb_activity_code: "",
         fnb_activity_name: fnbSelected ? fnbDetails.activityName : "",
         guest_type: fnbDetails.guestTypes.join(", "),
         guest_pic: guestPic.trim(),
         guest_counts: Object.fromEntries(
           GUEST_TYPES.map((type) => [type, Number(guestCounts[type] || 0)])
         ),
-        snack_type: snackSelected ? fnbDetails.snackType : "",
-        snack_times: snackSelected ? Number(fnbDetails.snackTimes) : null,
-        snack_pax: snackSelected ? Number(fnbDetails.snackPax) : null,
+        snack_type: snackSelected ? "Snack" : "",
+        snack_times: snackSelected ? 1 : null,
+        snack_pax: snackSelected ? Number(participants) : null,
         snack_packaging: snackSelected ? fnbDetails.snackPackaging : "",
         meal_types: mealSelected ? selectedMealTypes : [],
-        meal_pax: mealSelected ? Number(fnbDetails.mealPax) : null,
+        meal_pax: mealSelected ? Number(participants) : null,
         meal_packaging: mealSelected ? fnbDetails.mealPackaging : "",
         notes: meetingPurpose.trim()
           ? `Tujuan Rapat: ${meetingPurpose.trim()}\nAgenda / Keperluan Rapat: ${notes.trim()}`
@@ -565,6 +557,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
     });
     const guestSummary = buildGuestTypeSummary() || "Tidak ada kategori tamu";
     const summaryRows = [
+      ["Booking ID", confirmation.booking_number || confirmation.id],
       ["Ruangan", room.name],
       ["Lokasi", `${room.building || "Belum ditentukan"} · ${room.location}`],
       ["Tanggal", confirmationDate],
@@ -942,7 +935,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
               </div>
             </div>
 
-            <p className="mt-4 text-xs text-[#7B867F]">Pilihan detail jumlah, tamu, dan informasi konsumsi dilengkapi pada langkah berikutnya.</p>
+            <p className="mt-4 text-xs text-[#7B867F]">Jumlah konsumsi mengikuti jumlah peserta. Informasi departemen, activity, dan kategori tamu dilengkapi pada langkah berikutnya.</p>
             {selectedFoodBeverages.length > 0 && <div className="mt-4 flex items-start gap-2 rounded-lg border border-[#F4D58B] bg-[#FFF6D9] px-3 py-2.5 text-xs font-semibold text-[#A5660B]"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> Pengajuan dengan konsumsi akan melalui persetujuan Atasan, Admin Ruang Meeting, dan Manager F&amp;B.</div>}
             {error && <div className="mt-4 flex items-start gap-2 rounded-lg bg-[#FDE8E7] px-3 py-2 text-xs font-semibold text-[#C73D36]" data-testid="booking-error"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {error}</div>}
           </div>
@@ -1039,10 +1032,7 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                 <label className="block text-xs font-bold text-[#3F4943]">Cost Center {organizationRequired && <span className="text-[#D33F37]">*</span>}
                   <input required={organizationRequired} value={fnbDetails.costCenter} onChange={(event) => setFnbDetail("costCenter", event.target.value)} data-testid="booking-fnb-cost-center" placeholder="CC-BD-012" className={fieldClass} />
                 </label>
-                <label className="block text-xs font-bold text-[#3F4943]">Activity Code {organizationRequired && <span className="text-[#D33F37]">*</span>}
-                  <input required={organizationRequired} value={fnbDetails.activityCode} onChange={(event) => setFnbDetail("activityCode", event.target.value)} data-testid="booking-fnb-activity-code" placeholder="Search Activity Code..." className={fieldClass} />
-                </label>
-                <label className="block text-xs font-bold text-[#3F4943] sm:col-span-2">Activity Name {organizationRequired && <span className="text-[#D33F37]">*</span>}
+                <label className="block text-xs font-bold text-[#3F4943]">Activity Name {organizationRequired && <span className="text-[#D33F37]">*</span>}
                   <input required={organizationRequired} value={fnbDetails.activityName} onChange={(event) => setFnbDetail("activityName", event.target.value)} data-testid="booking-fnb-activity-name" placeholder="Product Launching Q1 2026" className={fieldClass} />
                 </label>
               </div>
@@ -1069,23 +1059,6 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                   })}
                 </div>
               </div>
-
-              {fnbSelected && <section className="mt-5 border-t border-[#E7ECE8] pt-5">
-                <h3 className="text-xs font-extrabold uppercase tracking-[0.08em] text-[#0B4935]">Detail Konsumsi</h3>
-                {snackSelected && <div className="mt-3 rounded-xl border border-[#DDE4DF] bg-[#FBFCFB] p-3">
-                  <div className="text-xs font-extrabold text-[#3F4943]">Snack</div>
-                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    <input required value={fnbDetails.snackType} onChange={(event) => setFnbDetail("snackType", event.target.value)} placeholder="Jenis snack" className={fieldClass} />
-                    <input required type="number" min={1} value={fnbDetails.snackTimes} onChange={(event) => setFnbDetail("snackTimes", event.target.value)} placeholder="Berapa kali" className={fieldClass} />
-                    <input required type="number" min={1} value={fnbDetails.snackPax} onChange={(event) => setFnbDetail("snackPax", event.target.value)} placeholder="Jumlah pax" className={fieldClass} />
-                  </div>
-                </div>}
-                {mealSelected && <div className="mt-3 rounded-xl border border-[#DDE4DF] bg-[#FBFCFB] p-3">
-                  <div className="text-xs font-extrabold text-[#3F4943]">{selectedMealTypes.join(" & ")}</div>
-                  <input required type="number" min={1} value={fnbDetails.mealPax} onChange={(event) => setFnbDetail("mealPax", event.target.value)} placeholder="Jumlah pax" className={fieldClass} />
-                </div>}
-                <textarea value={foodBeverageNotes} onChange={(event) => setFoodBeverageNotes(event.target.value)} data-testid="booking-food-beverages-input" rows={2} placeholder="Catatan konsumsi (opsional)" className={`${fieldClass} resize-none`} />
-              </section>}
 
               {error && <div className="mt-4 flex items-start gap-2 rounded-lg bg-[#FDE8E7] px-3 py-2 text-xs font-semibold text-[#C73D36]" data-testid="booking-error"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {error}</div>}
             </div>
@@ -1359,10 +1332,6 @@ export default function BookingDialog({ room, onClose, onBooked }) {
                     <input value={fnbDetails.costCenter} onChange={(e) => setFnbDetail("costCenter", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-700">Activity Code</label>
-                    <input value={fnbDetails.activityCode} onChange={(e) => setFnbDetail("activityCode", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
-                  </div>
-                  <div className="sm:col-span-2">
                     <label className="mb-1 block text-xs font-medium text-slate-700">Activity Name</label>
                     <input value={fnbDetails.activityName} onChange={(e) => setFnbDetail("activityName", e.target.value)} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0B7A4B]" />
                   </div>

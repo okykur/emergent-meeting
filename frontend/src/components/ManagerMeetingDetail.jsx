@@ -42,7 +42,7 @@ export default function ManagerMeetingDetail({ booking, onClose, onUpdateFnb, in
   if (rejecting) return (
     <Dialog open onOpenChange={(open) => { if (!open && !inFlight.current) setRejecting(false); }}>
       <DialogContent data-testid="manager-rejection-confirmation" className="w-[calc(100%-2rem)] max-w-[440px] gap-0 rounded-2xl bg-white p-7 shadow-2xl sm:rounded-2xl [&>button]:hidden" onEscapeKeyDown={(event) => { if (inFlight.current) event.preventDefault(); }} onPointerDownOutside={(event) => event.preventDefault()}>
-        <DialogTitle className="break-words text-center text-lg font-bold text-[#272c29]">Tolak pengajuan {booking.id}?</DialogTitle>
+        <DialogTitle className="break-words text-center text-lg font-bold text-[#272c29]">Tolak pengajuan {booking.booking_number || booking.id}?</DialogTitle>
         <DialogDescription className="mt-2 text-center text-xs leading-relaxed text-slate-500">Silakan jelaskan alasan dan detail penolakan agar pemohon dapat memperbaiki pengajuannya.</DialogDescription>
         <label htmlFor="manager-rejection-reason" className="mt-6 text-xs font-bold text-slate-700">Alasan penolakan <span className="text-red-600">*</span></label>
         <textarea
@@ -72,7 +72,7 @@ export default function ManagerMeetingDetail({ booking, onClose, onUpdateFnb, in
     <Dialog open onOpenChange={(open) => { if (!open && !inFlight.current) setConfirming(false); }}>
       <DialogContent data-testid="manager-approval-confirmation" className="w-[calc(100%-2rem)] max-w-[440px] gap-0 rounded-2xl bg-white p-7 text-center shadow-2xl sm:rounded-2xl [&>button]:hidden" onEscapeKeyDown={(event) => { if (inFlight.current) event.preventDefault(); }} onPointerDownOutside={(event) => event.preventDefault()}>
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-amber-400 bg-amber-50 text-amber-500"><TriangleAlert className="h-5 w-5" aria-hidden="true" /></div>
-        <DialogTitle className="break-words text-lg font-bold text-[#272c29]">Setujui pengajuan {booking.id}?</DialogTitle>
+        <DialogTitle className="break-words text-lg font-bold text-[#272c29]">Setujui pengajuan {booking.booking_number || booking.id}?</DialogTitle>
         <DialogDescription className="mt-3 text-xs leading-relaxed text-slate-500">Tindakan ini tidak dapat dibatalkan setelah disetujui.</DialogDescription>
         <p className="mt-2 text-xs text-slate-500">{canMeeting ? "Persetujuan ruang meeting" : "Persetujuan F&B"}</p>
         {actionError && <p role="alert" className="mt-3 text-sm text-red-600">{actionError}</p>}
@@ -87,7 +87,7 @@ export default function ManagerMeetingDetail({ booking, onClose, onUpdateFnb, in
     <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
       <DialogContent data-testid="manager-meeting-detail" className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[520px] flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 p-6 shadow-2xl [&>button]:rounded-full [&>button]:bg-slate-100 [&>button]:p-2">
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 pb-5 pr-8">
-          <DialogTitle className="break-all font-mono text-sm font-bold text-slate-700">{booking.id}</DialogTitle>
+          <DialogTitle className="break-all font-mono text-sm font-bold text-slate-700">{booking.booking_number || booking.id}</DialogTitle>
           <span className="rounded-md border border-amber-400 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-600">{canFnb ? "Persetujuan Terakhir" : canMeeting ? "Persetujuan Ruang" : "Detail Persetujuan"}</span>
         </div>
         <div className="min-h-0 space-y-5 overflow-y-auto py-5">

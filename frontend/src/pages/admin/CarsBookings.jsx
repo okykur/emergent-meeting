@@ -50,7 +50,7 @@ export default function AdminCarsBookings() {
             value={userQ}
             onChange={(e) => setUserQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && load()}
-            placeholder="Search by employee name, email, or job title…"
+            placeholder="Search Booking ID, employee, or email…"
             className="w-full rounded-sm border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#0B7A4B]"
           />
         </div>
@@ -80,6 +80,7 @@ export default function AdminCarsBookings() {
         <table className="min-w-[1100px] w-full text-sm">
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
             <tr>
+              <th className="px-6 py-3 text-left">Booking ID</th>
               <th className="px-6 py-3 text-left">Employee</th>
               <th className="px-6 py-3 text-left">Purpose</th>
               <th className="px-6 py-3 text-left">Type</th>
@@ -92,13 +93,14 @@ export default function AdminCarsBookings() {
           <tbody>
             {items.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">
+                <td colSpan={8} className="px-6 py-12 text-center text-sm text-slate-500">
                   No bookings match the filters.
                 </td>
               </tr>
             )}
             {items.map((b) => (
               <tr key={b.id} className="border-t border-slate-200 hover:bg-slate-50" data-testid={`acb-row-${b.id}`}>
+                <td className="whitespace-nowrap px-6 py-4 font-mono text-xs font-bold text-[#0B4935]">{b.booking_number || b.id}</td>
                 <td className="px-6 py-4">
                   <div className="font-medium text-slate-900">{b.employee_name}</div>
                   <div className="text-xs text-slate-500">{b.job_title}{b.department ? ` · ${b.department}` : ""}</div>

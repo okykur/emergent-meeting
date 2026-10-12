@@ -143,7 +143,7 @@ export default function AdminCarsDashboard({ dashboardTabs = null }) {
   const downloadExcel = () => {
     const rows = [
       ["Kode", "Tanggal Mulai", "Tanggal Selesai", "Pemohon", "Tujuan", "Layanan", "Kendaraan", "Driver", "Status"],
-      ...filtered.map((booking) => [booking.id, `${booking.start_date} ${booking.start_time}`, `${booking.end_date} ${booking.end_time}`, booking.employee_name, booking.purpose, booking.service_type === "luar_kota" ? "Luar Kota" : "Dalam Kota", booking.vehicle_name || "Belum di-assign", booking.driver_name || (booking.with_driver ? "Belum di-assign" : "Tanpa driver"), groupedVehicleStatus(booking.status)]),
+      ...filtered.map((booking) => [booking.booking_number || booking.id, `${booking.start_date} ${booking.start_time}`, `${booking.end_date} ${booking.end_time}`, booking.employee_name, booking.purpose, booking.service_type === "luar_kota" ? "Luar Kota" : "Dalam Kota", booking.vehicle_name || "Belum di-assign", booking.driver_name || (booking.with_driver ? "Belum di-assign" : "Tanpa driver"), groupedVehicleStatus(booking.status)]),
     ];
     const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? "").replaceAll('"', '""')}"`).join(",")).join("\r\n");
     const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });

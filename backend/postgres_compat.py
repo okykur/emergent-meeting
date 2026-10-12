@@ -24,6 +24,7 @@ from pymongo.errors import DuplicateKeyError
 COLLECTIONS = {
     "users",
     "companies",
+    "departments",
     "counters",
     "rooms",
     "bookings",
@@ -233,6 +234,13 @@ class PostgresCursor:
             self.sort_fields = [(key_or_list, direction or 1)]
         return self
 
+    def __aiter__(self):
+        async def iterate():
+            for document in await self.to_list():
+                yield document
+
+        return iterate()
+
     async def to_list(self, length: int | None = None):
         documents = await self.collection._all_documents()
         documents = [document for document in documents if matches(document, self.query)]
@@ -356,6 +364,36 @@ class PostgresCollection:
         return await self._update(query, update, many=True, upsert=upsert)
 
     async def find_one_and_update(self, query, update, upsert=False, return_document=False):
+        if (
+            upsert
+            and set(query) == {"_id"}
+            and set(update) == {"$inc"}
+            and set(update["$inc"]) == {"seq"}
+        ):
+            key = str(query["_id"])
+            increment = int(update["$inc"]["seq"])
+            initial = {"_id": key, "seq": increment}
+            statement = sql.SQL(
+                """
+                INSERT INTO {} AS target (id, document, synced_at)
+                VALUES (%s, %s, now())
+                ON CONFLICT (id) DO UPDATE
+                SET document = jsonb_set(
+                        target.document,
+                        '{{seq}}',
+                        to_jsonb(COALESCE((target.document ->> 'seq')::bigint, 0) + %s),
+                        true
+                    ),
+                    synced_at = now()
+                RETURNING document
+                """
+            ).format(self.table)
+            async with await AsyncConnection.connect(self.dsn) as connection:
+                async with connection.cursor() as cursor:
+                    await cursor.execute(statement, (key, Jsonb(initial), increment))
+                    updated = _decode((await cursor.fetchone())[0])
+            return updated if return_document == ReturnDocument.AFTER else {"_id": key, "seq": updated["seq"] - increment}
+
         async with await AsyncConnection.connect(self.dsn) as connection:
             documents = await self._all_documents(connection=connection, for_update=True)
             original = next((item for item in documents if matches(item, query)), None)

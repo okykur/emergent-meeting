@@ -5,6 +5,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 import os
+import base64
 import uuid
 import logging
 import bcrypt
@@ -22,7 +23,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request as UrlRequest, urlopen
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query, BackgroundTasks
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query, Form, BackgroundTasks
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
@@ -54,6 +55,12 @@ SUPERVISOR_EMAIL_PROVIDER = os.environ.get("SUPERVISOR_EMAIL_PROVIDER", "smtp").
 PASSWORD_RESET_EMAIL_PROVIDER = os.environ.get("PASSWORD_RESET_EMAIL_PROVIDER", SUPERVISOR_EMAIL_PROVIDER).strip().lower()
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_FROM = os.environ.get("RESEND_FROM", "GASS <no-reply-booking@kcsi.id>")
+BRAND_LOGO_PATHS = [
+    Path(os.environ["BRAND_LOGO_PATH"]) if os.environ.get("BRAND_LOGO_PATH") else None,
+    ROOT_DIR / "brand-logo.png",
+    ROOT_DIR.parent / "frontend" / "public" / "brand-logo.png",
+    Path("/var/www/kcsi-booking/brand-logo.png"),
+]
 USER_APPROVAL_ADMIN_EMAILS = [
     email.strip().lower()
     for email in os.environ.get("USER_APPROVAL_ADMIN_EMAILS", ADMIN_EMAIL).split(",")
@@ -172,6 +179,7 @@ class UserPublic(BaseModel):
     company_name: str = ""
     job_title: str = ""
     department: str = ""
+    department_code: str = ""
     office_address: str = ""
     supervisor_name: str = ""
     supervisor_email: str = ""
@@ -195,6 +203,7 @@ class RegisterRequest(BaseModel):
     company_name: str = Field(min_length=1, max_length=120)
     job_title: str = Field(min_length=1, max_length=120)
     department: str = Field(min_length=1, max_length=120)
+    department_is_other: bool = False
     office_address: str = Field(min_length=1, max_length=240)
     supervisor_name: str = Field(min_length=1, max_length=120)
     supervisor_email: EmailStr
@@ -300,6 +309,33 @@ class CompanyOption(BaseModel):
     search_name: str
 
 
+class DepartmentBase(BaseModel):
+    code_dept: str = Field(min_length=1, max_length=20)
+    dept_name: str = Field(min_length=1, max_length=180)
+
+
+class DepartmentCreate(DepartmentBase):
+    pass
+
+
+class DepartmentUpdate(BaseModel):
+    code_dept: Optional[str] = Field(default=None, min_length=1, max_length=20)
+    dept_name: Optional[str] = Field(default=None, min_length=1, max_length=180)
+
+
+class Department(DepartmentBase):
+    id: str
+    created_date: str
+    created_by: str
+    updated_by: str
+    updated_date: str
+
+
+class DepartmentOption(BaseModel):
+    code_dept: str
+    dept_name: str
+
+
 class BookingCreate(BaseModel):
     room_id: str
     title: str = Field(min_length=1)
@@ -360,6 +396,7 @@ class FnbStatusUpdate(BaseModel):
 
 class Booking(BaseModel):
     id: str
+    booking_number: str = ""
     room_id: str
     room_name: str
     room_building: str = DEFAULT_ROOM_BUILDING
@@ -433,6 +470,53 @@ class Booking(BaseModel):
 # ---------- Util ----------
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _booking_number_date_segment(booking_date: str) -> str:
+    try:
+        return datetime.strptime(booking_date, "%Y-%m-%d").strftime("%y%m%d")
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid booking date format")
+
+
+async def _next_booking_number(prefix: str, booking_date: str) -> str:
+    if prefix not in {"MR", "BK"}:
+        raise ValueError(f"Unsupported booking number prefix: {prefix}")
+    date_segment = _booking_number_date_segment(booking_date)
+    counter_id = f"booking_number:{prefix}:{date_segment}"
+    for _ in range(5):
+        try:
+            counter = await db.counters.find_one_and_update(
+                {"_id": counter_id},
+                {"$inc": {"seq": 1}},
+                upsert=True,
+                return_document=ReturnDocument.AFTER,
+            )
+            sequence = int(counter["seq"])
+            if sequence > 9999:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Daily booking number limit reached for {prefix}",
+                )
+            return f"{prefix}{date_segment}{sequence:04d}"
+        except DuplicateKeyError:
+            # Two first requests for the same day can race while creating the counter.
+            continue
+    raise HTTPException(status_code=503, detail="Unable to generate a booking number")
+
+
+def _manager_user_approval_is_expired(approval: dict, now: Optional[datetime] = None) -> bool:
+    expires_at = approval.get("expires_at")
+    if isinstance(expires_at, str):
+        try:
+            expires_at = datetime.fromisoformat(expires_at)
+        except ValueError:
+            return True
+    if not isinstance(expires_at, datetime):
+        return True
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return expires_at <= (now or datetime.now(timezone.utc))
 
 
 def _app_now_naive() -> datetime:
@@ -629,6 +713,7 @@ def _normalize_user_public(user: dict) -> dict:
     user.setdefault("company_name", "")
     user.setdefault("job_title", "")
     user.setdefault("department", "")
+    user.setdefault("department_code", "")
     user.setdefault("office_address", "")
     user.setdefault("supervisor_name", "")
     user.setdefault("supervisor_email", "")
@@ -645,6 +730,7 @@ def _normalize_user_public(user: dict) -> dict:
 
 
 async def _normalize_booking_public(booking: dict) -> dict:
+    booking.setdefault("booking_number", "")
     if not booking.get("room_building"):
         room = await db.rooms.find_one({"id": booking.get("room_id")}, {"_id": 0, "building": 1})
         booking["room_building"] = _normalize_building(room.get("building") if room else None)
@@ -709,6 +795,7 @@ async def _normalize_bookings_public(bookings: List[dict]) -> List[dict]:
     rooms = await db.rooms.find({"id": {"$in": room_ids}}, {"_id": 0, "id": 1, "building": 1}).to_list(1000) if room_ids else []
     room_buildings = {r["id"]: _normalize_building(r.get("building")) for r in rooms}
     for booking in bookings:
+        booking.setdefault("booking_number", "")
         booking["room_building"] = _normalize_building(
             booking.get("room_building") or room_buildings.get(booking.get("room_id"))
         )
@@ -776,6 +863,18 @@ def _reset_url(token: str) -> str:
     return f"{APP_PUBLIC_URL}/reset-password?token={token}"
 
 
+def _brand_logo_base64() -> Optional[str]:
+    for logo_path in BRAND_LOGO_PATHS:
+        if logo_path is None or not logo_path.is_file():
+            continue
+        try:
+            return base64.b64encode(logo_path.read_bytes()).decode("ascii")
+        except OSError:
+            logger.exception("Unable to read GASS brand logo from %s", logo_path)
+    logger.warning("GASS brand logo file was not found; email will use the public image URL")
+    return None
+
+
 def _send_resend_email(to_email: str, subject: str, text_body: str, html_body: Optional[str] = None) -> bool:
     if not RESEND_API_KEY:
         return False
@@ -787,6 +886,19 @@ def _send_resend_email(to_email: str, subject: str, text_body: str, html_body: O
         "text": text_body,
     }
     if html_body:
+        logo_url = f"{APP_PUBLIC_URL}/brand-logo.png"
+        if logo_url in html_body:
+            logo_content = _brand_logo_base64()
+            if logo_content:
+                html_body = html_body.replace(logo_url, "cid:gass-brand-logo")
+                payload["attachments"] = [
+                    {
+                        "content": logo_content,
+                        "filename": "gass-brand-logo.png",
+                        "content_type": "image/png",
+                        "content_id": "gass-brand-logo",
+                    }
+                ]
         payload["html"] = html_body
     request = UrlRequest(
         "https://api.resend.com/emails",
@@ -805,7 +917,8 @@ def _send_resend_email(to_email: str, subject: str, text_body: str, html_body: O
                 return False
         return True
     except HTTPError as error:
-        logger.error("Resend rejected email request with status %s", error.code)
+        response_body = error.read(2048).decode("utf-8", errors="replace")
+        logger.error("Resend rejected email request with status %s: %s", error.code, response_body)
     except URLError:
         logger.exception("Unable to reach Resend while sending email")
     except Exception:
@@ -1184,6 +1297,7 @@ def _meeting_email_detail_rows(booking: dict) -> List[tuple[str, str]]:
     if accommodation == "No accommodation requested":
         accommodation = "Tidak ada akomodasi"
     return [
+        ("Booking ID", booking.get("booking_number") or booking.get("id") or "-"),
         ("Pemohon", booking.get("user_name") or "-"),
         ("Judul Rapat", booking.get("title") or "-"),
         ("Peserta", _meeting_participants_summary(booking)),
@@ -1267,6 +1381,7 @@ def _send_booking_approval_email(booking: dict) -> bool:
     if accommodation == "No accommodation requested":
         accommodation = "Tidak ada akomodasi"
     detail_rows = [
+        ("Booking ID", booking.get("booking_number") or booking.get("id") or "-"),
         ("Judul Rapat", booking.get("title") or "-"),
         ("Peserta", _meeting_participants_summary(booking)),
         ("Tanggal & Waktu", _meeting_confirmation_date(booking)),
@@ -1322,6 +1437,86 @@ def _send_booking_approval_email(booking: dict) -> bool:
               <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f8faf9' style='width:100%;border:1px solid #dfe5e2;border-collapse:separate;border-spacing:0;background-color:#f8faf9;border-radius:9px;overflow:hidden'>{rows_html}</table>
               <p style='margin:26px 0;color:#174b37;font-size:15px;font-weight:700;line-height:1.55'>Silakan login ke sistem untuk melanjutkan proses.</p>
               <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'><tr><td align='center' bgcolor='#2f7458' style='background-color:#2f7458;border-radius:8px'><a href='{login_url}' style='display:block;padding:14px 20px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:800'>Login Ke Sistem</a></td></tr></table>
+            </td></tr>
+            <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body></html>
+    """
+    return _send_resend_email(recipient, subject, plain, body)
+
+
+def _send_booking_room_reassignment_email(booking: dict, previous_room: dict) -> bool:
+    recipient = (booking.get("user_email") or "").strip().lower()
+    if not RESEND_API_KEY or not recipient:
+        return False
+
+    name = (booking.get("user_name") or "User").strip()
+    previous_room_name = (previous_room.get("name") or "-").strip()
+    new_room_name = (booking.get("room_name") or "-").strip()
+    accommodation = _meeting_accommodation_summary(booking)
+    if accommodation == "No accommodation requested":
+        accommodation = "Tidak ada akomodasi"
+    detail_rows = [
+        ("Booking ID", booking.get("booking_number") or booking.get("id") or "-"),
+        ("Judul Rapat", booking.get("title") or "-"),
+        ("Peserta", _meeting_participants_summary(booking)),
+        ("Tanggal & Waktu", _meeting_confirmation_date(booking)),
+        ("Lokasi", f"{new_room_name}, {booking.get('room_building') or 'Belum ditentukan'}"),
+        ("Akomodasi", accommodation),
+    ]
+    plain = "\n".join(
+        [
+            "GASS",
+            "General Affair Services System",
+            "",
+            "PERUBAHAN RUANGAN",
+            "Perubahan Ruangan",
+            "",
+            f"Halo {name},",
+            "Terdapat perubahan ruangan untuk jadwal peminjaman ruangan Anda.",
+            f"Rapat yang sebelumnya dijadwalkan di {previous_room_name} kini dipindahkan ke {new_room_name}.",
+            "",
+            "Berikut detail rapat terbaru:",
+            *[f"{label}: {value}" for label, value in detail_rows],
+            "",
+            "Terima kasih.",
+            "GASS System",
+            "",
+            "This is an automated email from GASS. Please do not reply to this email.",
+        ]
+    )
+    rows_html = "".join(
+        "<tr>"
+        f"<td bgcolor='#f8faf9' style='width:34%;padding:14px 16px;border-bottom:1px solid #e4e9e6;color:#66716b;font-size:14px;line-height:1.4'>{html.escape(label)}</td>"
+        f"<td bgcolor='#f8faf9' align='right' style='padding:14px 16px;border-bottom:1px solid #e4e9e6;color:#174b37;font-size:14px;font-weight:800;line-height:1.4;text-align:right'>{html.escape(value)}</td>"
+        "</tr>"
+        for label, value in detail_rows
+    )
+    logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
+    subject = f"[GASS] Perubahan Ruangan - {booking.get('title') or 'Meeting'}"
+    body = f"""
+    <html><body bgcolor='#f1f4f3' style='margin:0;padding:0;background-color:#f1f4f3;font-family:Arial,sans-serif;color:#202622'>
+      <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f1f4f3' style='width:100%;background-color:#f1f4f3'>
+        <tr><td align='center' style='padding:40px 18px'>
+          <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:14px;overflow:hidden'>
+            <tr><td bgcolor='#e47b00' style='padding:34px;background-color:#e47b00;color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
+                <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='45' style='display:block;width:45px;height:auto;border:0'></td>
+                <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:27px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div></td>
+              </tr></table>
+              <div style='margin-top:10px;font-size:12px;font-weight:600;color:#ffffff'>General Affair Services System</div>
+            </td></tr>
+            <tr><td bgcolor='#ffffff' style='padding:34px;background-color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='#fff0df' style='padding:7px 12px;background-color:#fff0df;border-radius:999px;color:#b75b14;font-size:10px;font-weight:900;letter-spacing:.3px'>PERUBAHAN RUANGAN</td></tr></table>
+              <h1 style='margin:28px 0 18px;font-size:25px;line-height:1.3;color:#252a27'>Perubahan Ruangan</h1>
+              <p style='margin:0 0 8px;color:#174b37;font-size:16px;font-weight:800'>Halo {html.escape(name)},</p>
+              <p style='margin:0 0 18px;color:#174b37;font-size:15px;font-weight:600;line-height:1.6'>Terdapat perubahan ruangan untuk jadwal peminjaman ruangan Anda.</p>
+              <p style='margin:0 0 22px;color:#174b37;font-size:15px;font-weight:600;line-height:1.6'>Rapat yang sebelumnya dijadwalkan di <strong>{html.escape(previous_room_name)}</strong> kini dipindahkan ke <strong>{html.escape(new_room_name)}</strong>.</p>
+              <p style='margin:0 0 22px;color:#174b37;font-size:15px;font-weight:700;line-height:1.6'>Berikut detail rapat terbaru:</p>
+              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f8faf9' style='width:100%;border:1px solid #dfe5e2;border-collapse:separate;border-spacing:0;background-color:#f8faf9;border-radius:9px;overflow:hidden'>{rows_html}</table>
+              <p style='margin:26px 0 0;color:#174b37;font-size:15px;font-weight:700;line-height:1.55'>Terima kasih.<br>GASS System</p>
             </td></tr>
             <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
           </table>
@@ -1434,6 +1629,7 @@ def _send_meeting_admin_booking_notifications(booking: dict, recipients: List[st
     if accommodation == "No accommodation requested":
         accommodation = "Tidak ada akomodasi"
     detail_rows = [
+        ("Booking ID", booking.get("booking_number") or booking.get("id") or "-"),
         ("Pemohon", booking.get("user_name") or "-"),
         ("Judul Rapat", booking.get("title") or "-"),
         ("Peserta", _meeting_participants_summary(booking)),
@@ -1547,6 +1743,7 @@ def _send_booking_rejection_email(booking: dict, reason: str, rejection_type: st
         if accommodation == "No accommodation requested":
             accommodation = "Tidak ada akomodasi"
         detail_rows = [
+            ("Booking ID", booking.get("booking_number") or booking.get("id") or "-"),
             ("Judul Rapat", booking.get("title") or "-"),
             ("Peserta", _meeting_participants_summary(booking)),
             ("Tanggal & Waktu", _meeting_confirmation_date(booking)),
@@ -1618,7 +1815,7 @@ def _send_booking_rejection_email(booking: dict, reason: str, rejection_type: st
                 f"Halo {booking['user_name']},",
                 "",
                 f"Pengajuan {label} Anda untuk {booking['title']} telah ditolak.",
-                f"Kode booking: {booking['id']}",
+                f"Kode booking: {booking.get('booking_number') or booking['id']}",
                 f"Alasan: {reason}",
                 "",
                 "Silakan perbaiki pengajuan dan buat booking baru bila masih diperlukan.",
@@ -1631,7 +1828,7 @@ def _send_booking_rejection_email(booking: dict, reason: str, rejection_type: st
             <div style='padding:28px'>
               <p>Halo {html.escape(booking['user_name'])},</p>
               <h1 style='font-size:22px'>Pengajuan {html.escape(label)} ditolak</h1>
-              <p style='color:#475569;line-height:1.6'>Pengajuan untuk <strong>{html.escape(booking['title'])}</strong> ({html.escape(booking['id'])}) belum dapat disetujui.</p>
+              <p style='color:#475569;line-height:1.6'>Pengajuan untuk <strong>{html.escape(booking['title'])}</strong> ({html.escape(booking.get('booking_number') or booking['id'])}) belum dapat disetujui.</p>
               <div style='margin:20px 0;padding:16px;background:#fff1f2;border-left:4px solid #dc2626;border-radius:6px'>
                 <strong>Alasan penolakan</strong><br><span style='line-height:1.6'>{html.escape(reason)}</span>
               </div>
@@ -1678,6 +1875,21 @@ def _approval_result_page(title: str, message: str, success: bool) -> str:
 def _approval_confirmation_page(token: str, decision: str, booking: dict) -> str:
     action_url = f"{APP_PUBLIC_URL}/api/meeting-approvals/{token}?decision={decision}"
     is_approve = decision == "approved"
+    if not is_approve:
+        return f"""<!doctype html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'></head>
+        <body style='margin:0;min-height:100vh;background:#ffffff;font-family:Arial,sans-serif;color:#111827'>
+          <main style='box-sizing:border-box;width:100%;max-width:720px;margin:0 auto;padding:48px 42px 38px'>
+            <div style='text-align:center;font-size:34px;font-weight:900;letter-spacing:1px;color:#00634d'>GASS</div>
+            <h1 style='margin:48px 0 20px;text-align:center;font-size:28px;line-height:1.25;color:#111827'>Confirm your decision</h1>
+            <p style='margin:0;text-align:center;color:#8a94a3;font-size:17px;line-height:1.6'>You are about to <strong style='color:#6b7280'>reject</strong> the meeting requested by {html.escape(booking['user_name'])}.</p>
+            <form method='post' action='{html.escape(action_url, quote=True)}' style='margin-top:44px'>
+              <label for='rejection_reason' style='display:block;margin-bottom:10px;color:#30343b;font-size:15px;font-weight:800'>Alasan penolakan</label>
+              <textarea id='rejection_reason' name='rejection_reason' required maxlength='500' rows='5' placeholder='Masukkan alasan penolakan meeting...' style='box-sizing:border-box;width:100%;min-height:126px;padding:16px;border:1px solid #d5d9df;border-radius:8px;color:#111827;font:15px Arial,sans-serif;line-height:1.5;resize:vertical;outline:none'></textarea>
+              <div style='margin-top:30px;text-align:center'><button type='submit' style='border:0;border-radius:8px;padding:14px 24px;background:#cf171d;color:#ffffff;font-size:15px;font-weight:800;cursor:pointer'>Reject meeting</button></div>
+            </form>
+            <p style='margin:26px 0 0;text-align:center;color:#a6afbd;font-size:13px;line-height:1.5'>No decision is recorded until you press the confirmation button.</p>
+          </main>
+        </body></html>"""
     label = "Approve meeting" if is_approve else "Reject meeting"
     color = "#0b7a4b" if is_approve else "#b91c1c"
     return f"""<!doctype html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'></head>
@@ -1704,6 +1916,8 @@ async def preview_meeting_manager_user_approval(
     )
     if not approval:
         return HTMLResponse(_approval_result_page("Link unavailable", "This approval link is invalid or has already been used.", False), status_code=400)
+    if _manager_user_approval_is_expired(approval):
+        return HTMLResponse(_approval_result_page("Link expired", "This approval link has expired. Please contact the requestor or GASS administrator.", False), status_code=400)
     booking = await db.bookings.find_one({"id": approval["booking_id"]}, {"_id": 0})
     if not booking or booking.get("manager_user_approval_status") != "pending":
         return HTMLResponse(_approval_result_page("Request unavailable", "This meeting is no longer waiting for Manager User approval.", False), status_code=400)
@@ -1714,6 +1928,7 @@ async def preview_meeting_manager_user_approval(
 async def decide_meeting_supervisor_approval(
     token: str,
     decision: Literal["approved", "rejected"] = Query(...),
+    rejection_reason: str = Form(default="", max_length=500),
 ):
     approval = await db.supervisor_meeting_approvals.find_one(
         {"token_hash": _hash_reset_token(token), "used_at": None},
@@ -1724,12 +1939,7 @@ async def decide_meeting_supervisor_approval(
             _approval_result_page("Link unavailable", "This approval link is invalid or has already been used.", False),
             status_code=400,
         )
-    expires_at = approval.get("expires_at")
-    if isinstance(expires_at, str):
-        expires_at = datetime.fromisoformat(expires_at)
-    if not expires_at or (expires_at.tzinfo is None and expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc)) or (
-        expires_at.tzinfo is not None and expires_at < datetime.now(timezone.utc)
-    ):
+    if _manager_user_approval_is_expired(approval):
         return HTMLResponse(
             _approval_result_page("Link expired", "This approval link has expired. Please contact the requestor or GASS administrator.", False),
             status_code=400,
@@ -1744,6 +1954,12 @@ async def decide_meeting_supervisor_approval(
     ):
         return HTMLResponse(
             _approval_result_page("Request unavailable", "This meeting request is no longer awaiting Manager User approval.", False),
+            status_code=400,
+        )
+    rejection_reason = rejection_reason.strip()
+    if decision == "rejected" and not rejection_reason:
+        return HTMLResponse(
+            _approval_result_page("Reason required", "Please provide a rejection reason before rejecting this meeting request.", False),
             status_code=400,
         )
     action_at = _now_iso()
@@ -1769,10 +1985,10 @@ async def decide_meeting_supervisor_approval(
         booking_updates.update(
             {
                 "status": "cancelled",
-                "rejection_reason": "Rejected by Manager User",
+                "rejection_reason": rejection_reason,
                 "rejected_at": action_at,
                 "rejected_by": approval["supervisor_email"],
-                "cancellation_reason": "Rejected by Manager User",
+                "cancellation_reason": rejection_reason,
                 "cancelled_at": action_at,
                 "cancelled_by": approval["supervisor_email"],
             }
@@ -1812,7 +2028,7 @@ async def decide_meeting_supervisor_approval(
             _approval_result_page("Meeting approved", "Your approval has been recorded. GASS will continue the selected approval process.", True)
         )
     rejected = await db.bookings.find_one({"id": booking["id"]}, {"_id": 0})
-    if not _send_booking_rejection_email(rejected, "Rejected by Manager User", "meeting"):
+    if not _send_booking_rejection_email(rejected, rejection_reason, "meeting"):
         logger.warning("Manager User rejection saved, but notification email was not sent for booking %s", booking["id"])
     return HTMLResponse(
         _approval_result_page("Meeting rejected", "Your rejection has been recorded and the meeting room request has been cancelled.", True)
@@ -1828,6 +2044,7 @@ async def register(payload: RegisterRequest, background_tasks: BackgroundTasks):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     company_name = await _resolve_company_name(payload.company_name)
+    department, department_code = await _resolve_department(payload.department, payload.department_is_other)
     user_id = str(uuid.uuid4())
     doc = {
         "id": user_id,
@@ -1835,7 +2052,8 @@ async def register(payload: RegisterRequest, background_tasks: BackgroundTasks):
         "name": payload.name.strip(),
         "company_name": company_name,
         "job_title": payload.job_title.strip(),
-        "department": payload.department.strip(),
+        "department": department,
+        "department_code": department_code,
         "office_address": payload.office_address.strip(),
         "supervisor_name": payload.supervisor_name.strip(),
         "supervisor_email": str(payload.supervisor_email).strip().lower() if payload.supervisor_email else "",
@@ -2154,6 +2372,115 @@ async def delete_company(company_id: str, _admin: dict = Depends(require_super_a
     return {"ok": True}
 
 
+# ---------- Departments ----------
+def _normalize_department_values(code_dept: str, dept_name: str) -> tuple[str, str]:
+    code = code_dept.strip().upper()
+    name = " ".join(dept_name.split())
+    if not code:
+        raise HTTPException(status_code=400, detail="Department code is required")
+    if not code.replace("-", "").replace("_", "").isalnum():
+        raise HTTPException(status_code=400, detail="Department code may contain only letters, numbers, hyphens, and underscores")
+    if not name:
+        raise HTTPException(status_code=400, detail="Department name is required")
+    return code, name
+
+
+async def _resolve_department(department: str, allow_other: bool) -> tuple[str, str]:
+    requested = " ".join((department or "").split())
+    if not requested:
+        raise HTTPException(status_code=400, detail="Department is required")
+    master = await db.departments.find_one(
+        {"dept_name": {"$regex": f"^{re.escape(requested)}$", "$options": "i"}},
+        {"_id": 0, "code_dept": 1, "dept_name": 1},
+    )
+    if master:
+        return master["dept_name"], master["code_dept"]
+    if allow_other:
+        return requested, ""
+    raise HTTPException(status_code=400, detail="Department must be selected from Master Department or use Others")
+
+
+@api.get("/departments/options", response_model=List[DepartmentOption])
+async def list_department_options():
+    items = await db.departments.find(
+        {}, {"_id": 0, "code_dept": 1, "dept_name": 1}
+    ).sort("dept_name", 1).to_list(1000)
+    return [DepartmentOption(**item) for item in items]
+
+
+@api.get("/departments", response_model=List[Department])
+async def list_departments(_admin: dict = Depends(require_super_admin)):
+    items = await db.departments.find({}, {"_id": 0}).sort("code_dept", 1).to_list(1000)
+    return [Department(**item) for item in items]
+
+
+@api.post("/departments", response_model=Department)
+async def create_department(payload: DepartmentCreate, admin: dict = Depends(require_super_admin)):
+    code_dept, dept_name = _normalize_department_values(payload.code_dept, payload.dept_name)
+    if await db.departments.find_one({"code_dept": code_dept}):
+        raise HTTPException(status_code=409, detail=f"Department code {code_dept} already exists")
+    if await db.departments.find_one({"dept_name": {"$regex": f"^{re.escape(dept_name)}$", "$options": "i"}}):
+        raise HTTPException(status_code=409, detail=f"Department name {dept_name} already exists")
+    now = _now_iso()
+    actor = admin.get("name") or admin.get("email") or admin["id"]
+    doc = {
+        "id": str(uuid.uuid4()),
+        "code_dept": code_dept,
+        "dept_name": dept_name,
+        "created_date": now,
+        "created_by": actor,
+        "updated_by": actor,
+        "updated_date": now,
+    }
+    try:
+        await db.departments.insert_one(doc)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="Department code or name already exists")
+    return Department(**doc)
+
+
+@api.put("/departments/{department_id}", response_model=Department)
+async def update_department(department_id: str, payload: DepartmentUpdate, admin: dict = Depends(require_super_admin)):
+    existing = await db.departments.find_one({"id": department_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Department not found")
+    raw_updates = payload.model_dump(exclude_unset=True)
+    if not raw_updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    code_dept, dept_name = _normalize_department_values(
+        raw_updates.get("code_dept", existing["code_dept"]),
+        raw_updates.get("dept_name", existing["dept_name"]),
+    )
+    duplicate_code = await db.departments.find_one({"code_dept": code_dept, "id": {"$ne": department_id}})
+    if duplicate_code:
+        raise HTTPException(status_code=409, detail=f"Department code {code_dept} already exists")
+    duplicate_name = await db.departments.find_one(
+        {"dept_name": {"$regex": f"^{re.escape(dept_name)}$", "$options": "i"}, "id": {"$ne": department_id}}
+    )
+    if duplicate_name:
+        raise HTTPException(status_code=409, detail=f"Department name {dept_name} already exists")
+    updates = {
+        "code_dept": code_dept,
+        "dept_name": dept_name,
+        "updated_by": admin.get("name") or admin.get("email") or admin["id"],
+        "updated_date": _now_iso(),
+    }
+    try:
+        await db.departments.update_one({"id": department_id}, {"$set": updates})
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="Department code or name already exists")
+    updated = await db.departments.find_one({"id": department_id}, {"_id": 0})
+    return Department(**updated)
+
+
+@api.delete("/departments/{department_id}")
+async def delete_department(department_id: str, _admin: dict = Depends(require_super_admin)):
+    result = await db.departments.delete_one({"id": department_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Department not found")
+    return {"ok": True}
+
+
 @api.get("/rooms/{room_id}/availability")
 async def room_availability(
     room_id: str,
@@ -2280,8 +2607,6 @@ async def create_booking(
             raise HTTPException(status_code=400, detail="Division is required when requesting F&B")
         if not payload.fnb_cost_center.strip():
             raise HTTPException(status_code=400, detail="Cost center is required when requesting F&B")
-        if not payload.fnb_activity_code.strip():
-            raise HTTPException(status_code=400, detail="Activity code is required when requesting F&B")
         if not payload.fnb_activity_name.strip():
             raise HTTPException(status_code=400, detail="Activity name is required when requesting F&B")
         guest_types = [item.strip() for item in payload.guest_type.split(",") if item.strip()]
@@ -2329,8 +2654,10 @@ async def create_booking(
             detail="Supervisor name and email must be set by an administrator before requesting a meeting room",
         )
     booking_id = str(uuid.uuid4())
+    booking_number = await _next_booking_number("MR", _app_today().isoformat())
     doc = {
         "id": booking_id,
+        "booking_number": booking_number,
         "room_id": payload.room_id,
         "room_name": room["name"],
         "room_building": room["building"],
@@ -2424,6 +2751,7 @@ async def all_bookings(
         q["date"] = date
     if user_query:
         q["$or"] = [
+            {"booking_number": {"$regex": user_query, "$options": "i"}},
             {"user_name": {"$regex": user_query, "$options": "i"}},
             {"user_email": {"$regex": user_query, "$options": "i"}},
         ]
@@ -2526,10 +2854,7 @@ async def decide_meeting_admin_approval(
         if not _supervisor_email_is_configured():
             raise HTTPException(status_code=503, detail="Manager User approval email is not configured")
         approval_token = secrets.token_urlsafe(48)
-        expires_at = min(
-            datetime.now(timezone.utc) + timedelta(days=SUPERVISOR_APPROVAL_DAYS),
-            booking_start.replace(tzinfo=APP_TIMEZONE).astimezone(timezone.utc),
-        )
+        expires_at = datetime.now(timezone.utc) + timedelta(days=SUPERVISOR_APPROVAL_DAYS)
         approval_doc = {
             "id": str(uuid.uuid4()),
             "booking_id": booking_id,
@@ -2684,6 +3009,8 @@ async def reassign_booking_room(
     if needs_new_manager_ga_notification:
         recipients = await _manager_ga_recipients(reassigned["room_building"])
         _send_manager_ga_approval_notifications(reassigned, recipients)
+    if not _send_booking_room_reassignment_email(reassigned, current_room):
+        logger.warning("Room reassignment saved, but user notification email was not sent for booking %s", booking_id)
     return Booking(**reassigned)
 
 
@@ -2736,6 +3063,7 @@ async def list_fnb_bookings(
         and_conditions.append(
             {
                 "$or": [
+                    {"booking_number": {"$regex": user_query, "$options": "i"}},
                     {"user_name": {"$regex": user_query, "$options": "i"}},
                     {"user_email": {"$regex": user_query, "$options": "i"}},
                     {"title": {"$regex": user_query, "$options": "i"}},
@@ -2963,6 +3291,7 @@ class AdminUserUpdate(BaseModel):
     company_name: Optional[str] = Field(default=None, max_length=120)
     job_title: Optional[str] = Field(default=None, max_length=120)
     department: Optional[str] = Field(default=None, max_length=120)
+    department_is_other: Optional[bool] = None
     office_address: Optional[str] = Field(default=None, max_length=240)
     supervisor_name: Optional[str] = Field(default=None, min_length=1, max_length=120)
     supervisor_email: Optional[EmailStr] = None
@@ -2981,7 +3310,8 @@ class AdminUserCreate(BaseModel):
     name: str = Field(min_length=1)
     company_name: str = Field(min_length=1, max_length=180)
     job_title: str = ""
-    department: str = ""
+    department: str = Field(min_length=1, max_length=120)
+    department_is_other: bool = False
     office_address: str = ""
     supervisor_name: str = Field(min_length=1, max_length=120)
     supervisor_email: EmailStr
@@ -3045,6 +3375,7 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
     if not payload.supervisor_name.strip():
         raise HTTPException(status_code=400, detail="Supervisor name is required")
     company_name = await _resolve_company_name(payload.company_name)
+    department, department_code = await _resolve_department(payload.department, payload.department_is_other)
     meeting_buildings = _normalize_building_list(payload.meeting_buildings) if payload.role == "meeting_admin" else []
     fnb_locations = _normalize_building_list(payload.fnb_locations) if payload.role == "manager" else []
     if payload.role == "meeting_admin" and not meeting_buildings:
@@ -3057,7 +3388,8 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
         "name": payload.name.strip(),
         "company_name": company_name,
         "job_title": payload.job_title.strip(),
-        "department": payload.department.strip(),
+        "department": department,
+        "department_code": department_code,
         "office_address": payload.office_address.strip(),
         "supervisor_name": payload.supervisor_name.strip(),
         "supervisor_email": str(payload.supervisor_email).strip().lower(),
@@ -3146,7 +3478,9 @@ async def decide_user_approval(
 async def admin_update_user(
     user_id: str, payload: AdminUserUpdate, admin: dict = Depends(require_super_admin)
 ):
-    existing_user = await db.users.find_one({"id": user_id}, {"_id": 0, "company_name": 1})
+    existing_user = await db.users.find_one(
+        {"id": user_id}, {"_id": 0, "company_name": 1, "department": 1, "department_code": 1}
+    )
     if not existing_user:
         raise HTTPException(status_code=404, detail="User not found")
     updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
@@ -3167,6 +3501,11 @@ async def admin_update_user(
             updates["company_name"] = await _resolve_company_name(requested_company)
         else:
             updates["company_name"] = existing_user.get("company_name") or requested_company
+    department_is_other = updates.pop("department_is_other", False)
+    if "department" in updates:
+        department, department_code = await _resolve_department(updates["department"], department_is_other)
+        updates["department"] = department
+        updates["department_code"] = department_code
     if "meeting_buildings" in updates:
         updates["meeting_buildings"] = _normalize_building_list(updates["meeting_buildings"])
     if "fnb_locations" in updates:
@@ -3253,6 +3592,111 @@ SAMPLE_COMPANIES = [
     ("NSTI", "PT Nikki Super Tobacco Indonesia"),
     ("NTI", "PT Nojorono Tobacco International"),
     ("PST", "PST"),
+]
+
+
+SAMPLE_DEPARTMENTS = [
+    "CORPORATE STRATEGY",
+    "BUSINESS DEVELOPMENT & STRATEGY",
+    "PROJECT",
+    "TREASURY",
+    "FINANCE & ACCOUNTING CONSOLIDATION",
+    "FINANCE & ACCOUNTING OPERATION",
+    "FINANCE PLANNING & ANALYSIS (DOWNSTREAM)",
+    "FINANCE PLANNING & ANALYSIS (LEAF & CLOVE)",
+    "FINANCE PLANNING & ANALYSIS (UPSTREAM)",
+    "TAX",
+    "EMPLOYEE RELATIONS",
+    "ORGANIZATION DEVELOPMENT",
+    "REMUNERATION",
+    "TALENT ACQUISITION",
+    "HRIS",
+    "PAYROLL",
+    "GA (DOWNSTREAM)",
+    "HRBP (DOWNSTREAM)",
+    "HRBP (SHARED SERVICES)",
+    "TALENT ORGANIZATION DEVELOPMENT (DOWNSTREAM)",
+    "GA (UPSTREAM)",
+    "HRBP (UPSTREAM)",
+    "TALENT ORGANIZATION DEVELOPMENT (UPSTREAM)",
+    "APPLICATION DEVELOPMENT (DOWNSTREAM)",
+    "APPLICATION DEVELOPMENT (UPSTREAM)",
+    "INFORMATION SYSTEM",
+    "IT DATA ANALYTICS",
+    "IT INFRASTRUCTURE",
+    "IT SECURITY & GOVERNANCE",
+    "BUSINESS PROCESS IMPROVEMENT & CONTROL",
+    "INTERNAL AUDIT",
+    "CLOVE PROCESSING",
+    "PRINTING OPERATIONS",
+    "AREA LEAF & CLOVE",
+    "GLT",
+    "KDK",
+    "LEAF PROCESSING",
+    "LEAF & CLOVE GRADING",
+    "LOGISTIC & WAREHOUSE",
+    "PLANNING",
+    "COMPLIANCE & LITIGATION",
+    "CORPORATE SECRETARY",
+    "LEGAL COMMERCIAL & CONTRACTS",
+    "LEGAL PROPERTY",
+    "BRAND (BUSINESS UNIT 2)",
+    "BRAND (BUSINESS UNIT 3)",
+    "BRAND (BUSINESS UNIT 4)",
+    "CONSUMER ACTIVATION & COMMUNITY",
+    "CREATIVE",
+    "DIGITAL MARKETING ACTIVATION",
+    "LAMP, MO & REVENUE",
+    "CONSUMER INSIGHT",
+    "MARKETING PLANNING",
+    "O2O",
+    "PORTFOLIO",
+    "OPERATIONS SUPPLY CHAIN",
+    "CORPORATE SOCIAL RESPONSIBILITY",
+    "EXTERNAL AFFAIRS",
+    "LABORATORY SERVICES",
+    "OPERATIONAL",
+    "OPERATIONAL SUPPORT",
+    "PROCUREMENT (UPSTREAM-MANUFACTURING NON-LEAF & NON-CLOVE)",
+    "BUSINESS & PROJECT PLANNING",
+    "PROPERTY & ASSET",
+    "PRODUCT MAINTENANCE",
+    "QUALITY ASSURANCE",
+    "BLEND DEVELOPMENT",
+    "CONSUMABLES DESIGN",
+    "FLAVOR DEVELOPMENT & MAINTENANCE",
+    "PACKAGING & PRODUCT PORTOFOLIO",
+    "COMMERCIAL FINANCE",
+    "SALES DEVELOPMENT SYSTEM",
+    "FIELD MARKETING",
+    "REGIONAL SALES JAKARTA 1",
+    "REGIONAL SALES JAKARTA 2",
+    "REGIONAL SALES JATIMBANUSKAL",
+    "REGIONAL SALES JAWA BARAT",
+    "REGIONAL SALES JAWA TENGAH",
+    "REGIONAL SALES SULTER",
+    "REGIONAL SALES SUMATERA",
+    "BUSINESS STRATEGIC PARTNERSHIP",
+    "CHANNEL DEVELOPMENT",
+    "SALES INFORMATION SYSTEM",
+    "SALES ORGANIZATION DEVELOPMENT",
+    "LOGISTIC",
+    "PRIMARY SUPPLY CHAIN",
+    "SUPPLY CHAIN DEVELOPMENT",
+    "HEALTH, SAFETY, SECURITY & ENVIRONMENT",
+    "CORPORATE COMMUNICATION",
+    "STRATEGIC FINANCE",
+    "BUDGET & FORECAST",
+    "TALENT ASSESSMENT & DEVELOPMENT",
+    "IT PROJECT MANAGEMENT OFFICE",
+    "RISK MANAGEMENT",
+    "LEGAL & COMPLIANCE",
+    "PROCUREMENT (DOWNSTREAM-MARKETING & OTHERS)",
+    "BRAND (BUSINESS UNIT 1)",
+    "BRAND VISIBILITY & MERCHANDISING",
+    "PRODUCT (UNCONVENTIONAL)",
+    "COMMERCIAL STRATEGY",
+    "SECONDARY SUPPLY CHAIN",
 ]
 
 
@@ -3345,6 +3789,26 @@ async def seed_companies():
         {"$max": {"seq": len(SAMPLE_COMPANIES)}},
         upsert=True,
     )
+
+
+async def seed_departments():
+    if await db.departments.count_documents({}) != 0:
+        return
+    now = _now_iso()
+    docs = [
+        {
+            "id": str(uuid.uuid4()),
+            "code_dept": f"DEPT{sequence:03d}",
+            "dept_name": dept_name,
+            "created_date": now,
+            "created_by": "System Import",
+            "updated_by": "System Import",
+            "updated_date": now,
+        }
+        for sequence, dept_name in enumerate(SAMPLE_DEPARTMENTS, start=1)
+    ]
+    await db.departments.insert_many(docs)
+    logger.info("Seeded %s departments", len(docs))
 
 
 async def seed_admin():
@@ -3695,6 +4159,7 @@ class ReturnAdminConfirm(BaseModel):
 
 class VehicleBooking(BaseModel):
     id: str
+    booking_number: str = ""
     user_id: str
     user_email: str
     employee_name: str
@@ -3853,6 +4318,7 @@ async def require_car_admin(user: dict = Depends(get_current_user)) -> dict:
 
 def _public_booking(doc: dict) -> dict:
     out = _strip(doc)
+    out.setdefault("booking_number", "")
     out.setdefault("handover", {})
     out.setdefault("return_info", {})
     out.setdefault("division", "")
@@ -3885,8 +4351,10 @@ async def create_vehicle_booking(payload: VehicleBookingCreate, user: dict = Dep
     if payload.service_type == "dalam_kota" and not payload.with_driver and not payload.pro_in_file:
         raise HTTPException(status_code=400, detail="Pro-In document is required for in-city bookings without driver")
     booking_id = str(uuid.uuid4())
+    booking_number = await _next_booking_number("BK", _app_today().isoformat())
     doc = {
         "id": booking_id,
+        "booking_number": booking_number,
         "user_id": user["id"],
         "user_email": user["email"],
         "employee_name": payload.employee_name.strip(),
@@ -3965,6 +4433,7 @@ async def list_vehicle_bookings(
         q["$and"] = [{"start_date": {"$lte": date}}, {"end_date": {"$gte": date}}]
     if user_query:
         q["$or"] = [
+            {"booking_number": {"$regex": user_query, "$options": "i"}},
             {"employee_name": {"$regex": user_query, "$options": "i"}},
             {"user_email": {"$regex": user_query, "$options": "i"}},
             {"job_title": {"$regex": user_query, "$options": "i"}},
@@ -4272,6 +4741,8 @@ async def on_startup():
     await db.users.create_index("email", unique=True)
     await db.companies.create_index("company_code", unique=True)
     await db.companies.create_index("system_number", unique=True)
+    await db.departments.create_index("code_dept", unique=True)
+    await db.departments.create_index("dept_name", unique=True)
     await db.rooms.create_index("name")
     await db.rooms.create_index("building")
     await db.bookings.create_index([("room_id", 1), ("date", 1)])
@@ -4288,6 +4759,7 @@ async def on_startup():
     await seed_admin()
     await migrate_legacy_roles()
     await seed_companies()
+    await seed_departments()
     await seed_rooms()
     await seed_fleet()
 

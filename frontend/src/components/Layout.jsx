@@ -73,6 +73,7 @@ export default function Layout() {
     { to: "/admin/cars/drivers", label: "Master Driver", icon: Users, testid: "nav-admin-drivers", show: isCarAdmin },
     { to: "/admin/users", label: "Users", icon: Users, testid: "nav-admin-users", show: isSuper },
     { to: "/admin/companies", label: "Master Company", icon: Landmark, testid: "nav-admin-companies", show: isSuper },
+    { to: "/admin/departments", label: "Master Department", icon: Building2, testid: "nav-admin-departments", show: isSuper },
   ];
   const nav = managerApprovalStyle
     ? [

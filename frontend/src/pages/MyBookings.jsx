@@ -86,6 +86,7 @@ function CancelMeetingDialog({ booking, onClose, onSubmit }) {
         <div className="flex items-start justify-between border-b border-slate-200 p-5">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-600">Cancel booking</div>
+            <div className="mt-1 font-mono text-xs font-bold text-[#0B4935]">{booking.booking_number || booking.id}</div>
             <h3 className="mt-1 font-display text-xl font-semibold text-slate-900">Cancel meeting room</h3>
             <p className="mt-1 text-sm text-slate-500">{booking.room_name} - {formatDate(booking.date)}, {booking.start_time}-{booking.end_time}</p>
           </div>
@@ -274,7 +275,7 @@ export default function MyBookings() {
     return true;
   }).filter((row) => {
     if (!normalisedQuery) return true;
-    return [row.title, row.sub, row.status, row.dateStart, row.dateEnd, row._kind]
+    return [row.raw.booking_number, row.title, row.sub, row.status, row.dateStart, row.dateEnd, row._kind]
       .filter(Boolean)
       .join(" ")
       .toLowerCase()
@@ -359,7 +360,7 @@ export default function MyBookings() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           data-testid="bookings-search-input"
-          placeholder="Cari pengajuan..."
+          placeholder="Cari Booking ID atau pengajuan..."
           className="h-10 w-full rounded-lg border border-[#DCE3DE] bg-white py-2 pl-10 pr-3 text-sm text-[#39413C] outline-none placeholder:text-[#7B847E] focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/10"
         />
       </div>
@@ -394,6 +395,7 @@ export default function MyBookings() {
             <table className="w-full min-w-[1080px] text-sm">
               <thead className="bg-[#FAFBFA] text-[10px] font-bold uppercase tracking-[0.04em] text-[#657169]">
                 <tr>
+                  <th className="px-6 py-4 text-left">Booking ID</th>
                   <th className="px-6 py-4 text-left">Tipe</th>
                   <th className="px-6 py-4 text-left">Keperluan / Ruang atau Kendaraan</th>
                   <th className="px-6 py-4 text-left">Jadwal Pemakaian</th>
@@ -414,6 +416,9 @@ export default function MyBookings() {
                         className="border-t border-[#E3E8E5] transition-colors hover:bg-[#F8FAF8]"
                         data-testid={`mb-row-meeting-${row.id}`}
                       >
+                        <td className="whitespace-nowrap px-6 py-5 font-mono text-xs font-bold text-[#0B4935]">
+                          {b.booking_number || b.id}
+                        </td>
                         <td className="px-6 py-5">
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E4F4EB] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#1E7C4F]">
                             <DoorOpen className="h-3 w-3" /> Meeting Room
@@ -519,6 +524,9 @@ export default function MyBookings() {
                       className="border-t border-[#E3E8E5] transition-colors hover:bg-[#F8FAF8]"
                       data-testid={`mb-row-vehicle-${row.id}`}
                     >
+                      <td className="whitespace-nowrap px-6 py-5 font-mono text-xs font-bold text-[#0B4935]">
+                        {b.booking_number || b.id}
+                      </td>
                       <td className="px-6 py-5">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EEF1EF] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#5F6A63]">
                           <Car className="h-3 w-3" /> Vehicle
@@ -595,7 +603,8 @@ export default function MyBookings() {
                       </span>
                       <StatusPill status={b.status} />
                     </div>
-                    <div className="font-display text-base font-bold text-[#303732]">{b.title}</div>
+                    <div className="font-mono text-xs font-bold text-[#0B4935]">{b.booking_number || b.id}</div>
+                    <div className="mt-1 font-display text-base font-bold text-[#303732]">{b.title}</div>
                     <div className="mt-1 text-sm text-[#747D77]">{b.room_name}</div>
                     {(b.additional_facilities || []).length > 0 && (
                       <div className="mt-1 text-xs text-slate-500">
@@ -690,7 +699,8 @@ export default function MyBookings() {
                     </span>
                     <VBStatusPill status={b.status} />
                   </div>
-                  <div className="font-display text-base font-bold text-[#303732]">{b.purpose}</div>
+                  <div className="font-mono text-xs font-bold text-[#0B4935]">{b.booking_number || b.id}</div>
+                  <div className="mt-1 font-display text-base font-bold text-[#303732]">{b.purpose}</div>
                   <div className="mt-1 text-sm text-[#747D77]">
                     {b.vehicle_name
                       ? `${b.vehicle_name} · ${b.vehicle_plate}${b.driver_name ? ` · ${b.driver_name}` : ""}`

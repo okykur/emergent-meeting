@@ -3,10 +3,11 @@ import { Link } from "react-router-dom";
 import { Check, Info, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import CompanySelect from "../components/CompanySelect";
+import DepartmentSelect from "../components/DepartmentSelect";
 import "./Register.css";
 
 const emptyForm = {
-  name: "", email: "", company_name: "", job_title: "", department: "",
+  name: "", email: "", company_name: "", job_title: "", department: "", department_is_other: false,
   supervisor_name: "", supervisor_email: "", office_address: "", password: "", confirmation: "",
 };
 
@@ -32,7 +33,7 @@ export default function Register() {
     event.preventDefault();
     if (loading) return;
     setError("");
-    if (Object.entries(form).some(([key, value]) => !["password", "confirmation"].includes(key) && !value.trim())) {
+    if (Object.entries(form).some(([key, value]) => !["password", "confirmation", "department_is_other"].includes(key) && !value.trim())) {
       setError("Lengkapi semua informasi data karyawan.");
       return;
     }
@@ -56,6 +57,7 @@ export default function Register() {
         company_name: form.company_name.trim(),
         job_title: form.job_title.trim(),
         department: form.department.trim(),
+        department_is_other: form.department_is_other,
         supervisor_name: form.supervisor_name.trim(),
         supervisor_email: form.supervisor_email.trim(),
         office_address: form.office_address.trim(),
@@ -142,9 +144,10 @@ export default function Register() {
                     onChange={(value) => update("company_name", value)} testId="register-company-input" />
                 </Field>
                 <Field label="Departemen" id="register-department">
-                  <input id="register-department" required maxLength={120}
-                    value={form.department} onChange={(event) => update("department", event.target.value)}
-                    placeholder="Masukkan departemen Anda" data-testid="register-department-input" />
+                  <DepartmentSelect id="register-department" required value={form.department}
+                    isOther={form.department_is_other}
+                    onChange={(value, isOther) => setForm((current) => ({ ...current, department: value, department_is_other: isOther }))}
+                    testId="register-department-input" />
                 </Field>
                 <Field label="Jabatan" id="register-job-title">
                   <input id="register-job-title" autoComplete="organization-title" required maxLength={120}

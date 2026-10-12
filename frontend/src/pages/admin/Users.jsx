@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, formatApiError } from "../../api";
 import { useAuth } from "../../context/AuthContext";
 import CompanySelect from "../../components/CompanySelect";
+import DepartmentSelect from "../../components/DepartmentSelect";
 import {
   Search,
   Plus,
@@ -98,6 +99,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           company_name: initial.company_name || "",
           job_title: initial.job_title || "",
           department: initial.department || "",
+          department_is_other: !initial.department_code,
           office_address: initial.office_address || "",
           supervisor_name: initial.supervisor_name || "",
           supervisor_email: initial.supervisor_email || "",
@@ -112,6 +114,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           company_name: "",
           job_title: "",
           department: "",
+          department_is_other: false,
           office_address: "",
           supervisor_name: "",
           supervisor_email: "",
@@ -140,6 +143,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           company_name: payload.company_name,
           job_title: payload.job_title,
           department: payload.department,
+          department_is_other: payload.department_is_other,
           office_address: payload.office_address,
           supervisor_name: payload.supervisor_name,
           supervisor_email: payload.supervisor_email,
@@ -246,13 +250,14 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="mb-2 block text-xs font-bold text-[#343B36]">Departemen / Divisi</label>
-              <input
-                data-testid="user-department-input"
+              <label className="mb-2 block text-xs font-bold text-[#343B36]">Departemen / Divisi *</label>
+              <DepartmentSelect
+                required
                 value={form.department}
-                onChange={(e) => setForm({ ...form, department: e.target.value })}
-                placeholder="Departemen pengguna"
+                isOther={form.department_is_other}
+                onChange={(value, isOther) => setForm({ ...form, department: value, department_is_other: isOther })}
                 className={userFieldClass}
+                testId="user-department-input"
               />
             </div>
           </div>

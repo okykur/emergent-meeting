@@ -328,7 +328,7 @@ export default function CarBookingDetail() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
-            Booking · {b.id.slice(0, 8)}
+            Booking ID · {b.booking_number || b.id}
           </div>
           <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{b.purpose}</h1>
           <div className="mt-2"><VBStatusPill status={b.status} /></div>
@@ -380,6 +380,7 @@ export default function CarBookingDetail() {
             <UserIcon className="h-4 w-4 text-[#0B7A4B]" /> Booking Details
           </div>
           <div className="grid grid-cols-2 gap-4">
+            <Field label="Booking ID">{b.booking_number || b.id}</Field>
             <Field label="Employee">{b.employee_name}</Field>
             <Field label="Job title">{b.job_title}</Field>
             <Field label="Department">{b.department}</Field>

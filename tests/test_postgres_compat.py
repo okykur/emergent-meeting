@@ -1,6 +1,7 @@
+import asyncio
 from datetime import datetime, timezone
 
-from postgres_compat import apply_projection, apply_update, matches
+from postgres_compat import PostgresCursor, apply_projection, apply_update, matches
 
 
 DOCUMENT = {
@@ -29,3 +30,22 @@ def test_updates_and_projection():
     assert updated["capacity"] == 13
     projected = apply_projection(updated, {"_id": 0, "id": 1, "status": 1})
     assert projected == {"id": "1", "status": "confirmed"}
+
+
+def test_cursor_supports_async_iteration_with_sort_and_projection():
+    class Collection:
+        async def _all_documents(self):
+            return [
+                {"id": "2", "status": "cancelled", "priority": 1},
+                {"id": "1", "status": "pending", "priority": 2},
+            ]
+
+    async def collect():
+        cursor = PostgresCursor(
+            Collection(),
+            {"status": {"$in": ["pending"]}},
+            {"_id": 0, "id": 1},
+        ).sort("priority", -1)
+        return [document async for document in cursor]
+
+    assert asyncio.run(collect()) == [{"id": "1"}]

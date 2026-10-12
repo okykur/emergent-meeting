@@ -164,7 +164,7 @@ export default function GaOperationsDashboard({ dashboardTabs = null }) {
     const rows = [
       ["Kode", "Tanggal", "Waktu", "Ruangan", "Pemohon", "Judul", "Peserta", "Akomodasi", "Status"],
       ...filtered.map((booking) => [
-        booking.id,
+        booking.booking_number || booking.id,
         booking.date,
         `${booking.start_time}-${booking.end_time}`,
         booking.room_name,
