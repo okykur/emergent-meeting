@@ -133,7 +133,7 @@ export default function PositionSelect({
       )}
 
       {!otherMode && open && !loading && (
-        <div className="absolute z-[80] mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-[#D8DFDA] bg-white p-1.5 shadow-xl" role="listbox">
+        <div className="absolute left-0 z-[80] mt-1 max-h-72 w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-[#D8DFDA] bg-white p-1.5 shadow-xl sm:w-[34rem]" role="listbox">
           {filtered.map((option) => {
             const selected = option.position_name === value;
             return (
@@ -142,13 +142,13 @@ export default function PositionSelect({
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => select(option)}
-                className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left hover:bg-[#EFF7F2] ${selected ? "bg-[#EFF7F2]" : ""}`}
+                className={`flex w-full items-start gap-3 rounded-md px-3 py-2.5 text-left hover:bg-[#EFF7F2] ${selected ? "bg-[#EFF7F2]" : ""}`}
                 role="option"
                 aria-selected={selected}
               >
                 <span className="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-[#E5F2EA] text-[#238B57]"><BriefcaseBusiness className="h-4 w-4" /></span>
-                <span className="min-w-0 flex-1"><strong className="block truncate text-sm text-[#26312B]">{option.position_name}</strong><small className="block text-[10px] text-[#7A857E]">{option.code_position}</small></span>
-                {selected && <Check className="h-4 w-4 flex-none text-[#238B57]" />}
+                <span className="min-w-0 flex-1"><strong className="block whitespace-normal break-words text-sm leading-5 text-[#26312B]">{option.position_name}</strong><small className="block text-[10px] text-[#7A857E]">{option.code_position}</small></span>
+                {selected && <Check className="mt-1 h-4 w-4 flex-none text-[#238B57]" />}
               </button>
             );
           })}
