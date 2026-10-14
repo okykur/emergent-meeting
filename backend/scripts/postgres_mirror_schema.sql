@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS "GassBooking".users (
     name text GENERATED ALWAYS AS (document ->> 'name') STORED,
     company_name text GENERATED ALWAYS AS (document ->> 'company_name') STORED,
     job_title text GENERATED ALWAYS AS (document ->> 'job_title') STORED,
+    position_code text GENERATED ALWAYS AS (document ->> 'position_code') STORED,
     department text GENERATED ALWAYS AS (document ->> 'department') STORED,
     department_code text GENERATED ALWAYS AS (document ->> 'department_code') STORED,
     office_address text GENERATED ALWAYS AS (document ->> 'office_address') STORED,
@@ -30,6 +31,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS users_email_uk ON "GassBooking".users (email);
 CREATE INDEX IF NOT EXISTS users_role_idx ON "GassBooking".users (role);
 CREATE INDEX IF NOT EXISTS users_approval_status_idx ON "GassBooking".users (approval_status);
 CREATE INDEX IF NOT EXISTS users_department_code_idx ON "GassBooking".users (department_code);
+CREATE INDEX IF NOT EXISTS users_position_code_idx ON "GassBooking".users (position_code);
 
 CREATE TABLE IF NOT EXISTS "GassBooking".companies (
     id text PRIMARY KEY,
@@ -64,6 +66,21 @@ CREATE TABLE IF NOT EXISTS "GassBooking".departments (
 
 CREATE UNIQUE INDEX IF NOT EXISTS departments_code_dept_uk ON "GassBooking".departments (code_dept);
 CREATE UNIQUE INDEX IF NOT EXISTS departments_dept_name_lower_uk ON "GassBooking".departments (lower(dept_name));
+
+CREATE TABLE IF NOT EXISTS "GassBooking".positions (
+    id text PRIMARY KEY,
+    document jsonb NOT NULL,
+    synced_at timestamptz NOT NULL DEFAULT now(),
+    code_position text GENERATED ALWAYS AS (document ->> 'code_position') STORED,
+    position_name text GENERATED ALWAYS AS (document ->> 'position_name') STORED,
+    created_date text GENERATED ALWAYS AS (NULLIF(document ->> 'created_date', '')) STORED,
+    created_by text GENERATED ALWAYS AS (document ->> 'created_by') STORED,
+    updated_by text GENERATED ALWAYS AS (document ->> 'updated_by') STORED,
+    updated_date text GENERATED ALWAYS AS (NULLIF(document ->> 'updated_date', '')) STORED
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS positions_code_position_uk ON "GassBooking".positions (code_position);
+CREATE UNIQUE INDEX IF NOT EXISTS positions_position_name_lower_uk ON "GassBooking".positions (lower(position_name));
 
 CREATE TABLE IF NOT EXISTS "GassBooking".counters (
     id text PRIMARY KEY,

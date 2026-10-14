@@ -4,10 +4,11 @@ import { Check, Info, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import CompanySelect from "../components/CompanySelect";
 import DepartmentSelect from "../components/DepartmentSelect";
+import PositionSelect from "../components/PositionSelect";
 import "./Register.css";
 
 const emptyForm = {
-  name: "", email: "", company_name: "", job_title: "", department: "", department_is_other: false,
+  name: "", email: "", company_name: "", job_title: "", job_title_is_other: false, department: "", department_is_other: false,
   supervisor_name: "", supervisor_email: "", office_address: "", password: "", confirmation: "",
 };
 
@@ -33,7 +34,7 @@ export default function Register() {
     event.preventDefault();
     if (loading) return;
     setError("");
-    if (Object.entries(form).some(([key, value]) => !["password", "confirmation", "department_is_other"].includes(key) && !value.trim())) {
+    if (Object.entries(form).some(([key, value]) => !["password", "confirmation", "department_is_other", "job_title_is_other"].includes(key) && !value.trim())) {
       setError("Lengkapi semua informasi data karyawan.");
       return;
     }
@@ -56,6 +57,7 @@ export default function Register() {
         email: form.email.trim(),
         company_name: form.company_name.trim(),
         job_title: form.job_title.trim(),
+        job_title_is_other: form.job_title_is_other,
         department: form.department.trim(),
         department_is_other: form.department_is_other,
         supervisor_name: form.supervisor_name.trim(),
@@ -150,9 +152,10 @@ export default function Register() {
                     testId="register-department-input" />
                 </Field>
                 <Field label="Jabatan" id="register-job-title">
-                  <input id="register-job-title" autoComplete="organization-title" required maxLength={120}
-                    value={form.job_title} onChange={(event) => update("job_title", event.target.value)}
-                    placeholder="Jabatan Anda" data-testid="register-job-title-input" />
+                  <PositionSelect id="register-job-title" required value={form.job_title}
+                    isOther={form.job_title_is_other}
+                    onChange={(value, isOther) => setForm((current) => ({ ...current, job_title: value, job_title_is_other: isOther }))}
+                    testId="register-job-title-input" />
                 </Field>
                 <Field label="Alamat Kantor" id="register-office">
                   <textarea id="register-office" required rows={2} maxLength={240}

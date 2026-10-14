@@ -24,6 +24,7 @@ import AdminVehicles from "@/pages/admin/Vehicles";
 import AdminDrivers from "@/pages/admin/Drivers";
 import AdminCompanies from "@/pages/admin/Companies";
 import AdminDepartments from "@/pages/admin/Departments";
+import AdminPositions from "@/pages/admin/Positions";
 import OperationsDashboard from "@/pages/admin/OperationsDashboard";
 import { Toaster } from "sonner";
 
@@ -119,6 +120,14 @@ function App() {
                 element={
                   <ProtectedRoute superAdminOnly>
                     <AdminDepartments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/positions"
+                element={
+                  <ProtectedRoute superAdminOnly>
+                    <AdminPositions />
                   </ProtectedRoute>
                 }
               />

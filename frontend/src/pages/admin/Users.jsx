@@ -3,6 +3,7 @@ import { api, formatApiError } from "../../api";
 import { useAuth } from "../../context/AuthContext";
 import CompanySelect from "../../components/CompanySelect";
 import DepartmentSelect from "../../components/DepartmentSelect";
+import PositionSelect from "../../components/PositionSelect";
 import {
   Search,
   Plus,
@@ -98,6 +99,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           name: initial.name || "",
           company_name: initial.company_name || "",
           job_title: initial.job_title || "",
+          job_title_is_other: !initial.position_code,
           department: initial.department || "",
           department_is_other: !initial.department_code,
           office_address: initial.office_address || "",
@@ -113,6 +115,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           name: "",
           company_name: "",
           job_title: "",
+          job_title_is_other: false,
           department: "",
           department_is_other: false,
           office_address: "",
@@ -142,6 +145,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           name: payload.name,
           company_name: payload.company_name,
           job_title: payload.job_title,
+          job_title_is_other: payload.job_title_is_other,
           department: payload.department,
           department_is_other: payload.department_is_other,
           office_address: payload.office_address,
@@ -240,13 +244,14 @@ function UserFormDialog({ initial, onClose, onSaved }) {
           </div>
           <div className="contents">
             <div>
-              <label className="mb-2 block text-xs font-bold text-[#343B36]">Jabatan</label>
-              <input
-                data-testid="user-job-title-input"
+              <label className="mb-2 block text-xs font-bold text-[#343B36]">Jabatan *</label>
+              <PositionSelect
+                required
                 value={form.job_title}
-                onChange={(e) => setForm({ ...form, job_title: e.target.value })}
-                placeholder="Jabatan pengguna"
+                isOther={form.job_title_is_other}
+                onChange={(value, isOther) => setForm({ ...form, job_title: value, job_title_is_other: isOther })}
                 className={userFieldClass}
+                testId="user-job-title-input"
               />
             </div>
             <div>

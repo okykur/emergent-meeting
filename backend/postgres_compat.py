@@ -25,6 +25,7 @@ COLLECTIONS = {
     "users",
     "companies",
     "departments",
+    "positions",
     "counters",
     "rooms",
     "bookings",

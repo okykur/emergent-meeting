@@ -178,6 +178,7 @@ class UserPublic(BaseModel):
     name: str
     company_name: str = ""
     job_title: str = ""
+    position_code: str = ""
     department: str = ""
     department_code: str = ""
     office_address: str = ""
@@ -202,6 +203,7 @@ class RegisterRequest(BaseModel):
     name: str = Field(min_length=1)
     company_name: str = Field(min_length=1, max_length=120)
     job_title: str = Field(min_length=1, max_length=120)
+    job_title_is_other: bool = False
     department: str = Field(min_length=1, max_length=120)
     department_is_other: bool = False
     office_address: str = Field(min_length=1, max_length=240)
@@ -334,6 +336,33 @@ class Department(DepartmentBase):
 class DepartmentOption(BaseModel):
     code_dept: str
     dept_name: str
+
+
+class PositionBase(BaseModel):
+    code_position: str = Field(min_length=1, max_length=20)
+    position_name: str = Field(min_length=1, max_length=240)
+
+
+class PositionCreate(PositionBase):
+    pass
+
+
+class PositionUpdate(BaseModel):
+    code_position: Optional[str] = Field(default=None, min_length=1, max_length=20)
+    position_name: Optional[str] = Field(default=None, min_length=1, max_length=240)
+
+
+class Position(PositionBase):
+    id: str
+    created_date: str
+    created_by: str
+    updated_by: str
+    updated_date: str
+
+
+class PositionOption(BaseModel):
+    code_position: str
+    position_name: str
 
 
 class BookingCreate(BaseModel):
@@ -712,6 +741,7 @@ async def _find_overlaps(room_id: str, date: str, start: str, end: str, exclude_
 def _normalize_user_public(user: dict) -> dict:
     user.setdefault("company_name", "")
     user.setdefault("job_title", "")
+    user.setdefault("position_code", "")
     user.setdefault("department", "")
     user.setdefault("department_code", "")
     user.setdefault("office_address", "")
@@ -2045,13 +2075,15 @@ async def register(payload: RegisterRequest, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=400, detail="Email already registered")
     company_name = await _resolve_company_name(payload.company_name)
     department, department_code = await _resolve_department(payload.department, payload.department_is_other)
+    job_title, position_code = await _resolve_position(payload.job_title, payload.job_title_is_other)
     user_id = str(uuid.uuid4())
     doc = {
         "id": user_id,
         "email": email,
         "name": payload.name.strip(),
         "company_name": company_name,
-        "job_title": payload.job_title.strip(),
+        "job_title": job_title,
+        "position_code": position_code,
         "department": department,
         "department_code": department_code,
         "office_address": payload.office_address.strip(),
@@ -2478,6 +2510,115 @@ async def delete_department(department_id: str, _admin: dict = Depends(require_s
     result = await db.departments.delete_one({"id": department_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Department not found")
+    return {"ok": True}
+
+
+# ---------- Positions ----------
+def _normalize_position_values(code_position: str, position_name: str) -> tuple[str, str]:
+    code = code_position.strip().upper()
+    name = " ".join(position_name.split())
+    if not code:
+        raise HTTPException(status_code=400, detail="Position code is required")
+    if not code.replace("-", "").replace("_", "").isalnum():
+        raise HTTPException(status_code=400, detail="Position code may contain only letters, numbers, hyphens, and underscores")
+    if not name:
+        raise HTTPException(status_code=400, detail="Position name is required")
+    return code, name
+
+
+async def _resolve_position(job_title: str, allow_other: bool) -> tuple[str, str]:
+    requested = " ".join((job_title or "").split())
+    if not requested:
+        raise HTTPException(status_code=400, detail="Position is required")
+    master = await db.positions.find_one(
+        {"position_name": {"$regex": f"^{re.escape(requested)}$", "$options": "i"}},
+        {"_id": 0, "code_position": 1, "position_name": 1},
+    )
+    if master:
+        return master["position_name"], master["code_position"]
+    if allow_other:
+        return requested, ""
+    raise HTTPException(status_code=400, detail="Position must be selected from Master Jabatan or use Others")
+
+
+@api.get("/positions/options", response_model=List[PositionOption])
+async def list_position_options():
+    items = await db.positions.find(
+        {}, {"_id": 0, "code_position": 1, "position_name": 1}
+    ).sort("position_name", 1).to_list(1000)
+    return [PositionOption(**item) for item in items]
+
+
+@api.get("/positions", response_model=List[Position])
+async def list_positions(_admin: dict = Depends(require_super_admin)):
+    items = await db.positions.find({}, {"_id": 0}).sort("code_position", 1).to_list(1000)
+    return [Position(**item) for item in items]
+
+
+@api.post("/positions", response_model=Position)
+async def create_position(payload: PositionCreate, admin: dict = Depends(require_super_admin)):
+    code_position, position_name = _normalize_position_values(payload.code_position, payload.position_name)
+    if await db.positions.find_one({"code_position": code_position}):
+        raise HTTPException(status_code=409, detail=f"Position code {code_position} already exists")
+    if await db.positions.find_one({"position_name": {"$regex": f"^{re.escape(position_name)}$", "$options": "i"}}):
+        raise HTTPException(status_code=409, detail=f"Position name {position_name} already exists")
+    now = _now_iso()
+    actor = admin.get("name") or admin.get("email") or admin["id"]
+    doc = {
+        "id": str(uuid.uuid4()),
+        "code_position": code_position,
+        "position_name": position_name,
+        "created_date": now,
+        "created_by": actor,
+        "updated_by": actor,
+        "updated_date": now,
+    }
+    try:
+        await db.positions.insert_one(doc)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="Position code or name already exists")
+    return Position(**doc)
+
+
+@api.put("/positions/{position_id}", response_model=Position)
+async def update_position(position_id: str, payload: PositionUpdate, admin: dict = Depends(require_super_admin)):
+    existing = await db.positions.find_one({"id": position_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Position not found")
+    raw_updates = payload.model_dump(exclude_unset=True)
+    if not raw_updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    code_position, position_name = _normalize_position_values(
+        raw_updates.get("code_position", existing["code_position"]),
+        raw_updates.get("position_name", existing["position_name"]),
+    )
+    duplicate_code = await db.positions.find_one({"code_position": code_position, "id": {"$ne": position_id}})
+    if duplicate_code:
+        raise HTTPException(status_code=409, detail=f"Position code {code_position} already exists")
+    duplicate_name = await db.positions.find_one(
+        {"position_name": {"$regex": f"^{re.escape(position_name)}$", "$options": "i"}, "id": {"$ne": position_id}}
+    )
+    if duplicate_name:
+        raise HTTPException(status_code=409, detail=f"Position name {position_name} already exists")
+    updates = {
+        "code_position": code_position,
+        "position_name": position_name,
+        "updated_by": admin.get("name") or admin.get("email") or admin["id"],
+        "updated_date": _now_iso(),
+    }
+    try:
+        await db.positions.update_one({"id": position_id}, {"$set": updates})
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="Position code or name already exists")
+    updated = await db.positions.find_one({"id": position_id}, {"_id": 0})
+    return Position(**updated)
+
+
+@api.delete("/positions/{position_id}")
+async def delete_position(position_id: str, _admin: dict = Depends(require_super_admin)):
+    result = await db.positions.delete_one({"id": position_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Position not found")
     return {"ok": True}
 
 
@@ -3290,6 +3431,7 @@ class AdminUserUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1)
     company_name: Optional[str] = Field(default=None, max_length=120)
     job_title: Optional[str] = Field(default=None, max_length=120)
+    job_title_is_other: Optional[bool] = None
     department: Optional[str] = Field(default=None, max_length=120)
     department_is_other: Optional[bool] = None
     office_address: Optional[str] = Field(default=None, max_length=240)
@@ -3309,7 +3451,8 @@ class AdminUserCreate(BaseModel):
     password: str = Field(min_length=6)
     name: str = Field(min_length=1)
     company_name: str = Field(min_length=1, max_length=180)
-    job_title: str = ""
+    job_title: str = Field(min_length=1, max_length=120)
+    job_title_is_other: bool = False
     department: str = Field(min_length=1, max_length=120)
     department_is_other: bool = False
     office_address: str = ""
@@ -3376,6 +3519,7 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
         raise HTTPException(status_code=400, detail="Supervisor name is required")
     company_name = await _resolve_company_name(payload.company_name)
     department, department_code = await _resolve_department(payload.department, payload.department_is_other)
+    job_title, position_code = await _resolve_position(payload.job_title, payload.job_title_is_other)
     meeting_buildings = _normalize_building_list(payload.meeting_buildings) if payload.role == "meeting_admin" else []
     fnb_locations = _normalize_building_list(payload.fnb_locations) if payload.role == "manager" else []
     if payload.role == "meeting_admin" and not meeting_buildings:
@@ -3387,7 +3531,8 @@ async def admin_create_user(payload: AdminUserCreate, admin: dict = Depends(requ
         "email": email,
         "name": payload.name.strip(),
         "company_name": company_name,
-        "job_title": payload.job_title.strip(),
+        "job_title": job_title,
+        "position_code": position_code,
         "department": department,
         "department_code": department_code,
         "office_address": payload.office_address.strip(),
@@ -3479,7 +3624,7 @@ async def admin_update_user(
     user_id: str, payload: AdminUserUpdate, admin: dict = Depends(require_super_admin)
 ):
     existing_user = await db.users.find_one(
-        {"id": user_id}, {"_id": 0, "company_name": 1, "department": 1, "department_code": 1}
+        {"id": user_id}, {"_id": 0, "company_name": 1, "job_title": 1, "position_code": 1, "department": 1, "department_code": 1}
     )
     if not existing_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -3506,6 +3651,11 @@ async def admin_update_user(
         department, department_code = await _resolve_department(updates["department"], department_is_other)
         updates["department"] = department
         updates["department_code"] = department_code
+    job_title_is_other = updates.pop("job_title_is_other", False)
+    if "job_title" in updates:
+        job_title, position_code = await _resolve_position(updates["job_title"], job_title_is_other)
+        updates["job_title"] = job_title
+        updates["position_code"] = position_code
     if "meeting_buildings" in updates:
         updates["meeting_buildings"] = _normalize_building_list(updates["meeting_buildings"])
     if "fnb_locations" in updates:
@@ -3809,6 +3959,28 @@ async def seed_departments():
     ]
     await db.departments.insert_many(docs)
     logger.info("Seeded %s departments", len(docs))
+
+
+async def seed_positions():
+    if await db.positions.count_documents({}) != 0:
+        return
+    seed_path = ROOT_DIR / "data" / "positions.txt"
+    position_names = [line.strip() for line in seed_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    now = _now_iso()
+    docs = [
+        {
+            "id": str(uuid.uuid4()),
+            "code_position": f"JOB{sequence:03d}",
+            "position_name": position_name,
+            "created_date": now,
+            "created_by": "System Import",
+            "updated_by": "System Import",
+            "updated_date": now,
+        }
+        for sequence, position_name in enumerate(position_names, start=1)
+    ]
+    await db.positions.insert_many(docs)
+    logger.info("Seeded %s positions", len(docs))
 
 
 async def seed_admin():
@@ -4743,6 +4915,8 @@ async def on_startup():
     await db.companies.create_index("system_number", unique=True)
     await db.departments.create_index("code_dept", unique=True)
     await db.departments.create_index("dept_name", unique=True)
+    await db.positions.create_index("code_position", unique=True)
+    await db.positions.create_index("position_name", unique=True)
     await db.rooms.create_index("name")
     await db.rooms.create_index("building")
     await db.bookings.create_index([("room_id", 1), ("date", 1)])
@@ -4760,6 +4934,7 @@ async def on_startup():
     await migrate_legacy_roles()
     await seed_companies()
     await seed_departments()
+    await seed_positions()
     await seed_rooms()
     await seed_fleet()
 

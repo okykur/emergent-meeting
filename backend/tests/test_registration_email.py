@@ -32,6 +32,11 @@ class FakeDepartments:
         return {"code_dept": "DEPT060", "dept_name": "OPERATIONAL"}
 
 
+class FakePositions:
+    async def find_one(self, _query, _projection=None):
+        return {"code_position": "JOB002", "position_name": "MAINTENANCE SUPERVISOR"}
+
+
 class FakeBackgroundTasks:
     def __init__(self):
         self.tasks = []
@@ -45,7 +50,7 @@ def test_registration_accepts_public_email_domains(monkeypatch):
     monkeypatch.setattr(
         server,
         "db",
-        type("FakeDb", (), {"users": users, "companies": FakeCompanies(), "departments": FakeDepartments()})(),
+        type("FakeDb", (), {"users": users, "companies": FakeCompanies(), "departments": FakeDepartments(), "positions": FakePositions()})(),
     )
     monkeypatch.setattr(server, "hash_password", lambda _password: "hashed")
 
@@ -54,7 +59,7 @@ def test_registration_accepts_public_email_domains(monkeypatch):
         password="SecurePass123",
         name="New User",
         company_name="PT Aroma Tobacco International",
-        job_title="Manager",
+        job_title="maintenance supervisor",
         department="operational",
         office_address="Jakarta",
         supervisor_name="Supervisor",
@@ -69,6 +74,8 @@ def test_registration_accepts_public_email_domains(monkeypatch):
     assert users.inserted["approval_status"] == "pending"
     assert users.inserted["department"] == "OPERATIONAL"
     assert users.inserted["department_code"] == "DEPT060"
+    assert users.inserted["job_title"] == "MAINTENANCE SUPERVISOR"
+    assert users.inserted["position_code"] == "JOB002"
     assert [task[0] for task in background_tasks.tasks] == [
         server._send_registration_pending_confirmation,
         server._send_registration_admin_notification,
@@ -85,7 +92,7 @@ def test_registration_allows_other_department(monkeypatch):
     monkeypatch.setattr(
         server,
         "db",
-        type("FakeDb", (), {"users": users, "companies": FakeCompanies(), "departments": MissingDepartment()})(),
+        type("FakeDb", (), {"users": users, "companies": FakeCompanies(), "departments": MissingDepartment(), "positions": MissingDepartment()})(),
     )
     monkeypatch.setattr(server, "hash_password", lambda _password: "hashed")
     payload = server.RegisterRequest(
@@ -94,6 +101,7 @@ def test_registration_allows_other_department(monkeypatch):
         name="Other User",
         company_name="PT Aroma Tobacco International",
         job_title="Specialist",
+        job_title_is_other=True,
         department="Innovation Office",
         department_is_other=True,
         office_address="Jakarta",
@@ -105,6 +113,51 @@ def test_registration_allows_other_department(monkeypatch):
 
     assert users.inserted["department"] == "Innovation Office"
     assert users.inserted["department_code"] == ""
+    assert users.inserted["job_title"] == "Specialist"
+    assert users.inserted["position_code"] == ""
+
+
+def test_admin_create_user_relates_position_and_department_master(monkeypatch):
+    users = FakeUsers()
+    monkeypatch.setattr(
+        server,
+        "db",
+        type(
+            "FakeDb",
+            (),
+            {
+                "users": users,
+                "companies": FakeCompanies(),
+                "departments": FakeDepartments(),
+                "positions": FakePositions(),
+            },
+        )(),
+    )
+    monkeypatch.setattr(server, "hash_password", lambda _password: "hashed")
+
+    payload = server.AdminUserCreate(
+        email="admin.created@example.com",
+        password="SecurePass123",
+        name="Admin Created",
+        company_name="PT Aroma Tobacco International",
+        job_title="maintenance supervisor",
+        department="operational",
+        office_address="Jakarta",
+        supervisor_name="Supervisor",
+        supervisor_email="supervisor@example.com",
+    )
+    created = asyncio.run(
+        server.admin_create_user(
+            payload,
+            {"id": "super-admin", "name": "System Admin", "role": "super_admin"},
+        )
+    )
+
+    assert created.job_title == "MAINTENANCE SUPERVISOR"
+    assert created.position_code == "JOB002"
+    assert created.department == "OPERATIONAL"
+    assert created.department_code == "DEPT060"
+    assert users.inserted["position_code"] == "JOB002"
 
 
 def test_pending_registration_email_uses_resend_template(monkeypatch):
