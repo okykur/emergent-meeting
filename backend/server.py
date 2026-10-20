@@ -136,6 +136,7 @@ ADMIN_ROLES = {"meeting_admin", "car_admin", "manager", "super_admin"}
 MEETING_ADMIN_ROLES = {"meeting_admin", "super_admin"}
 CAR_ADMIN_ROLES = {"car_admin", "super_admin"}
 FNB_MANAGER_ROLES = {"manager", "super_admin"}
+MANAGER_USER_ROLES = {"manager_user", "super_admin"}
 MEETING_BLOCKING_STATUSES = ["pending", "confirmed", "approved"]
 DEFAULT_OPERATING_START_TIME = "08:00"
 DEFAULT_OPERATING_END_TIME = "17:30"
@@ -167,6 +168,12 @@ async def require_fnb_manager(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
+async def require_manager_user(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") not in MANAGER_USER_ROLES:
+        raise HTTPException(status_code=403, detail="Manager User access required")
+    return user
+
+
 # Backward-compat alias — treat the old 'admin' name as meeting admin checker for existing routes.
 require_admin = require_meeting_admin
 
@@ -186,7 +193,7 @@ class UserPublic(BaseModel):
     supervisor_email: str = ""
     meeting_buildings: List[str] = []
     fnb_locations: List[str] = []
-    role: Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"]
+    role: Literal["user", "meeting_admin", "car_admin", "manager", "manager_user", "super_admin"]
     is_approved: bool = True
     approval_status: Literal["pending", "approved", "rejected"] = "approved"
     approved_at: Optional[str] = None
@@ -2205,7 +2212,7 @@ async def me(current_user: dict = Depends(get_current_user)):
 # Admin: promote a user (super admin only)
 class PromoteRequest(BaseModel):
     email: EmailStr
-    role: Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"] = "meeting_admin"
+    role: Literal["user", "meeting_admin", "car_admin", "manager", "manager_user", "super_admin"] = "meeting_admin"
 
 
 @api.post("/auth/promote", response_model=UserPublic)
@@ -3155,6 +3162,114 @@ async def reassign_booking_room(
     return Booking(**reassigned)
 
 
+@api.get("/manager-user/bookings", response_model=List[Booking])
+async def list_manager_user_bookings(
+    manager_user: dict = Depends(require_manager_user),
+):
+    items = await db.bookings.find(
+        {
+            "supervisor_email": manager_user["email"].strip().lower(),
+            "approval_require_manager_user": True,
+        },
+        {"_id": 0},
+    ).sort([("date", -1), ("start_time", -1)]).to_list(1000)
+    await _normalize_bookings_public(items)
+    return [Booking(**booking) for booking in items]
+
+
+@api.patch("/manager-user/bookings/{booking_id}/status", response_model=Booking)
+async def update_manager_user_status(
+    booking_id: str,
+    payload: FnbStatusUpdate,
+    manager_user: dict = Depends(require_manager_user),
+):
+    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if (booking.get("supervisor_email") or "").strip().lower() != manager_user["email"].strip().lower():
+        raise HTTPException(status_code=403, detail="This meeting approval is assigned to another Manager User")
+    if payload.status not in ("approved", "rejected"):
+        raise HTTPException(status_code=400, detail="Manager User can only approve or reject this booking")
+    if booking.get("status") != "pending" or booking.get("meeting_admin_approval_status") != "approved":
+        raise HTTPException(status_code=400, detail="Meeting Admin approval is required first")
+    if not booking.get("approval_require_manager_user") or booking.get("manager_user_approval_status") != "pending":
+        raise HTTPException(status_code=400, detail="This booking is not waiting for Manager User approval")
+
+    rejection_reason = (payload.reason or "").strip()
+    if payload.status == "rejected" and not rejection_reason:
+        raise HTTPException(status_code=400, detail="Rejection reason is required")
+
+    now = _now_iso()
+    reviewer = manager_user["email"].strip().lower()
+    updates = {
+        "supervisor_approval_status": payload.status,
+        "supervisor_approved_at": now,
+        "supervisor_approved_by": reviewer,
+        "manager_user_approval_status": payload.status,
+        "manager_user_reviewed_at": now,
+        "manager_user_reviewed_by": reviewer,
+    }
+    if payload.status == "rejected":
+        updates.update(
+            {
+                "status": "cancelled",
+                "rejection_reason": rejection_reason,
+                "rejected_at": now,
+                "rejected_by": reviewer,
+                "cancellation_reason": rejection_reason,
+                "cancelled_at": now,
+                "cancelled_by": reviewer,
+            }
+        )
+        if (booking.get("food_beverages") or "").strip():
+            updates.update(
+                {
+                    "fnb_status": "cancelled",
+                    "fnb_cancelled_at": now,
+                    "fnb_cancelled_by": reviewer,
+                }
+            )
+    elif booking.get("approval_require_manager_ga"):
+        updates["manager_ga_approval_status"] = "pending"
+    else:
+        updates.update(
+            {
+                "status": "confirmed",
+                "fnb_status": "approved",
+                "fnb_reviewed_at": now,
+                "fnb_reviewed_by": reviewer,
+            }
+        )
+
+    result = await db.bookings.update_one(
+        {
+            "id": booking_id,
+            "status": "pending",
+            "meeting_admin_approval_status": "approved",
+            "manager_user_approval_status": "pending",
+        },
+        {"$set": updates},
+    )
+    if result.modified_count != 1:
+        raise HTTPException(status_code=409, detail="This booking was already processed")
+    await db.supervisor_meeting_approvals.update_many(
+        {"booking_id": booking_id, "used_at": None},
+        {"$set": {"used_at": now, "decision": payload.status}},
+    )
+
+    updated = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    await _normalize_booking_public(updated)
+    if payload.status == "approved":
+        if updated.get("approval_require_manager_ga"):
+            recipients = await _manager_ga_recipients(updated["room_building"])
+            _send_manager_ga_approval_notifications(updated, recipients)
+        elif not _send_booking_approval_email(updated):
+            logger.warning("Meeting approval saved, but confirmation email was not sent for booking %s", booking_id)
+    elif not _send_booking_rejection_email(updated, rejection_reason, "meeting"):
+        logger.warning("Manager User rejection saved, but notification email was not sent for booking %s", booking_id)
+    return Booking(**updated)
+
+
 @api.get("/fnb/bookings", response_model=List[Booking])
 async def list_fnb_bookings(
     manager: dict = Depends(require_fnb_manager),
@@ -3439,7 +3554,7 @@ class AdminUserUpdate(BaseModel):
     supervisor_email: Optional[EmailStr] = None
     meeting_buildings: Optional[List[str]] = None
     fnb_locations: Optional[List[str]] = None
-    role: Optional[Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"]] = None
+    role: Optional[Literal["user", "meeting_admin", "car_admin", "manager", "manager_user", "super_admin"]] = None
 
 
 class AdminPasswordReset(BaseModel):
@@ -3460,13 +3575,13 @@ class AdminUserCreate(BaseModel):
     supervisor_email: EmailStr
     meeting_buildings: List[str] = []
     fnb_locations: List[str] = []
-    role: Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"] = "user"
+    role: Literal["user", "meeting_admin", "car_admin", "manager", "manager_user", "super_admin"] = "user"
     is_approved: bool = True
 
 
 class AdminUserApprovalDecision(BaseModel):
     action: Literal["approve", "reject"]
-    role: Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"] = "user"
+    role: Literal["user", "meeting_admin", "car_admin", "manager", "manager_user", "super_admin"] = "user"
     meeting_buildings: List[str] = []
     fnb_locations: List[str] = []
     rejection_reason: str = Field(default="", max_length=500)
@@ -3476,7 +3591,7 @@ class AdminUserApprovalDecision(BaseModel):
 async def list_users(
     admin: dict = Depends(require_super_admin),
     q: Optional[str] = None,
-    role: Optional[Literal["user", "meeting_admin", "car_admin", "manager", "super_admin"]] = None,
+    role: Optional[Literal["user", "meeting_admin", "car_admin", "manager", "manager_user", "super_admin"]] = None,
     approval: Optional[Literal["approved", "pending", "rejected"]] = None,
 ):
     query: dict = {}

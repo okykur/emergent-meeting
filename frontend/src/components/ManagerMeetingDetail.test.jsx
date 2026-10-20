@@ -67,3 +67,12 @@ test("Manager GA rejection submits the trimmed reason", async () => {
   await click("Kirim Penolakan");
   expect(props.onUpdateFnb).toHaveBeenCalledWith(booking.id, "rejected", "Jumlah konsumsi tidak sesuai");
 });
+
+test("Manager User can approve its pending stage before Manager GA", async () => {
+  props.booking = { ...booking, manager_user_approval_status: "pending", manager_ga_approval_status: "waiting" };
+  props.approvalStage = "manager_user";
+  props.initialConfirm = true;
+  render();
+  await click("Ya, Setujui");
+  expect(props.onUpdateFnb).toHaveBeenCalledWith(booking.id, "approved");
+});

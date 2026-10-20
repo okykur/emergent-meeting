@@ -37,6 +37,9 @@ function RootRedirect() {
 
 function AdminHome() {
   const { user } = useAuth();
+  if (user && user.role === "manager_user") {
+    return <Navigate to="/admin/fnb" replace />;
+  }
   if (user && user.role === "car_admin") {
     return <Navigate to="/admin/dashboard?tab=vehicle" replace />;
   }

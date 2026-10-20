@@ -3,7 +3,7 @@ import { Check, X, TriangleAlert } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./ui/dialog";
 import { formatDate } from "../utils/dates";
 
-export default function ManagerMeetingDetail({ booking, onClose, onUpdateFnb, initialConfirm = false, initialReject = false }) {
+export default function ManagerMeetingDetail({ booking, onClose, onUpdateFnb, approvalStage = "manager_ga", initialConfirm = false, initialReject = false }) {
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(initialConfirm);
   const [rejecting, setRejecting] = useState(initialReject);
@@ -18,8 +18,8 @@ export default function ManagerMeetingDetail({ booking, onClose, onUpdateFnb, in
   const roomApproved = booking.meeting_admin_approval_status === "approved";
   const cancelled = booking.status === "cancelled";
   const fnbStopped = ["rejected", "cancelled"].includes(booking.fnb_status);
-  const canMeeting = false;
-  const canFnb = booking.status === "pending" && roomApproved && validFnb && booking.approval_require_manager_ga === true && booking.manager_ga_approval_status === "pending" && (!booking.approval_require_manager_user || booking.manager_user_approval_status === "approved");
+  const canMeeting = approvalStage === "manager_user" && booking.status === "pending" && roomApproved && booking.approval_require_manager_user === true && booking.manager_user_approval_status === "pending";
+  const canFnb = approvalStage === "manager_ga" && booking.status === "pending" && roomApproved && validFnb && booking.approval_require_manager_ga === true && booking.manager_ga_approval_status === "pending" && (!booking.approval_require_manager_user || booking.manager_user_approval_status === "approved");
   const complete = booking.status === "confirmed";
   const steps = ["Diajukan", "Admin Ruang", ...(booking.approval_require_manager_user ? ["Manager User"] : []), ...(booking.approval_require_manager_ga ? ["Manager GA"] : []), "Disetujui"];
   const statuses = ["approved", booking.meeting_admin_approval_status, ...(booking.approval_require_manager_user ? [booking.manager_user_approval_status] : []), ...(booking.approval_require_manager_ga ? [booking.manager_ga_approval_status] : [])];
@@ -74,7 +74,7 @@ export default function ManagerMeetingDetail({ booking, onClose, onUpdateFnb, in
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-amber-400 bg-amber-50 text-amber-500"><TriangleAlert className="h-5 w-5" aria-hidden="true" /></div>
         <DialogTitle className="break-words text-lg font-bold text-[#272c29]">Setujui pengajuan {booking.booking_number || booking.id}?</DialogTitle>
         <DialogDescription className="mt-3 text-xs leading-relaxed text-slate-500">Tindakan ini tidak dapat dibatalkan setelah disetujui.</DialogDescription>
-        <p className="mt-2 text-xs text-slate-500">{canMeeting ? "Persetujuan ruang meeting" : "Persetujuan F&B"}</p>
+        <p className="mt-2 text-xs text-slate-500">{canMeeting ? "Persetujuan Manager User" : "Persetujuan Manager GA"}</p>
         {actionError && <p role="alert" className="mt-3 text-sm text-red-600">{actionError}</p>}
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button type="button" autoFocus disabled={saving} onClick={() => { setConfirming(false); setActionError(""); }} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Batal</button>
@@ -88,7 +88,7 @@ export default function ManagerMeetingDetail({ booking, onClose, onUpdateFnb, in
       <DialogContent data-testid="manager-meeting-detail" className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[520px] flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 p-6 shadow-2xl [&>button]:rounded-full [&>button]:bg-slate-100 [&>button]:p-2">
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 pb-5 pr-8">
           <DialogTitle className="break-all font-mono text-sm font-bold text-slate-700">{booking.booking_number || booking.id}</DialogTitle>
-          <span className="rounded-md border border-amber-400 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-600">{canFnb ? "Persetujuan Terakhir" : canMeeting ? "Persetujuan Ruang" : "Detail Persetujuan"}</span>
+          <span className="rounded-md border border-amber-400 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-600">{canFnb ? "Persetujuan Manager GA" : canMeeting ? "Persetujuan Manager User" : "Detail Persetujuan"}</span>
         </div>
         <div className="min-h-0 space-y-5 overflow-y-auto py-5">
           <div className="flex items-center gap-3">

@@ -25,3 +25,10 @@ function needsManagerGaApproval(booking) {
 export function isActiveManagerApproval(booking) {
   return needsManagerGaApproval(booking);
 }
+
+export function isActiveManagerUserApproval(booking) {
+  return booking.status === "pending"
+    && booking.meeting_admin_approval_status === "approved"
+    && booking.approval_require_manager_user === true
+    && booking.manager_user_approval_status === "pending";
+}

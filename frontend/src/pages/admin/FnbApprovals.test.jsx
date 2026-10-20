@@ -1,4 +1,4 @@
-import { isActiveManagerApproval } from "../../utils/managerApproval";
+import { isActiveManagerApproval, isActiveManagerUserApproval } from "../../utils/managerApproval";
 
 const base = {
   status: "pending",
@@ -29,4 +29,10 @@ test("hides completed, cancelled, and invalid-duration requests", () => {
   expect(isActiveManagerApproval({ ...base, status: "completed" })).toBe(false);
   expect(isActiveManagerApproval({ ...base, status: "cancelled" })).toBe(false);
   expect(isActiveManagerApproval({ ...base, end_time: "12:00" })).toBe(false);
+});
+
+test("shows only the pending Manager User stage after Meeting Admin approval", () => {
+  expect(isActiveManagerUserApproval({ ...base, manager_user_approval_status: "pending" })).toBe(true);
+  expect(isActiveManagerUserApproval({ ...base, meeting_admin_approval_status: "pending", manager_user_approval_status: "pending" })).toBe(false);
+  expect(isActiveManagerUserApproval(base)).toBe(false);
 });

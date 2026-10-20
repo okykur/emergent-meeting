@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { api, formatApiError } from "../../api";
 import ManagerMeetingDetail from "../../components/ManagerMeetingDetail";
-import { isActiveManagerApproval } from "../../utils/managerApproval";
+import { useAuth } from "../../context/AuthContext";
+import { isActiveManagerApproval, isActiveManagerUserApproval } from "../../utils/managerApproval";
 
 function formatApprovalDate(date) {
   if (!date) return "-";
@@ -118,6 +119,8 @@ function ApprovalTable({ bookings, loading, onDetail }) {
 }
 
 export default function AdminFnbApprovals() {
+  const { user } = useAuth();
+  const managerUserMode = user?.role === "manager_user";
   const [bookings, setBookings] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -128,7 +131,7 @@ export default function AdminFnbApprovals() {
     setLoading(true);
     setError("");
     try {
-      const { data } = await api.get("/fnb/bookings");
+      const { data } = await api.get(managerUserMode ? "/manager-user/bookings" : "/fnb/bookings");
       setBookings(data);
       setSelectedBooking((current) => current ? data.find((booking) => booking.id === current.id) || null : null);
     } catch (err) {
@@ -136,13 +139,13 @@ export default function AdminFnbApprovals() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [managerUserMode]);
 
   useEffect(() => { load(); }, [load]);
 
   const activeBookings = useMemo(
-    () => bookings.filter(isActiveManagerApproval),
-    [bookings],
+    () => bookings.filter(managerUserMode ? isActiveManagerUserApproval : isActiveManagerApproval),
+    [bookings, managerUserMode],
   );
 
   const openBooking = (booking, mode = "detail") => {
@@ -154,7 +157,8 @@ export default function AdminFnbApprovals() {
     try {
       const payload = { status: nextStatus };
       if (reason) payload.reason = reason;
-      const { data } = await api.patch(`/fnb/bookings/${id}/${kind}`, payload);
+      const endpoint = managerUserMode ? `/manager-user/bookings/${id}/status` : `/fnb/bookings/${id}/${kind}`;
+      const { data } = await api.patch(endpoint, payload);
       const approved = nextStatus === "confirmed" || nextStatus === "approved";
       const rejected = nextStatus === "cancelled" || nextStatus === "rejected";
       setBookings((current) => current.map((booking) => booking.id === id ? data : booking));
@@ -183,7 +187,7 @@ export default function AdminFnbApprovals() {
     <div data-testid="manager-approval-page">
       <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] -mt-8 w-screen border-b border-[#dceae2] bg-[#eef8f2]">
         <div className="mx-auto flex min-h-14 max-w-[1400px] items-center justify-between gap-4 px-4 py-3 text-xs md:px-8">
-          <p className="font-semibold text-[#174a37]">Persetujuan akhir aktif – {activeBookings.length} booking menunggu verifikasi final.</p>
+          <p className="font-semibold text-[#174a37]">{managerUserMode ? "Persetujuan Manager User" : "Persetujuan akhir aktif"} – {activeBookings.length} booking menunggu verifikasi.</p>
           <Link to="/admin/calendar" className="inline-flex shrink-0 items-center gap-1.5 font-bold text-[#174a37] underline decoration-[#174a37]/50 underline-offset-2 hover:text-[#0b7a4b]">
             <CalendarDays className="h-3.5 w-3.5" /> Lihat Kalender Rapat
           </Link>
@@ -191,9 +195,9 @@ export default function AdminFnbApprovals() {
       </div>
 
       <header className="mb-8 mt-14">
-        <div className="mb-2 text-xs font-bold uppercase tracking-wide text-[#6b7771]">Final Verification</div>
-        <h1 className="font-display text-3xl font-extrabold tracking-tight text-[#202823] sm:text-4xl">Approval GA Manager – Persetujuan Akhir</h1>
-        <p className="mt-2 text-sm text-[#69756f]">Langkah final persetujuan ruangan dan akomodasi makanan untuk departemen internal.</p>
+        <div className="mb-2 text-xs font-bold uppercase tracking-wide text-[#6b7771]">{managerUserMode ? "Manager User Verification" : "Final Verification"}</div>
+        <h1 className="font-display text-3xl font-extrabold tracking-tight text-[#202823] sm:text-4xl">{managerUserMode ? "Approval Manager User" : "Approval Manager GA – Persetujuan Akhir"}</h1>
+        <p className="mt-2 text-sm text-[#69756f]">{managerUserMode ? "Persetujuan pengajuan meeting yang ditugaskan oleh Admin Meeting kepada Anda." : "Langkah final persetujuan ruangan dan akomodasi makanan untuk departemen internal."}</p>
       </header>
 
       {error && <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -203,6 +207,7 @@ export default function AdminFnbApprovals() {
         <ManagerMeetingDetail
           key={selectedBooking.id}
           booking={selectedBooking}
+          approvalStage={managerUserMode ? "manager_user" : "manager_ga"}
           initialConfirm={dialogMode === "approve"}
           initialReject={dialogMode === "reject"}
           onClose={() => setSelectedBooking(null)}

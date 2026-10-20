@@ -4,6 +4,7 @@ export const ROLES = {
   MEETING_ADMIN: "meeting_admin",
   CAR_ADMIN: "car_admin",
   MANAGER: "manager",
+  MANAGER_USER: "manager_user",
   SUPER_ADMIN: "super_admin",
 };
 
@@ -13,7 +14,8 @@ export const ROLE_LABELS = {
   user: "User",
   meeting_admin: "Meeting Admin",
   car_admin: "Admin Kendaraan",
-  manager: "Manager",
+  manager: "Manager GA",
+  manager_user: "Manager User",
   super_admin: "Super Admin",
 };
 
@@ -35,4 +37,8 @@ export function isCarAdmin(role) {
 
 export function isFnbManager(role) {
   return role === ROLES.MANAGER || role === ROLES.SUPER_ADMIN;
+}
+
+export function isManagerUser(role) {
+  return role === ROLES.MANAGER_USER;
 }

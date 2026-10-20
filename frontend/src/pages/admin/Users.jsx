@@ -32,8 +32,12 @@ function RoleTag({ role }) {
       cls: "bg-[#E88A00] text-white",
     },
     manager: {
-      label: "Manager",
+      label: "Manager GA",
       cls: "bg-[#FFF0C7] text-[#C87400]",
+    },
+    manager_user: {
+      label: "Manager User",
+      cls: "bg-[#E5EEF9] text-[#315F91]",
     },
     user: {
       label: "User",
@@ -86,7 +90,8 @@ function inputToBuildings(value = "") {
 const userFieldClass = "h-11 w-full rounded-lg border border-[#DCE3DE] bg-white px-3.5 text-sm text-[#303732] outline-none placeholder:text-[#8A938D] focus:border-[#238B57] focus:ring-2 focus:ring-[#238B57]/10";
 const userRoleOptions = [
   { value: "super_admin", label: "Super Admin", description: "Kelola seluruh pengguna, role, dan akses sistem" },
-  { value: "manager", label: "Manager", description: "Melakukan review dan approval meeting room serta F&B" },
+  { value: "manager", label: "Manager GA", description: "Melakukan approval akhir meeting room dan F&B sesuai lokasi" },
+  { value: "manager_user", label: "Manager User", description: "Melakukan approval meeting yang ditugaskan Admin Meeting" },
   { value: "user", label: "User", description: "Mengajukan booking untuk diri sendiri" },
   { value: "meeting_admin", label: "Meeting Admin", description: "Meninjau pengajuan dan mengelola ruang meeting" },
   { value: "car_admin", label: "Car Admin", description: "Meninjau pengajuan dan mengelola kendaraan serta driver" },
@@ -317,7 +322,8 @@ function UserFormDialog({ initial, onClose, onSaved }) {
               <option value="user">User</option>
               <option value="meeting_admin">Meeting Admin — approve meeting-room bookings</option>
               <option value="car_admin">Car Admin — approve car/vehicle bookings</option>
-              <option value="manager">Manager - approve meeting room &amp; F&amp;B</option>
+              <option value="manager">Manager GA - approval akhir meeting room &amp; F&amp;B</option>
+              <option value="manager_user">Manager User - approve meeting yang ditugaskan</option>
               <option value="super_admin">Super Admin — full access</option>
             </select>
             <div className="space-y-2" role="radiogroup" aria-label="Pilih role pengguna">
@@ -375,7 +381,7 @@ function UserFormDialog({ initial, onClose, onSaved }) {
                 className={userFieldClass}
               />
               <p className="mt-2 text-[11px] text-[#747D77]">
-                Satu manager bisa menangani approval meeting room dan F&amp;B untuk beberapa lokasi. Pisahkan dengan koma.
+                Satu Manager GA bisa menangani approval meeting room dan F&amp;B untuk beberapa lokasi. Pisahkan dengan koma.
               </p>
             </div>
           )}
@@ -782,7 +788,8 @@ export default function AdminUsers() {
           <option value="user">User</option>
           <option value="meeting_admin">Meeting Admin</option>
           <option value="car_admin">Car Admin</option>
-          <option value="manager">Manager</option>
+          <option value="manager">Manager GA</option>
+          <option value="manager_user">Manager User</option>
           <option value="super_admin">Super Admin</option>
         </select>
         <select

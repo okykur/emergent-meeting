@@ -56,6 +56,7 @@ export default function Layout() {
   const isMeetingAdmin = role === "meeting_admin" || isSuper;
   const isCarAdmin = role === "car_admin" || isSuper;
   const isFnbManager = role === "manager" || isSuper;
+  const isManagerUser = role === "manager_user";
 
   const navFull = [
     { to: "/hub", label: "Home", icon: Home, testid: "nav-hub", end: true, show: true },
@@ -68,7 +69,7 @@ export default function Layout() {
     { to: "/car", label: "Car / Vehicle", icon: Car, testid: "nav-car", show: true },
     { to: "/admin/bookings", label: "Approval Meeting", icon: CalendarCheck2, testid: "nav-approval-meeting", show: isMeetingAdmin },
     { to: "/admin/cars/bookings", label: "Approval Kendaraan", icon: Car, testid: "nav-approval-cars", show: isCarAdmin },
-    { to: "/admin/fnb", label: "Approval Manager", icon: BookMarked, testid: "nav-approval-manager", show: isFnbManager },
+    { to: "/admin/fnb", label: isManagerUser ? "Approval Meeting" : "Approval Manager", icon: BookMarked, testid: "nav-approval-manager", show: isFnbManager || isManagerUser },
     { to: "/admin/rooms", label: "Master Room", icon: Building2, testid: "nav-admin-rooms", show: isMeetingAdmin },
     { to: "/admin/cars/vehicles", label: "Master Vehicle", icon: Car, testid: "nav-admin-vehicles", show: isCarAdmin },
     { to: "/admin/cars/drivers", label: "Master Driver", icon: Users, testid: "nav-admin-drivers", show: isCarAdmin },
@@ -80,8 +81,8 @@ export default function Layout() {
   const nav = managerApprovalStyle
     ? [
         { to: "/hub", label: "Dashboard", icon: Home, testid: "nav-hub", end: true },
-        { to: "/admin/dashboard", label: "Dashboard", icon: ChartNoAxesCombined, testid: "nav-admin-dashboard" },
-        { to: "/admin/fnb", label: "Ruang Rapat", icon: DoorOpen, testid: "nav-approval-manager" },
+        ...(!isManagerUser ? [{ to: "/admin/dashboard", label: "Dashboard", icon: ChartNoAxesCombined, testid: "nav-admin-dashboard" }] : []),
+        { to: "/admin/fnb", label: isManagerUser ? "Approval Meeting" : "Ruang Rapat", icon: DoorOpen, testid: "nav-approval-manager" },
       ]
     : navFull.filter((n) => n.show);
 
@@ -123,7 +124,8 @@ export default function Layout() {
                       user: "User",
                       meeting_admin: "Meeting Admin",
                       car_admin: "Admin Kendaraan",
-                      manager: managerApprovalStyle ? "GA Manager" : "Manager",
+                      manager: "Manager GA",
+                      manager_user: "Manager User",
                       super_admin: "Super Admin",
                     }[user?.role] || user?.role
                   }
