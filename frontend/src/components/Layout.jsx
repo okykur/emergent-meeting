@@ -44,7 +44,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const managerApprovalStyle = location.pathname === "/admin/fnb";
+  const managerApprovalStyle = location.pathname === "/admin/fnb" && user?.role !== "manager_user";
 
   const handleLogout = () => {
     logout();

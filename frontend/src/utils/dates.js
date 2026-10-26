@@ -51,8 +51,8 @@ export function rangeDays(startYMD, endYMD, max = 31) {
 
 export const DEFAULT_OPERATING_START_TIME = "08:00";
 export const DEFAULT_OPERATING_END_TIME = "17:30";
-const ACTIVE_BOOKING_STATUSES = new Set(["pending", "confirmed", "approved"]);
-const APPROVED_BOOKING_STATUSES = new Set(["confirmed", "approved"]);
+const ACTIVE_BOOKING_STATUSES = new Set(["pending", "confirmed", "approved", "in_progress"]);
+const APPROVED_BOOKING_STATUSES = new Set(["confirmed", "approved", "in_progress"]);
 
 function timeToMinutes(time) {
   const [hours, minutes] = time.split(":").map(Number);

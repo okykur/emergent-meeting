@@ -278,7 +278,7 @@ export default function AdminBookings() {
   const visibleRooms = rooms.filter(canManageRoom);
   const buildings = [...new Set(visibleRooms.map((r) => r.building || "Unassigned"))].sort();
   const pendingAdminCount = bookings.filter(canReviewMeetingBooking).length;
-  const confirmedCount = bookings.filter((booking) => booking.status === "confirmed").length;
+  const confirmedCount = bookings.filter((booking) => ["confirmed", "in_progress"].includes(booking.status)).length;
 
   const load = async () => {
     try {
@@ -324,7 +324,7 @@ export default function AdminBookings() {
             <div className="mt-1 text-2xl font-bold text-[#202521]">{pendingAdminCount}</div>
           </div>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700"><CircleCheckBig className="h-4 w-4" /> Confirmed</div>
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700"><CircleCheckBig className="h-4 w-4" /> Aktif / Confirmed</div>
             <div className="mt-1 text-2xl font-bold text-[#202521]">{confirmedCount}</div>
           </div>
         </div>
@@ -351,6 +351,7 @@ export default function AdminBookings() {
           <option value="">Semua status</option>
           <option value="pending">Pending</option>
           <option value="confirmed">Confirmed</option>
+          <option value="in_progress">In Progress</option>
           <option value="cancelled">Cancelled</option>
           <option value="completed">Completed</option>
         </select>
@@ -420,7 +421,7 @@ export default function AdminBookings() {
       )}
 
       <div className="overflow-x-auto rounded-xl border border-[#DCE3DE] bg-white shadow-sm">
-        <table className="w-full min-w-[1400px] text-sm">
+        <table className="w-full min-w-[1520px] text-sm">
           <thead className="bg-[#F3F6F4] text-[11px] font-bold uppercase tracking-wider text-[#68736B]">
             <tr>
               <th className="px-5 py-4 text-left">Booking ID</th>
@@ -431,8 +432,8 @@ export default function AdminBookings() {
               <th className="px-5 py-4 text-left">Tanggal</th>
               <th className="px-5 py-4 text-left">Waktu</th>
               <th className="px-5 py-4 text-left">Peserta</th>
-              <th className="px-5 py-4 text-left">Status</th>
-              <th className="sticky right-0 z-20 min-w-[190px] border-l border-[#DCE3DE] bg-[#F3F6F4] px-5 py-4 text-right">Aksi</th>
+              <th className="w-[150px] min-w-[150px] px-5 py-4 text-left">Status</th>
+              <th className="sticky right-0 z-20 w-[210px] min-w-[210px] border-l border-[#DCE3DE] bg-[#F3F6F4] px-5 py-4 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -499,11 +500,11 @@ export default function AdminBookings() {
                   {b.start_time}–{b.end_time}
                 </td>
                 <td className="px-5 py-4 text-slate-700">{b.participants}</td>
-                <td className="px-5 py-4">
+                <td className="w-[150px] min-w-[150px] whitespace-nowrap px-5 py-4 pr-8">
                   <StatusPill status={b.status} />
                 </td>
-                <td className="sticky right-0 z-10 border-l border-[#E5EAE7] bg-white px-5 py-4 group-hover:bg-[#FAFCFA]">
-                  <div className="flex min-w-[150px] justify-end gap-2">
+                <td className="sticky right-0 z-10 w-[210px] min-w-[210px] border-l border-[#E5EAE7] bg-white px-5 py-4 group-hover:bg-[#FAFCFA]">
+                  <div className="flex min-w-[170px] justify-end gap-2">
                     {canReassignMeetingBooking(b) && (
                       <button
                         onClick={() => setReassigning(b)}

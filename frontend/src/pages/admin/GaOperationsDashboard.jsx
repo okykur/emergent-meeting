@@ -50,7 +50,7 @@ const hasAccommodation = (booking) => Boolean((booking.food_beverages || "").tri
 const bookingStatusKey = (booking) => {
   if (booking.status === "completed") return "completed";
   if (booking.status === "pending") return "pending";
-  if (booking.status === "confirmed" || booking.status === "approved") return "approved";
+  if (["confirmed", "approved", "in_progress"].includes(booking.status)) return "approved";
   if (booking.status === "cancelled") {
     return booking.rejection_reason || booking.rejected_at || booking.meeting_admin_approval_status === "rejected"
       ? "rejected"

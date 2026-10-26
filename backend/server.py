@@ -5,6 +5,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 import os
+import asyncio
 import base64
 import uuid
 import logging
@@ -55,6 +56,8 @@ SUPERVISOR_EMAIL_PROVIDER = os.environ.get("SUPERVISOR_EMAIL_PROVIDER", "smtp").
 PASSWORD_RESET_EMAIL_PROVIDER = os.environ.get("PASSWORD_RESET_EMAIL_PROVIDER", SUPERVISOR_EMAIL_PROVIDER).strip().lower()
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_FROM = os.environ.get("RESEND_FROM", "GASS <no-reply-booking@kcsi.id>")
+MEETING_REMINDERS_ENABLED = os.environ.get("MEETING_REMINDERS_ENABLED", "true").lower() == "true"
+MEETING_REMINDER_SCAN_SECONDS = max(15, int(os.environ.get("MEETING_REMINDER_SCAN_SECONDS", "60")))
 BRAND_LOGO_PATHS = [
     Path(os.environ["BRAND_LOGO_PATH"]) if os.environ.get("BRAND_LOGO_PATH") else None,
     ROOT_DIR / "brand-logo.png",
@@ -78,6 +81,7 @@ api = APIRouter(prefix="/api")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("roombook")
+_meeting_reminder_task: Optional[asyncio.Task] = None
 
 
 # ---------- Helpers ----------
@@ -137,7 +141,7 @@ MEETING_ADMIN_ROLES = {"meeting_admin", "super_admin"}
 CAR_ADMIN_ROLES = {"car_admin", "super_admin"}
 FNB_MANAGER_ROLES = {"manager", "super_admin"}
 MANAGER_USER_ROLES = {"manager_user", "super_admin"}
-MEETING_BLOCKING_STATUSES = ["pending", "confirmed", "approved"]
+MEETING_BLOCKING_STATUSES = ["pending", "confirmed", "approved", "in_progress"]
 DEFAULT_OPERATING_START_TIME = "08:00"
 DEFAULT_OPERATING_END_TIME = "17:30"
 DEFAULT_ROOM_BUILDING = "Unassigned"
@@ -403,7 +407,7 @@ class BookingCreate(BaseModel):
 
 
 class BookingStatusUpdate(BaseModel):
-    status: Literal["pending", "confirmed", "cancelled", "completed"]
+    status: Literal["pending", "confirmed", "in_progress", "cancelled", "completed"]
     reason: Optional[str] = Field(default=None, max_length=500)
 
 
@@ -473,6 +477,7 @@ class Booking(BaseModel):
     created_at: str
     checked_in_at: Optional[str] = None
     checked_out_at: Optional[str] = None
+    auto_checked_out_at: Optional[str] = None
     room_reassigned_from_name: Optional[str] = None
     room_reassigned_at: Optional[str] = None
     room_reassigned_by: Optional[str] = None
@@ -501,6 +506,10 @@ class Booking(BaseModel):
     manager_ga_approval_status: str = "not_required"
     manager_ga_reviewed_at: Optional[str] = None
     manager_ga_reviewed_by: Optional[str] = None
+    booking_confirmation_email_sent_at: Optional[str] = None
+    check_in_reminder_email_sent_at: Optional[str] = None
+    check_out_reminder_email_sent_at: Optional[str] = None
+    completion_email_sent_at: Optional[str] = None
 
 
 # ---------- Util ----------
@@ -791,7 +800,7 @@ async def _normalize_booking_public(booking: dict) -> dict:
     booking.setdefault("supervisor_approved_by", None)
     booking.setdefault(
         "meeting_admin_approval_status",
-        "approved" if booking.get("status") in ("confirmed", "completed") else "pending",
+        "approved" if booking.get("status") in ("confirmed", "in_progress", "completed") else "pending",
     )
     booking.setdefault("meeting_admin_reviewed_at", None)
     booking.setdefault("meeting_admin_reviewed_by", None)
@@ -803,6 +812,11 @@ async def _normalize_booking_public(booking: dict) -> dict:
     booking.setdefault("manager_ga_approval_status", "not_required")
     booking.setdefault("manager_ga_reviewed_at", None)
     booking.setdefault("manager_ga_reviewed_by", None)
+    booking.setdefault("booking_confirmation_email_sent_at", None)
+    booking.setdefault("check_in_reminder_email_sent_at", None)
+    booking.setdefault("check_out_reminder_email_sent_at", None)
+    booking.setdefault("completion_email_sent_at", None)
+    booking.setdefault("auto_checked_out_at", None)
     booking.setdefault("additional_facilities", [])
     booking.setdefault("food_beverages", "")
     booking.setdefault("fnb_department", "")
@@ -856,7 +870,7 @@ async def _normalize_bookings_public(bookings: List[dict]) -> List[dict]:
         booking.setdefault("supervisor_approved_by", None)
         booking.setdefault(
             "meeting_admin_approval_status",
-            "approved" if booking.get("status") in ("confirmed", "completed") else "pending",
+            "approved" if booking.get("status") in ("confirmed", "in_progress", "completed") else "pending",
         )
         booking.setdefault("meeting_admin_reviewed_at", None)
         booking.setdefault("meeting_admin_reviewed_by", None)
@@ -868,6 +882,11 @@ async def _normalize_bookings_public(bookings: List[dict]) -> List[dict]:
         booking.setdefault("manager_ga_approval_status", "not_required")
         booking.setdefault("manager_ga_reviewed_at", None)
         booking.setdefault("manager_ga_reviewed_by", None)
+        booking.setdefault("booking_confirmation_email_sent_at", None)
+        booking.setdefault("check_in_reminder_email_sent_at", None)
+        booking.setdefault("check_out_reminder_email_sent_at", None)
+        booking.setdefault("completion_email_sent_at", None)
+        booking.setdefault("auto_checked_out_at", None)
         booking.setdefault("additional_facilities", [])
         booking.setdefault("food_beverages", "")
         booking.setdefault("fnb_department", "")
@@ -1474,6 +1493,124 @@ def _send_booking_approval_email(booking: dict) -> bool:
               <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f8faf9' style='width:100%;border:1px solid #dfe5e2;border-collapse:separate;border-spacing:0;background-color:#f8faf9;border-radius:9px;overflow:hidden'>{rows_html}</table>
               <p style='margin:26px 0;color:#174b37;font-size:15px;font-weight:700;line-height:1.55'>Silakan login ke sistem untuk melanjutkan proses.</p>
               <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'><tr><td align='center' bgcolor='#2f7458' style='background-color:#2f7458;border-radius:8px'><a href='{login_url}' style='display:block;padding:14px 20px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:800'>Login Ke Sistem</a></td></tr></table>
+            </td></tr>
+            <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body></html>
+    """
+    return _send_resend_email(recipient, subject, plain, body)
+
+
+MEETING_NOTIFICATION_CONFIG = {
+    "booking_confirmation": {
+        "badge": "KONFIRMASI PEMINJAMAN",
+        "title": "Konfirmasi Peminjaman Ruangan",
+        "message": "Peminjaman ruangan Anda akan dimulai dalam 2 jam. Pastikan detail jadwal dan ruangan sudah sesuai.",
+        "subject": "Konfirmasi Peminjaman Ruangan - 2 Jam Lagi",
+        "accent": "#0d6645",
+        "badge_bg": "#e2f2e6",
+        "badge_color": "#17643b",
+    },
+    "check_in_reminder": {
+        "badge": "REMINDER CHECK IN",
+        "title": "Meeting Dimulai Dalam 10 Menit",
+        "message": "Silakan melakukan check in melalui GASS saat jadwal meeting dimulai.",
+        "subject": "Reminder Check In - 10 Menit Lagi",
+        "accent": "#2948b8",
+        "badge_bg": "#d8ecfb",
+        "badge_color": "#2b60a8",
+    },
+    "check_out_reminder": {
+        "badge": "REMINDER CLOCK OUT",
+        "title": "Waktu Meeting Tersisa 10 Menit",
+        "message": "Silakan selesaikan kegiatan meeting dan lakukan check out agar ruangan dapat digunakan oleh jadwal berikutnya.",
+        "subject": "Reminder Clock Out - Tersisa 10 Menit",
+        "accent": "#d97706",
+        "badge_bg": "#fff0c7",
+        "badge_color": "#a65b00",
+    },
+    "completed": {
+        "badge": "TELAH SELESAI",
+        "title": "Peminjaman Ruangan Telah Selesai",
+        "message": "Proses check out telah tercatat dan peminjaman ruangan Anda dinyatakan selesai.",
+        "subject": "Konfirmasi Peminjaman Ruangan Telah Selesai",
+        "accent": "#0d6645",
+        "badge_bg": "#e2f2e6",
+        "badge_color": "#17643b",
+    },
+}
+
+
+def _send_meeting_lifecycle_email(booking: dict, notification_type: str) -> bool:
+    recipient = (booking.get("user_email") or "").strip().lower()
+    config = MEETING_NOTIFICATION_CONFIG.get(notification_type)
+    if not RESEND_API_KEY or not recipient or not config:
+        return False
+
+    name = (booking.get("user_name") or "User").strip()
+    accommodation = _meeting_accommodation_summary(booking)
+    if accommodation == "No accommodation requested":
+        accommodation = "Tidak ada akomodasi"
+    message = config["message"]
+    if notification_type == "completed" and booking.get("auto_checked_out_at"):
+        message = "Sistem telah melakukan check out otomatis lima menit setelah jadwal berakhir. Peminjaman ruangan Anda dinyatakan selesai."
+    detail_rows = [
+        ("Booking ID", booking.get("booking_number") or booking.get("id") or "-"),
+        ("Judul Rapat", booking.get("title") or "-"),
+        ("Tanggal & Waktu", _meeting_confirmation_date(booking)),
+        ("Lokasi", f"{booking.get('room_name') or '-'}, {booking.get('room_building') or 'Belum ditentukan'}"),
+        ("Peserta", _meeting_participants_summary(booking)),
+        ("Akomodasi", accommodation),
+    ]
+    subject = f"[GASS] {config['subject']} - {booking.get('title') or 'Meeting'}"
+    plain = "\n".join(
+        [
+            "GASS",
+            "General Affair Services System",
+            "",
+            config["badge"],
+            config["title"],
+            "",
+            f"Halo {name},",
+            message,
+            "",
+            *[f"{label}: {value}" for label, value in detail_rows],
+            "",
+            f"Login ke sistem: {APP_PUBLIC_URL}/login",
+            "",
+            "This is an automated email from GASS. Please do not reply to this email.",
+        ]
+    )
+    rows_html = "".join(
+        "<tr>"
+        f"<td bgcolor='#f8faf9' style='width:34%;padding:14px 16px;border-bottom:1px solid #e4e9e6;color:#66716b;font-size:14px;line-height:1.4'>{html.escape(label)}</td>"
+        f"<td bgcolor='#f8faf9' align='right' style='padding:14px 16px;border-bottom:1px solid #e4e9e6;color:#174b37;font-size:14px;font-weight:800;line-height:1.4;text-align:right'>{html.escape(value)}</td>"
+        "</tr>"
+        for label, value in detail_rows
+    )
+    logo_url = html.escape(f"{APP_PUBLIC_URL}/brand-logo.png", quote=True)
+    login_url = html.escape(f"{APP_PUBLIC_URL}/login", quote=True)
+    body = f"""
+    <html><body bgcolor='#f1f4f3' style='margin:0;padding:0;background-color:#f1f4f3;font-family:Arial,sans-serif;color:#202622'>
+      <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f1f4f3' style='width:100%;background-color:#f1f4f3'>
+        <tr><td align='center' style='padding:40px 18px'>
+          <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' bgcolor='#ffffff' style='width:100%;max-width:640px;background-color:#ffffff;border-radius:14px;overflow:hidden'>
+            <tr><td bgcolor='{config['accent']}' style='padding:34px;background-color:{config['accent']};color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
+                <td bgcolor='#ffffff' style='padding:5px 7px;background-color:#ffffff;border-radius:5px;vertical-align:middle'><img src='{logo_url}' alt='KCSI' width='45' style='display:block;width:45px;height:auto;border:0'></td>
+                <td style='padding-left:12px;vertical-align:middle;color:#ffffff'><div style='font-size:27px;font-weight:900;letter-spacing:-1px;color:#ffffff'>GASS</div></td>
+              </tr></table>
+              <div style='margin-top:10px;font-size:12px;font-weight:600;color:#ffffff'>General Affair Services System</div>
+            </td></tr>
+            <tr><td bgcolor='#ffffff' style='padding:34px;background-color:#ffffff'>
+              <table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr><td bgcolor='{config['badge_bg']}' style='padding:7px 12px;background-color:{config['badge_bg']};border-radius:999px;color:{config['badge_color']};font-size:10px;font-weight:900;letter-spacing:.3px'>{html.escape(config['badge'])}</td></tr></table>
+              <h1 style='margin:28px 0 18px;font-size:25px;line-height:1.3;color:#252a27'>{html.escape(config['title'])}</h1>
+              <p style='margin:0 0 8px;color:#174b37;font-size:16px;font-weight:800'>Halo {html.escape(name)},</p>
+              <p style='margin:0 0 26px;color:#42524a;font-size:15px;line-height:1.6'>{html.escape(message)}</p>
+              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#f8faf9' style='width:100%;border:1px solid #dfe5e2;border-collapse:separate;border-spacing:0;background-color:#f8faf9;border-radius:9px;overflow:hidden'>{rows_html}</table>
+              <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' style='margin-top:26px'><tr><td align='center' bgcolor='{config['accent']}' style='background-color:{config['accent']};border-radius:8px'><a href='{login_url}' style='display:block;padding:14px 20px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:800'>Login Ke Sistem</a></td></tr></table>
             </td></tr>
             <tr><td align='center' bgcolor='#f8faf9' style='padding:24px 30px;background-color:#f8faf9;color:#9da8b5;font-size:11px;text-align:center'>This is an automated email from GASS. Please do not reply to this email.</td></tr>
           </table>
@@ -3274,7 +3411,7 @@ async def update_manager_user_status(
 async def list_fnb_bookings(
     manager: dict = Depends(require_fnb_manager),
     fnb_status: Optional[Literal["pending", "approved", "rejected", "cancelled", "not_required"]] = None,
-    booking_status: Optional[Literal["pending", "confirmed", "cancelled", "completed"]] = None,
+    booking_status: Optional[Literal["pending", "confirmed", "in_progress", "cancelled", "completed"]] = None,
     building: Optional[str] = None,
     date: Optional[str] = None,
     user_query: Optional[str] = None,
@@ -3484,6 +3621,138 @@ def _booking_window(bk: dict) -> tuple[datetime, datetime]:
     return start, end
 
 
+MEETING_NOTIFICATION_FIELDS = {
+    "booking_confirmation": "booking_confirmation_email_sent_at",
+    "check_in_reminder": "check_in_reminder_email_sent_at",
+    "check_out_reminder": "check_out_reminder_email_sent_at",
+    "completed": "completion_email_sent_at",
+}
+
+
+def _notification_claim_is_stale(value: Optional[str], now_utc: Optional[datetime] = None) -> bool:
+    if not isinstance(value, str) or not value.startswith("sending:"):
+        return False
+    try:
+        claimed_at = datetime.fromisoformat(value.removeprefix("sending:"))
+    except ValueError:
+        return True
+    if claimed_at.tzinfo is None:
+        claimed_at = claimed_at.replace(tzinfo=timezone.utc)
+    return claimed_at <= (now_utc or datetime.now(timezone.utc)) - timedelta(minutes=5)
+
+
+def _meeting_notification_events(booking: dict, now: Optional[datetime] = None) -> List[str]:
+    now = now or _app_now_naive()
+    start, end = _booking_window(booking)
+    events = []
+
+    def pending(notification_type: str) -> bool:
+        value = booking.get(MEETING_NOTIFICATION_FIELDS[notification_type])
+        return not value or _notification_claim_is_stale(value)
+
+    if booking.get("status") == "confirmed":
+        if pending("booking_confirmation") and start - timedelta(hours=2) <= now < start - timedelta(minutes=10):
+            events.append("booking_confirmation")
+        if pending("check_in_reminder") and not booking.get("checked_in_at") and start - timedelta(minutes=10) <= now < start:
+            events.append("check_in_reminder")
+    if booking.get("status") == "in_progress":
+        if (
+            pending("check_out_reminder")
+            and booking.get("checked_in_at")
+            and not booking.get("checked_out_at")
+            and end - timedelta(minutes=10) <= now < end
+        ):
+            events.append("check_out_reminder")
+    if booking.get("status") == "completed" and pending("completed") and end <= now < end + timedelta(minutes=30):
+        events.append("completed")
+    return events
+
+
+async def _auto_check_out_booking(booking: dict, now: Optional[datetime] = None) -> bool:
+    if booking.get("status") != "in_progress" or not booking.get("checked_in_at") or booking.get("checked_out_at"):
+        return False
+    _start, end = _booking_window(booking)
+    if (now or _app_now_naive()) < end + timedelta(minutes=5):
+        return False
+
+    timestamp = _now_iso()
+    updated = await db.bookings.update_one(
+        {"id": booking["id"], "status": "in_progress", "checked_out_at": booking.get("checked_out_at")},
+        {"$set": {"checked_out_at": timestamp, "auto_checked_out_at": timestamp, "status": "completed"}},
+    )
+    if updated.modified_count != 1:
+        return False
+
+    booking.update({"checked_out_at": timestamp, "auto_checked_out_at": timestamp, "status": "completed"})
+    await _deliver_meeting_notification(booking, "completed")
+    logger.info("Auto checked out meeting booking %s", booking.get("booking_number") or booking.get("id"))
+    return True
+
+
+async def _deliver_meeting_notification(booking: dict, notification_type: str) -> bool:
+    field = MEETING_NOTIFICATION_FIELDS[notification_type]
+    current_value = booking.get(field)
+    if current_value and not _notification_claim_is_stale(current_value):
+        return False
+    claim = f"sending:{_now_iso()}"
+    claimed = await db.bookings.update_one(
+        {"id": booking["id"], field: current_value},
+        {"$set": {field: claim}},
+    )
+    if claimed.modified_count != 1:
+        return False
+    try:
+        sent = await asyncio.to_thread(_send_meeting_lifecycle_email, booking, notification_type)
+    except Exception:
+        logger.exception(
+            "Unexpected error while sending meeting %s email for booking %s",
+            notification_type,
+            booking.get("id"),
+        )
+        sent = False
+    await db.bookings.update_one(
+        {"id": booking["id"], field: claim},
+        {"$set": {field: _now_iso() if sent else None}},
+    )
+    if not sent:
+        logger.warning("Meeting %s email could not be sent for booking %s", notification_type, booking.get("id"))
+    return sent
+
+
+async def process_meeting_reminders(now: Optional[datetime] = None) -> int:
+    if not MEETING_REMINDERS_ENABLED:
+        return 0
+    processed = 0
+    bookings = await db.bookings.find(
+        {"status": {"$in": ["confirmed", "in_progress", "completed"]}},
+        {"_id": 0},
+    ).to_list(2000)
+    for booking in bookings:
+        try:
+            events = _meeting_notification_events(booking, now=now)
+        except (KeyError, TypeError, ValueError):
+            logger.warning("Skipping reminder for booking %s with invalid schedule", booking.get("id"))
+            continue
+        for notification_type in events:
+            if await _deliver_meeting_notification(booking, notification_type):
+                processed += 1
+        await _auto_check_out_booking(booking, now=now)
+    return processed
+
+
+async def _meeting_reminder_loop() -> None:
+    while True:
+        try:
+            sent = await process_meeting_reminders()
+            if sent:
+                logger.info("Sent %s meeting lifecycle email(s)", sent)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Meeting reminder scan failed")
+        await asyncio.sleep(MEETING_REMINDER_SCAN_SECONDS)
+
+
 @api.post("/bookings/{booking_id}/check-in", response_model=Booking)
 async def check_in_booking(booking_id: str, user: dict = Depends(get_current_user)):
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
@@ -3511,8 +3780,14 @@ async def check_in_booking(booking_id: str, user: dict = Depends(get_current_use
             detail=f"Too late to check in. This booking ended at {bk['date']} {bk['end_time']}.",
         )
     ts = datetime.now(timezone.utc).isoformat()
-    await db.bookings.update_one({"id": booking_id}, {"$set": {"checked_in_at": ts}})
+    result = await db.bookings.update_one(
+        {"id": booking_id, "status": "confirmed", "checked_in_at": bk.get("checked_in_at")},
+        {"$set": {"checked_in_at": ts, "status": "in_progress"}},
+    )
+    if result.modified_count != 1:
+        raise HTTPException(status_code=409, detail="Booking check-in state changed. Please refresh and try again")
     bk["checked_in_at"] = ts
+    bk["status"] = "in_progress"
     return Booking(**bk)
 
 
@@ -3527,17 +3802,26 @@ async def check_out_booking(booking_id: str, user: dict = Depends(get_current_us
         raise HTTPException(status_code=400, detail="You must check in before you can check out")
     if bk.get("checked_out_at"):
         raise HTTPException(status_code=400, detail="You have already checked out of this booking")
+    if bk.get("status") not in ("confirmed", "in_progress"):
+        raise HTTPException(status_code=400, detail=f"Cannot check out a {bk.get('status')} booking")
     start, _end = _booking_window(bk)
     now = _app_now_naive()
     if now < start:
         raise HTTPException(status_code=400, detail="Cannot check out before the booking has started")
     ts = datetime.now(timezone.utc).isoformat()
-    await db.bookings.update_one(
-        {"id": booking_id},
+    result = await db.bookings.update_one(
+        {"id": booking_id, "status": bk.get("status"), "checked_out_at": bk.get("checked_out_at")},
         {"$set": {"checked_out_at": ts, "status": "completed"}},
     )
+    if result.modified_count != 1:
+        raise HTTPException(status_code=409, detail="Booking check-out state changed. Please refresh and try again")
     bk["checked_out_at"] = ts
     bk["status"] = "completed"
+    await _deliver_meeting_notification(bk, "completed")
+    refreshed = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if refreshed:
+        bk = refreshed
+        await _normalize_booking_public(bk)
     return Booking(**bk)
 
 
@@ -3825,8 +4109,8 @@ async def admin_stats(admin: dict = Depends(require_any_admin)):
     total_rooms = await db.rooms.count_documents(room_query)
     active_rooms = await db.rooms.count_documents({**room_query, "is_active": True})
     pending = await db.bookings.count_documents({**booking_scope, "status": "pending"})
-    confirmed = await db.bookings.count_documents({**booking_scope, "status": "confirmed"})
-    today_bookings = await db.bookings.count_documents({**booking_scope, "date": today, "status": {"$in": ["pending", "confirmed"]}})
+    confirmed = await db.bookings.count_documents({**booking_scope, "status": {"$in": ["confirmed", "in_progress"]}})
+    today_bookings = await db.bookings.count_documents({**booking_scope, "date": today, "status": {"$in": ["pending", "confirmed", "in_progress"]}})
     total_users = await db.users.count_documents({"role": "user"})
     return {
         "total_rooms": total_rooms,
@@ -4218,7 +4502,7 @@ async def migrate_legacy_roles():
     if res.modified_count:
         logger.info(f"Marked {res.modified_count} legacy meeting bookings as supervisor-approved")
     res = await db.bookings.update_many(
-        {"meeting_admin_approval_status": {"$exists": False}, "status": {"$in": ["confirmed", "completed"]}},
+        {"meeting_admin_approval_status": {"$exists": False}, "status": {"$in": ["confirmed", "in_progress", "completed"]}},
         {"$set": {"meeting_admin_approval_status": "approved"}},
     )
     if res.modified_count:
@@ -5025,6 +5309,7 @@ async def seed_fleet():
 
 @app.on_event("startup")
 async def on_startup():
+    global _meeting_reminder_task
     await db.users.create_index("email", unique=True)
     await db.companies.create_index("company_code", unique=True)
     await db.companies.create_index("system_number", unique=True)
@@ -5052,10 +5337,25 @@ async def on_startup():
     await seed_positions()
     await seed_rooms()
     await seed_fleet()
+    if MEETING_REMINDERS_ENABLED:
+        _meeting_reminder_task = asyncio.create_task(_meeting_reminder_loop())
+        logger.info(
+            "Meeting reminder scheduler started (timezone=%s, interval=%ss)",
+            APP_TIMEZONE,
+            MEETING_REMINDER_SCAN_SECONDS,
+        )
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
+    global _meeting_reminder_task
+    if _meeting_reminder_task:
+        _meeting_reminder_task.cancel()
+        try:
+            await _meeting_reminder_task
+        except asyncio.CancelledError:
+            pass
+        _meeting_reminder_task = None
     db.close()
 
 

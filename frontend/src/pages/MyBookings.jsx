@@ -18,7 +18,8 @@ import { vehicleServiceLabel } from "../utils/carBookingRules";
 
 function fmtTime(iso) {
   if (!iso) return null;
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString("id-ID", {
+    timeZone: "Asia/Jakarta",
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -26,13 +27,17 @@ function fmtTime(iso) {
   });
 }
 
+function jakartaScheduleTime(date, time) {
+  return new Date(`${date}T${time}:00+07:00`);
+}
+
 // Meeting-room check-in window logic
 function meetingCheckState(b, now = new Date()) {
   if (b.status !== "confirmed" && !b.checked_in_at) {
     return { canIn: false, canOut: false, reason: null };
   }
-  const start = new Date(`${b.date}T${b.start_time}`);
-  const end = new Date(`${b.date}T${b.end_time}`);
+  const start = jakartaScheduleTime(b.date, b.start_time);
+  const end = jakartaScheduleTime(b.date, b.end_time);
   if (b.checked_out_at) return { canIn: false, canOut: false, reason: "Checked out" };
   if (b.checked_in_at) return { canIn: false, canOut: true, reason: null };
   if (now < start) return { canIn: false, canOut: false, reason: `Check-in opens at ${b.start_time}` };
@@ -46,7 +51,7 @@ function meetingCancelState(b, now = new Date()) {
     return { canCancel: false, reason: "Check out to release this room" };
   }
   if (b.checked_in_at) return { canCancel: false, reason: null };
-  const start = new Date(`${b.date}T${b.start_time}`);
+  const start = jakartaScheduleTime(b.date, b.start_time);
   if (now >= start) return { canCancel: false, reason: "Meeting has already started" };
   return { canCancel: true, reason: null };
 }
@@ -447,7 +452,9 @@ export default function MyBookings() {
                             <div>
                               <div className="font-medium text-emerald-700">In: {fmtTime(b.checked_in_at)}</div>
                               {b.checked_out_at ? (
-                                <div className="font-medium text-blue-700">Out: {fmtTime(b.checked_out_at)}</div>
+                                <div className="font-medium text-blue-700">
+                                  Out: {fmtTime(b.checked_out_at)}{b.auto_checked_out_at ? " (Auto)" : ""}
+                                </div>
                               ) : (
                                 <div className="text-slate-400">In meeting…</div>
                               )}
@@ -618,7 +625,9 @@ export default function MyBookings() {
                       <div className="mt-2 text-xs">
                         <div className="font-medium text-emerald-700">In: {fmtTime(b.checked_in_at)}</div>
                         {b.checked_out_at ? (
-                          <div className="font-medium text-blue-700">Out: {fmtTime(b.checked_out_at)}</div>
+                          <div className="font-medium text-blue-700">
+                            Out: {fmtTime(b.checked_out_at)}{b.auto_checked_out_at ? " (Auto)" : ""}
+                          </div>
                         ) : (
                           <div className="text-slate-400">In meeting…</div>
                         )}

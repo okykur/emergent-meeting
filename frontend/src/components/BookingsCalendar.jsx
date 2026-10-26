@@ -46,6 +46,7 @@ const STATUS_DOT = {
   // meeting
   pending: "bg-amber-400",
   confirmed: "bg-emerald-500",
+  in_progress: "bg-cyan-500",
   cancelled: "bg-red-400",
   completed: "bg-blue-500",
   // vehicle (extra)

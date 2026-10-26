@@ -2,6 +2,7 @@ export function StatusPill({ status }) {
   const map = {
     pending: { label: "Pending", color: "text-amber-700", bg: "bg-amber-100" },
     confirmed: { label: "Confirmed", color: "text-emerald-700", bg: "bg-emerald-100" },
+    in_progress: { label: "In Progress", color: "text-cyan-800", bg: "bg-cyan-100" },
     cancelled: { label: "Cancelled", color: "text-red-700", bg: "bg-red-100" },
     completed: { label: "Completed", color: "text-blue-700", bg: "bg-blue-100" },
   };
@@ -30,4 +31,4 @@ export function ActiveTag({ active }) {
   );
 }
 
-export const STATUSES = ["pending", "confirmed", "cancelled", "completed"];
+export const STATUSES = ["pending", "confirmed", "in_progress", "cancelled", "completed"];
