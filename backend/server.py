@@ -30,6 +30,7 @@ from fastapi.security import HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from postgres_compat import DuplicateKeyError, PostgresDatabase, ReturnDocument
+from whatsapp_gateway import send_whatsapp_text
 
 
 # ---------- Config ----------
@@ -2034,6 +2035,139 @@ def _send_booking_rejection_email(booking: dict, reason: str, rejection_type: st
         return False
 
 
+def _meeting_whatsapp_details(booking: dict) -> List[str]:
+    accommodation = _meeting_accommodation_summary(booking)
+    if accommodation == "No accommodation requested":
+        accommodation = "Tidak ada akomodasi"
+    return [
+        f"Booking ID: {booking.get('booking_number') or booking.get('id') or '-'}",
+        f"Judul Rapat: {booking.get('title') or '-'}",
+        f"Tanggal & Waktu: {_meeting_confirmation_date(booking)}",
+        f"Lokasi: {booking.get('room_name') or '-'}, {booking.get('room_building') or 'Belum ditentukan'}",
+        f"Peserta: {_meeting_participants_summary(booking)}",
+        f"Akomodasi: {accommodation}",
+    ]
+
+
+def _send_meeting_whatsapp(
+    booking: dict,
+    event: str,
+    title: str,
+    message: str,
+    *,
+    extra_lines: Optional[List[str]] = None,
+    idempotency_key: Optional[str] = None,
+) -> bool:
+    reference_id = booking.get("booking_number") or booking.get("id") or "unknown"
+    name = (booking.get("user_name") or "User").strip()
+    text = "\n".join(
+        [
+            "*GASS*",
+            "General Affair Services System",
+            "",
+            f"*{title}*",
+            "",
+            f"Halo {name},",
+            message,
+            "",
+            *_meeting_whatsapp_details(booking),
+            *(extra_lines or []),
+            "",
+            f"Buka GASS: {APP_PUBLIC_URL}/login",
+            "",
+            "Pesan otomatis dari GASS. Mohon tidak membalas pesan ini.",
+        ]
+    )
+    result = send_whatsapp_text(
+        booking.get("phone_number") or "",
+        text,
+        reference_id,
+        event,
+        idempotency_key=idempotency_key,
+    )
+    if not result.accepted and not result.skipped:
+        logger.warning(
+            "WhatsApp notification %s failed for booking %s with code %s",
+            event,
+            booking.get("id"),
+            result.error_code or "unknown",
+        )
+    return result.accepted
+
+
+def _send_booking_approval_whatsapp(booking: dict) -> bool:
+    return _send_meeting_whatsapp(
+        booking,
+        "meeting-approved",
+        "Peminjaman Ruangan Disetujui",
+        "Pengajuan peminjaman ruangan Anda telah disetujui.",
+    )
+
+
+def _send_booking_rejection_whatsapp(booking: dict, reason: str, rejection_type: str) -> bool:
+    label = "akomodasi" if rejection_type == "fnb" else "peminjaman ruangan"
+    return _send_meeting_whatsapp(
+        booking,
+        f"{rejection_type}-rejected",
+        "Pengajuan Peminjaman Ditolak",
+        f"Pengajuan {label} Anda belum dapat disetujui.",
+        extra_lines=[f"Alasan ditolak: {reason}"],
+    )
+
+
+def _send_booking_room_reassignment_whatsapp(booking: dict, previous_room: dict) -> bool:
+    previous_room_name = (previous_room.get("name") or "-").strip()
+    new_room_name = (booking.get("room_name") or "-").strip()
+    version = booking.get("room_reassigned_at") or booking.get("updated_at") or "current"
+    reference_id = booking.get("booking_number") or booking.get("id") or "unknown"
+    return _send_meeting_whatsapp(
+        booking,
+        "room-reassigned",
+        "Perubahan Ruangan",
+        f"Ruangan rapat Anda dipindahkan dari {previous_room_name} ke {new_room_name}.",
+        idempotency_key=f"gass:{reference_id}:room-reassigned:{version}",
+    )
+
+
+def _send_meeting_lifecycle_whatsapp(booking: dict, notification_type: str) -> bool:
+    config = MEETING_NOTIFICATION_CONFIG.get(notification_type)
+    if not config:
+        return False
+    message = config["message"]
+    if notification_type == "completed" and booking.get("auto_checked_out_at"):
+        message = "Sistem telah melakukan check out otomatis lima menit setelah jadwal berakhir. Peminjaman ruangan Anda dinyatakan selesai."
+    return _send_meeting_whatsapp(
+        booking,
+        notification_type.replace("_", "-"),
+        config["title"],
+        message,
+    )
+
+
+def _send_booking_approval_notifications(booking: dict) -> bool:
+    email_sent = _send_booking_approval_email(booking)
+    _send_booking_approval_whatsapp(booking)
+    return email_sent
+
+
+def _send_booking_rejection_notifications(booking: dict, reason: str, rejection_type: str) -> bool:
+    email_sent = _send_booking_rejection_email(booking, reason, rejection_type)
+    _send_booking_rejection_whatsapp(booking, reason, rejection_type)
+    return email_sent
+
+
+def _send_booking_room_reassignment_notifications(booking: dict, previous_room: dict) -> bool:
+    email_sent = _send_booking_room_reassignment_email(booking, previous_room)
+    _send_booking_room_reassignment_whatsapp(booking, previous_room)
+    return email_sent
+
+
+def _send_meeting_lifecycle_notifications(booking: dict, notification_type: str) -> bool:
+    email_sent = _send_meeting_lifecycle_email(booking, notification_type)
+    _send_meeting_lifecycle_whatsapp(booking, notification_type)
+    return email_sent
+
+
 def _approval_result_page(title: str, message: str, success: bool) -> str:
     accent = "#0b7a4b" if success else "#b91c1c"
     return f"""<!doctype html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'></head>
@@ -2196,13 +2330,13 @@ async def decide_meeting_supervisor_approval(
         else:
             updated = await db.bookings.find_one({"id": booking["id"]}, {"_id": 0})
             await _normalize_booking_public(updated)
-            if not _send_booking_approval_email(updated):
+            if not _send_booking_approval_notifications(updated):
                 logger.warning("Meeting approval saved, but confirmation email was not sent for booking %s", booking["id"])
         return HTMLResponse(
             _approval_result_page("Meeting approved", "Your approval has been recorded. GASS will continue the selected approval process.", True)
         )
     rejected = await db.bookings.find_one({"id": booking["id"]}, {"_id": 0})
-    if not _send_booking_rejection_email(rejected, rejection_reason, "meeting"):
+    if not _send_booking_rejection_notifications(rejected, rejection_reason, "meeting"):
         logger.warning("Manager User rejection saved, but notification email was not sent for booking %s", booking["id"])
     return HTMLResponse(
         _approval_result_page("Meeting rejected", "Your rejection has been recorded and the meeting room request has been cancelled.", True)
@@ -3124,7 +3258,7 @@ async def decide_meeting_admin_approval(
             raise HTTPException(status_code=409, detail="This booking was already processed")
         rejected = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
         await _normalize_booking_public(rejected)
-        if not _send_booking_rejection_email(rejected, reason, "meeting"):
+        if not _send_booking_rejection_notifications(rejected, reason, "meeting"):
             logger.warning("Meeting rejection saved, but notification email was not sent for booking %s", booking_id)
         return Booking(**rejected)
 
@@ -3190,7 +3324,7 @@ async def decide_meeting_admin_approval(
     await _normalize_booking_public(approved)
     if require_manager_ga and not require_manager_user:
         _send_manager_ga_approval_notifications(approved, manager_ga_recipients)
-    if final_after_admin and not _send_booking_approval_email(approved):
+    if final_after_admin and not _send_booking_approval_notifications(approved):
         logger.warning("Meeting approval saved, but confirmation email was not sent for booking %s", booking_id)
     return Booking(**approved)
 
@@ -3294,7 +3428,7 @@ async def reassign_booking_room(
     if needs_new_manager_ga_notification:
         recipients = await _manager_ga_recipients(reassigned["room_building"])
         _send_manager_ga_approval_notifications(reassigned, recipients)
-    if not _send_booking_room_reassignment_email(reassigned, current_room):
+    if not _send_booking_room_reassignment_notifications(reassigned, current_room):
         logger.warning("Room reassignment saved, but user notification email was not sent for booking %s", booking_id)
     return Booking(**reassigned)
 
@@ -3400,9 +3534,9 @@ async def update_manager_user_status(
         if updated.get("approval_require_manager_ga"):
             recipients = await _manager_ga_recipients(updated["room_building"])
             _send_manager_ga_approval_notifications(updated, recipients)
-        elif not _send_booking_approval_email(updated):
+        elif not _send_booking_approval_notifications(updated):
             logger.warning("Meeting approval saved, but confirmation email was not sent for booking %s", booking_id)
-    elif not _send_booking_rejection_email(updated, rejection_reason, "meeting"):
+    elif not _send_booking_rejection_notifications(updated, rejection_reason, "meeting"):
         logger.warning("Manager User rejection saved, but notification email was not sent for booking %s", booking_id)
     return Booking(**updated)
 
@@ -3533,9 +3667,9 @@ async def update_fnb_status(
         raise HTTPException(status_code=409, detail="This booking was already processed")
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     await _normalize_booking_public(bk)
-    if payload.status == "rejected" and not _send_booking_rejection_email(bk, rejection_reason, "fnb"):
+    if payload.status == "rejected" and not _send_booking_rejection_notifications(bk, rejection_reason, "fnb"):
         logger.warning("F&B rejection saved, but notification email was not sent for booking %s", booking_id)
-    if payload.status == "approved" and not _send_booking_approval_email(bk):
+    if payload.status == "approved" and not _send_booking_approval_notifications(bk):
         logger.warning("Meeting approval saved, but confirmation email was not sent for booking %s", booking_id)
     return Booking(**bk)
 
@@ -3702,7 +3836,7 @@ async def _deliver_meeting_notification(booking: dict, notification_type: str) -
     if claimed.modified_count != 1:
         return False
     try:
-        sent = await asyncio.to_thread(_send_meeting_lifecycle_email, booking, notification_type)
+        sent = await asyncio.to_thread(_send_meeting_lifecycle_notifications, booking, notification_type)
     except Exception:
         logger.exception(
             "Unexpected error while sending meeting %s email for booking %s",

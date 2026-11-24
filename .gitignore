@@ -3,6 +3,7 @@
 # IDE and editors
 .idea/
 .vscode/
+.claude/settings.local.json
 
 # Dependencies
 node_modules/
